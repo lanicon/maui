@@ -15,7 +15,7 @@ namespace Microsoft.Maui.Handlers
 
 			editText.SetSingleLine(false);
 			editText.Gravity = GravityFlags.Top;
-			editText.TextAlignment = global::Android.Views.TextAlignment.ViewStart;
+			editText.TextAlignment = Android.Views.TextAlignment.ViewStart;
 			editText.SetHorizontallyScrolling(false);
 
 			return editText;
