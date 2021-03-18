@@ -40,11 +40,31 @@ namespace Microsoft.Maui.DeviceTests
 				{
 					var n = GetNativeText(h);
 					if (string.IsNullOrEmpty(n))
-						n = null; // native platforms may not upport null text
+						n = null; // Native platforms may not support null text
 					return n;
 				},
 				setValue,
 				unsetValue);
+		}
+
+		[Theory(DisplayName = "MaxLength Initializes Correctly")]
+		[InlineData(2)]
+		[InlineData(5)]
+		[InlineData(8)]
+		[InlineData(10)]
+		public async Task MaxLengthInitializesCorrectly(int maxLength)
+		{
+			string text = "Lorem ipsum dolor sit amet";
+
+			var editor = new EditorStub()
+			{
+				MaxLength = maxLength,
+				Text = text
+			};
+
+			var expected = text.Substring(0, maxLength);
+
+			await ValidatePropertyInitValue(editor, () => editor.Text, GetNativeText, expected);
 		}
 	}
 }

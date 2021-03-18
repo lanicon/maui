@@ -358,6 +358,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				TextView.TextColor = textColor.ToUIColor();
 		}
 
+		[PortHandler]
 		void UpdateMaxLength()
 		{
 			var currentControlText = TextView.Text;

@@ -25,5 +25,10 @@ namespace Microsoft.Maui.Handlers
 		{
 			handler.TypedNativeView?.UpdateText(editor);
 		}
+
+		public static void MapMaxLength(EditorHandler handler, IEditor editor)
+		{
+			handler.TypedNativeView?.UpdateMaxLength(editor);
+		}
 	}
 }
