@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net6.0-ios;net6.0-android;net6.0-windows10.0.19041.0</TargetFrameworks>
+    <TargetFrameworks>net6.0-ios;net6.0-android</TargetFrameworks>
     <TargetFrameworks Condition=" '$(OS)' != 'Windows_NT'">$(TargetFrameworks);net6.0-maccatalyst</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OS)' == 'Windows_NT'">$(TargetFrameworks);net6.0-windows10.0.19041.0</TargetFrameworks>
     <RootNamespace>Microsoft.Maui.Controls.Compatibility</RootNamespace>
     <AssemblyName>Microsoft.Maui.Controls.Compatibility</AssemblyName>
     <Nullable>disable</Nullable>
