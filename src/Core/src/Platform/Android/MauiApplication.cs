@@ -11,6 +11,7 @@ namespace Microsoft.Maui
 		{
 
 		}
+
 		IHost? _host;
 		public override void OnCreate()
 		{
