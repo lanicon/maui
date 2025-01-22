@@ -1,7 +1,5 @@
-using System;
-using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+﻿using System;
+using Microsoft.Maui.Graphics;
 
 namespace Samples.ViewModel
 {
@@ -20,51 +18,31 @@ namespace Samples.ViewModel
 		public int Alpha
 		{
 			get => alpha;
-			set
-			{
-				SetProperty(ref alpha, value);
-				SetColor();
-			}
+			set => SetProperty(ref alpha, value, onChanged: SetColor);
 		}
 
 		public int Luminosity
 		{
 			get => luminosity;
-			set
-			{
-				SetProperty(ref luminosity, value);
-				SetColor();
-			}
+			set => SetProperty(ref luminosity, value, onChanged: SetColor);
 		}
 
 		public int Hue
 		{
 			get => hue;
-			set
-			{
-				SetProperty(ref hue, value);
-				SetColor();
-			}
+			set => SetProperty(ref hue, value, onChanged: SetColor);
 		}
 
 		public int Saturation
 		{
 			get => saturation;
-			set
-			{
-				SetProperty(ref saturation, value);
-				SetColor();
-			}
+			set => SetProperty(ref saturation, value, onChanged: SetColor);
 		}
 
 		public string Hex
 		{
 			get => hex;
-			set
-			{
-				SetProperty(ref hex, value);
-				SetColor();
-			}
+			set => SetProperty(ref hex, value, onChanged: SetColor);
 		}
 
 		public Color RegularColor { get; set; }
@@ -79,26 +57,33 @@ namespace Samples.ViewModel
 
 		public Color LuminosityColor { get; set; }
 
-		void SetColor()
+		public string ComplementHex { get; set; }
+
+		async void SetColor()
 		{
 			try
 			{
-				var color = ColorConverters.FromHex(Hex);
+				var color = Color.FromArgb(Hex);
+
 				RegularColor = color;
-				AlphaColor = color.WithAlpha(Alpha);
-				SaturationColor = color.WithSaturation(Saturation);
-				HueColor = color.WithHue(Hue);
-				LuminosityColor = color.WithLuminosity(Luminosity);
+				AlphaColor = color.WithAlpha(Alpha / 255f);
+				SaturationColor = color.WithSaturation(Saturation / 100f);
+				HueColor = color.WithHue(Hue / 255f);
+				LuminosityColor = color.WithLuminosity(Luminosity / 100f);
 				ComplementColor = color.GetComplementary();
+				ComplementHex = ComplementColor.ToHex();
+
 				OnPropertyChanged(nameof(RegularColor));
 				OnPropertyChanged(nameof(AlphaColor));
 				OnPropertyChanged(nameof(SaturationColor));
 				OnPropertyChanged(nameof(HueColor));
 				OnPropertyChanged(nameof(ComplementColor));
 				OnPropertyChanged(nameof(LuminosityColor));
+				OnPropertyChanged(nameof(ComplementHex));
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
+				await DisplayAlertAsync($"Unable to convert colors: {ex.Message}");
 			}
 		}
 	}

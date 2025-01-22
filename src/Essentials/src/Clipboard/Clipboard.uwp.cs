@@ -1,38 +1,44 @@
+#nullable enable
 using System;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 
 using WindowsClipboard = Windows.ApplicationModel.DataTransfer.Clipboard;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.ApplicationModel.DataTransfer
 {
-    public static partial class Clipboard
-    {
-        static Task PlatformSetTextAsync(string text)
-        {
-            var dataPackage = new DataPackage();
-            dataPackage.SetText(text);
-            WindowsClipboard.SetContent(dataPackage);
-            return Task.CompletedTask;
-        }
+	partial class ClipboardImplementation : IClipboard
+	{
+		public Task SetTextAsync(string? text)
+		{
+			var dataPackage = new DataPackage();
+			dataPackage.SetText(text);
+			WindowsClipboard.SetContent(dataPackage);
+			return Task.CompletedTask;
+		}
 
-        static bool PlatformHasText
-            => WindowsClipboard.GetContent().Contains(StandardDataFormats.Text);
+		public bool HasText
+			=> WindowsClipboard.GetContent().Contains(StandardDataFormats.Text);
 
-        static Task<string> PlatformGetTextAsync()
-        {
-            var clipboardContent = WindowsClipboard.GetContent();
-            return clipboardContent.Contains(StandardDataFormats.Text)
-                ? clipboardContent.GetTextAsync().AsTask()
-                : Task.FromResult<string>(null);
-        }
+		public Task<string?> GetTextAsync()
+		{
+			var clipboardContent = WindowsClipboard.GetContent();
+			return clipboardContent.Contains(StandardDataFormats.Text)
+				? clipboardContent.GetTextAsync().AsTask()
+				: Task.FromResult<string?>(null);
+		}
 
-        static void StartClipboardListeners()
-            => WindowsClipboard.ContentChanged += ClipboardChangedEventListener;
+		void StartClipboardListeners()
+			=> WindowsClipboard.ContentChanged += ClipboardChangedEventListener;
 
-        static void StopClipboardListeners()
-            => WindowsClipboard.ContentChanged -= ClipboardChangedEventListener;
+		void StopClipboardListeners()
+			=> WindowsClipboard.ContentChanged -= ClipboardChangedEventListener;
 
-        static void ClipboardChangedEventListener(object sender, object val) => ClipboardChangedInternal();
-    }
+		/// <summary>
+		/// The event listener for triggering the <see cref="ClipboardContentChanged"/> event.
+		/// </summary>
+		/// <param name="sender">The object that initiated the event.</param>
+		/// <param name="val">The value for this event.</param>
+		public void ClipboardChangedEventListener(object? sender, object val) => OnClipboardContentChanged();
+	}
 }

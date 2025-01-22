@@ -1,68 +1,162 @@
+#nullable enable
 using System;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Devices
 {
-	public static partial class DeviceDisplay
+	/// <summary>
+	/// Represents information about the device screen.
+	/// </summary>
+	public interface IDeviceDisplay
 	{
-		static event EventHandler<DisplayInfoChangedEventArgs> MainDisplayInfoChangedInternal;
+		/// <summary>
+		/// Gets or sets if the screen should be kept on.
+		/// </summary>
+		bool KeepScreenOn { get; set; }
 
-		static DisplayInfo currentMetrics;
+		/// <summary>
+		/// Gets the main screen's display info.
+		/// </summary>
+		DisplayInfo MainDisplayInfo { get; }
 
+		/// <summary>
+		/// Occurs when the main display's info changes.
+		/// </summary>
+		event EventHandler<DisplayInfoChangedEventArgs> MainDisplayInfoChanged;
+	}
+
+	/// <summary>
+	/// Main display information event arguments.
+	/// </summary>
+	public class DisplayInfoChangedEventArgs : EventArgs
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="DisplayInfoChangedEventArgs"/> class.
+		/// </summary>
+		/// <param name="displayInfo">The display info associated to this event.</param>
+		public DisplayInfoChangedEventArgs(DisplayInfo displayInfo) =>
+			DisplayInfo = displayInfo;
+
+		/// <summary>
+		/// Gets the current display info for the main display associated to this event.
+		/// </summary>
+		public DisplayInfo DisplayInfo { get; }
+	}
+
+	/// <summary>
+	/// Represents information about the device screen.
+	/// </summary>
+	public static class DeviceDisplay
+	{
+		/// <summary>
+		/// Gets or sets if the screen should be kept on.
+		/// </summary>
 		public static bool KeepScreenOn
 		{
-			get => PlatformKeepScreenOn;
-			set => PlatformKeepScreenOn = value;
+			get => Current.KeepScreenOn;
+			set => Current.KeepScreenOn = value;
 		}
 
-		public static DisplayInfo MainDisplayInfo => GetMainDisplayInfo();
+		/// <summary>
+		/// Gets the main screen's display info.
+		/// </summary>
+		public static DisplayInfo MainDisplayInfo => Current.MainDisplayInfo;
 
-		static void SetCurrent(DisplayInfo metrics) =>
-			currentMetrics = new DisplayInfo(metrics.Width, metrics.Height, metrics.Density, metrics.Orientation, metrics.Rotation, metrics.RefreshRate);
-
+		/// <summary>
+		/// Occurs when the main display's info changes.
+		/// </summary>
 		public static event EventHandler<DisplayInfoChangedEventArgs> MainDisplayInfoChanged
+		{
+			add => Current.MainDisplayInfoChanged += value;
+			remove => Current.MainDisplayInfoChanged -= value;
+		}
+
+#if WINDOWS
+		internal const float BaseLogicalDpi = 96.0f;
+#elif ANDROID || TIZEN
+		internal const float BaseLogicalDpi = 160.0f;
+#endif
+
+		static IDeviceDisplay? currentImplementation;
+
+		/// <summary>
+		/// Provides the default implementation for static usage of this API.
+		/// </summary>
+		public static IDeviceDisplay Current =>
+			currentImplementation ??= new DeviceDisplayImplementation();
+
+		internal static void SetCurrent(IDeviceDisplay? implementation) =>
+			currentImplementation = implementation;
+	}
+
+	sealed partial class DeviceDisplayImplementation : DeviceDisplayImplementationBase
+	{
+	}
+
+	abstract class DeviceDisplayImplementationBase : IDeviceDisplay
+	{
+		event EventHandler<DisplayInfoChangedEventArgs>? MainDisplayInfoChangedInternal;
+
+		DisplayInfo _currentMetrics;
+
+		public DisplayInfo MainDisplayInfo => GetMainDisplayInfo();
+
+		public bool KeepScreenOn
+		{
+			get => GetKeepScreenOn();
+			set => SetKeepScreenOn(value);
+		}
+
+		public event EventHandler<DisplayInfoChangedEventArgs> MainDisplayInfoChanged
 		{
 			add
 			{
-				var wasRunning = MainDisplayInfoChangedInternal != null;
-
-				MainDisplayInfoChangedInternal += value;
-
-				if (!wasRunning && MainDisplayInfoChangedInternal != null)
+				if (MainDisplayInfoChangedInternal is null)
 				{
-					SetCurrent(GetMainDisplayInfo());
+					SetCurrent(MainDisplayInfo);
 					StartScreenMetricsListeners();
 				}
+				MainDisplayInfoChangedInternal += value;
 			}
-
 			remove
 			{
-				var wasRunning = MainDisplayInfoChangedInternal != null;
-
+				var wasStopped = MainDisplayInfoChangedInternal is null;
 				MainDisplayInfoChangedInternal -= value;
-
-				if (wasRunning && MainDisplayInfoChangedInternal == null)
+				if (!wasStopped && MainDisplayInfoChangedInternal is null)
 					StopScreenMetricsListeners();
 			}
 		}
 
-		static void OnMainDisplayInfoChanged(DisplayInfo metrics)
-			=> OnMainDisplayInfoChanged(new DisplayInfoChangedEventArgs(metrics));
+		void SetCurrent(DisplayInfo metrics) =>
+			_currentMetrics = new DisplayInfo(
+				metrics.Width, metrics.Height,
+				metrics.Density,
+				metrics.Orientation,
+				metrics.Rotation,
+				metrics.RefreshRate);
 
-		static void OnMainDisplayInfoChanged(DisplayInfoChangedEventArgs e)
+		protected void OnMainDisplayInfoChanged(DisplayInfoChangedEventArgs e)
 		{
-			if (!currentMetrics.Equals(e.DisplayInfo))
+			if (!_currentMetrics.Equals(e.DisplayInfo))
 			{
 				SetCurrent(e.DisplayInfo);
 				MainDisplayInfoChangedInternal?.Invoke(null, e);
 			}
 		}
-	}
 
-	public class DisplayInfoChangedEventArgs : EventArgs
-	{
-		public DisplayInfoChangedEventArgs(DisplayInfo displayInfo) =>
-			DisplayInfo = displayInfo;
+		protected void OnMainDisplayInfoChanged()
+		{
+			var metrics = GetMainDisplayInfo();
+			OnMainDisplayInfoChanged(new DisplayInfoChangedEventArgs(metrics));
+		}
 
-		public DisplayInfo DisplayInfo { get; }
+		protected abstract DisplayInfo GetMainDisplayInfo();
+
+		protected abstract bool GetKeepScreenOn();
+
+		protected abstract void SetKeepScreenOn(bool keepScreenOn);
+
+		protected abstract void StartScreenMetricsListeners();
+
+		protected abstract void StopScreenMetricsListeners();
 	}
 }

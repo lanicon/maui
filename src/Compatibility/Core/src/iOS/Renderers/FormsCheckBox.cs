@@ -1,5 +1,7 @@
-using System;
+﻿using System;
 using CoreGraphics;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
@@ -13,13 +15,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		// all these values were chosen to just match the android drawables that are used
 		const float _defaultSize = 18.0f;
 		const float _lineWidth = 2.0f;
-		Color  _tintColor;
+		Color _tintColor;
 		bool _isChecked;
 		bool _isEnabled;
 		float _minimumViewSize;
 		public EventHandler CheckedChanged;
 		bool _disposed;
 
+#pragma warning disable CA1416, CA1422 // TODO: ContentEdgeInsets, AdjustsImageWhenDisabled, AdjustsImageWhenHighlighted unsupported from version 15.0
 		internal float MinimumViewSize
 		{
 			get { return _minimumViewSize; }
@@ -41,6 +44,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			AdjustsImageWhenDisabled = false;
 			AdjustsImageWhenHighlighted = false;
 		}
+#pragma warning restore CA1416, CA1422
 
 		void OnTouchUpInside(object sender, EventArgs e)
 		{
@@ -84,7 +88,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 					return;
 
 				_tintColor = value;
-				CheckBoxTintUIColor = (CheckBoxTintColor.IsDefault ? null : CheckBoxTintColor.ToUIColor());
+				CheckBoxTintUIColor = CheckBoxTintColor?.ToPlatform();
 			}
 		}
 
@@ -123,7 +127,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				bool changed = base.Enabled != value;
 				base.Enabled = value;
 
-				if(changed)
+				if (changed)
 					UpdateDisplay();
 			}
 		}
@@ -132,7 +136,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			// Ideally I would use the static images here but when disabled it always tints them grey
 			// and I don't know how to make it not tint them gray
-			if (!Enabled && CheckBoxTintColor != Color.Default)
+			if (!Enabled && CheckBoxTintColor != null)
 			{
 				if (IsChecked)
 					return CreateCheckBox(CreateCheckMark()).ImageWithRenderingMode(UIImageRenderingMode.AlwaysOriginal);
@@ -234,7 +238,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			_disposed = true;
-			if(disposing)
+			if (disposing)
 				TouchUpInside -= OnTouchUpInside;
 
 			base.Dispose(disposing);

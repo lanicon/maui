@@ -1,13 +1,12 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
 using Android.Views;
+using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Handlers
 {
-	public partial class LayoutHandler : AbstractViewHandler<ILayout, LayoutViewGroup>
+	public partial class LayoutHandler : ViewHandler<ILayout, LayoutViewGroup>
 	{
-		protected override LayoutViewGroup CreateNativeView()
+		protected override LayoutViewGroup CreatePlatformView()
 		{
 			if (VirtualView == null)
 			{
@@ -16,9 +15,11 @@ namespace Microsoft.Maui.Handlers
 
 			var viewGroup = new LayoutViewGroup(Context!)
 			{
-				CrossPlatformMeasure = VirtualView.Measure,
-				CrossPlatformArrange = VirtualView.Arrange
+				CrossPlatformLayout = VirtualView
 			};
+
+			// .NET MAUI layouts should not impose clipping on their children	
+			viewGroup.SetClipChildren(false);
 
 			return viewGroup;
 		}
@@ -27,36 +28,123 @@ namespace Microsoft.Maui.Handlers
 		{
 			base.SetVirtualView(view);
 
-			_ = TypedNativeView ?? throw new InvalidOperationException($"{nameof(TypedNativeView)} should have been set by base class.");
+			_ = PlatformView ?? throw new InvalidOperationException($"{nameof(PlatformView)} should have been set by base class.");
 			_ = VirtualView ?? throw new InvalidOperationException($"{nameof(VirtualView)} should have been set by base class.");
-			_ = MauiApp.Current?.Context ?? throw new InvalidOperationException($"The MauiApp.Current.Context can't be null.");
+			_ = MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
 
-			TypedNativeView.CrossPlatformMeasure = VirtualView.Measure;
-			TypedNativeView.CrossPlatformArrange = VirtualView.Arrange;
+			PlatformView.CrossPlatformLayout = VirtualView;
 
-			foreach (var child in VirtualView.Children)
+			PlatformView.RemoveAllViews();
+
+			foreach (var child in VirtualView.OrderByZIndex())
 			{
-				TypedNativeView.AddView(child.ToNative(MauiApp.Current.Context));
+				PlatformView.AddView(child.ToPlatform(MauiContext));
 			}
 		}
 
 		public void Add(IView child)
 		{
-			_ = TypedNativeView ?? throw new InvalidOperationException($"{nameof(TypedNativeView)} should have been set by base class.");
+			_ = PlatformView ?? throw new InvalidOperationException($"{nameof(PlatformView)} should have been set by base class.");
 			_ = VirtualView ?? throw new InvalidOperationException($"{nameof(VirtualView)} should have been set by base class.");
-			_ = MauiApp.Current?.Context ?? throw new InvalidOperationException($"The MauiApp.Current.Context can't be null.");
+			_ = MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
 
-			TypedNativeView.AddView(child.ToNative(MauiApp.Current.Context!), 0);
+			var targetIndex = VirtualView.GetLayoutHandlerIndex(child);
+			PlatformView.AddView(child.ToPlatform(MauiContext), targetIndex);
 		}
 
 		public void Remove(IView child)
 		{
-			_ = TypedNativeView ?? throw new InvalidOperationException($"{nameof(TypedNativeView)} should have been set by base class.");
+			_ = PlatformView ?? throw new InvalidOperationException($"{nameof(PlatformView)} should have been set by base class.");
 			_ = VirtualView ?? throw new InvalidOperationException($"{nameof(VirtualView)} should have been set by base class.");
 
-			if (child?.Handler?.NativeView is View view)
+			if (child?.ToPlatform() is View view)
 			{
-				TypedNativeView.RemoveView(view);
+				PlatformView.RemoveView(view);
+			}
+		}
+
+		static void Clear(LayoutViewGroup platformView)
+		{
+			if (platformView != null && !platformView.IsDisposed())
+				platformView.RemoveAllViews();
+		}
+
+		public void Clear()
+		{
+			Clear(PlatformView);
+		}
+
+		public void Insert(int index, IView child)
+		{
+			_ = PlatformView ?? throw new InvalidOperationException($"{nameof(PlatformView)} should have been set by base class.");
+			_ = VirtualView ?? throw new InvalidOperationException($"{nameof(VirtualView)} should have been set by base class.");
+			_ = MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
+
+			var targetIndex = VirtualView.GetLayoutHandlerIndex(child);
+			PlatformView.AddView(child.ToPlatform(MauiContext), targetIndex);
+		}
+
+		public void Update(int index, IView child)
+		{
+			_ = PlatformView ?? throw new InvalidOperationException($"{nameof(PlatformView)} should have been set by base class.");
+			_ = VirtualView ?? throw new InvalidOperationException($"{nameof(VirtualView)} should have been set by base class.");
+			_ = MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
+
+			PlatformView.RemoveViewAt(index);
+			var targetIndex = VirtualView.GetLayoutHandlerIndex(child);
+			PlatformView.AddView(child.ToPlatform(MauiContext), targetIndex);
+		}
+
+		public void UpdateZIndex(IView child)
+		{
+			_ = PlatformView ?? throw new InvalidOperationException($"{nameof(PlatformView)} should have been set by base class.");
+			_ = VirtualView ?? throw new InvalidOperationException($"{nameof(VirtualView)} should have been set by base class.");
+			_ = MauiContext ?? throw new InvalidOperationException($"{nameof(MauiContext)} should have been set by base class.");
+
+			EnsureZIndexOrder(child);
+		}
+
+		protected override void DisconnectHandler(LayoutViewGroup platformView)
+		{
+			// If we're being disconnected from the xplat element, then we should no longer be managing its children
+			Clear(platformView);
+			base.DisconnectHandler(platformView);
+		}
+
+		void EnsureZIndexOrder(IView child)
+		{
+			if (PlatformView.ChildCount == 0)
+			{
+				return;
+			}
+
+			AView platformChildView = child.ToPlatform(MauiContext!);
+			var currentIndex = PlatformView.IndexOfChild(platformChildView);
+
+			if (currentIndex == -1)
+			{
+				return;
+			}
+
+			var targetIndex = VirtualView.GetLayoutHandlerIndex(child);
+
+			if (currentIndex != targetIndex)
+			{
+				PlatformView.RemoveViewAt(currentIndex);
+				PlatformView.AddView(platformChildView, targetIndex);
+			}
+		}
+
+		public static partial void MapBackground(ILayoutHandler handler, ILayout layout)
+		{
+			handler.PlatformView?.UpdateBackground(layout);
+		}
+
+		public static partial void MapInputTransparent(ILayoutHandler handler, ILayout layout)
+		{
+			if (handler.PlatformView is LayoutViewGroup layoutViewGroup)
+			{
+				layoutViewGroup.InputTransparent = layout.InputTransparent;
 			}
 		}
 	}

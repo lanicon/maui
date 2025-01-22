@@ -1,17 +1,12 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Maui.DeviceTests.Stubs;
-using Microsoft.Maui.Handlers;
 using Xunit;
 
 namespace Microsoft.Maui.DeviceTests
 {
-	[Category("ActivityIndicatorHandler")]
-	public partial class ActivityIndicatorHandlerTests : HandlerTestBase<ActivityIndicatorHandler, ActivityIndicatorStub>
+	[Category(TestCategory.ActivityIndicator)]
+	public partial class ActivityIndicatorHandlerTests : CoreHandlerTestBase<ActivityIndicatorHandler, ActivityIndicatorStub>
 	{
-		public ActivityIndicatorHandlerTests(HandlerTestFixture fixture) : base(fixture)
-		{
-		}
-
 		[Theory(DisplayName = "IsRunning Initializes Correctly")]
 		[InlineData(true)]
 		[InlineData(false)]
@@ -25,16 +20,40 @@ namespace Microsoft.Maui.DeviceTests
 			await ValidatePropertyInitValue(activityIndicator, () => activityIndicator.IsRunning, GetNativeIsRunning, activityIndicator.IsRunning);
 		}
 
-		[Fact(DisplayName = "BackgroundColor Updates Correctly")]
-		public async Task BackgroundColorUpdatesCorrectly()
+		[Theory(DisplayName = "Background Updates Correctly")]
+		[InlineData(0xFFFF0000)]
+		[InlineData(0xFF00FF00)]
+		[InlineData(0xFF0000FF)]
+		public async Task BackgroundUpdatesCorrectly(uint color)
 		{
+			var expected = Color.FromUint(color);
+
 			var activityIndicator = new ActivityIndicatorStub()
 			{
-				BackgroundColor = Color.Yellow,
+				Background = new SolidPaintStub(Color.FromUint(0xFF888888)),
 				IsRunning = true
 			};
 
-			await ValidateColor(activityIndicator, Color.Yellow, () => activityIndicator.BackgroundColor = Color.Yellow);
+			await ValidateHasColor(activityIndicator, expected, () => activityIndicator.Background = new SolidPaintStub(expected), nameof(activityIndicator.Background));
 		}
+
+#if WINDOWS
+		[Theory(DisplayName = "Foreground Updates Correctly")]
+		[InlineData(0xFFFF0000)]
+		[InlineData(0xFF00FF00)]
+		[InlineData(0xFF0000FF)]
+		public async Task ForegroundUpdatesCorrectly(uint color)
+		{
+			var expected = Color.FromUint(color);
+
+			var activityIndicator = new ActivityIndicatorStub()
+			{
+				Color = Color.FromUint(0xFF888888),
+				IsRunning = true
+			};
+
+			await ValidateHasColor(activityIndicator, expected, () => activityIndicator.Color = expected, nameof(activityIndicator.Color));
+		}
+#endif
 	}
 }

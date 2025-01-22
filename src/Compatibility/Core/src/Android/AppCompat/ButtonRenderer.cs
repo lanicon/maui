@@ -5,12 +5,15 @@ using Android.Graphics;
 using Android.Util;
 using Android.Views;
 using AndroidX.AppCompat.Widget;
+using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
 using AColor = Android.Graphics.Color;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class ButtonRenderer : ViewRenderer<Button, AppCompatButton>,
 		AView.IOnAttachStateChangeListener, AView.IOnClickListener, AView.IOnTouchListener,
 		IBorderVisualElementRenderer, IButtonLayoutRenderer, IDisposedState
@@ -117,7 +120,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 				UpdateTextColor();
 			else if (e.PropertyName == VisualElement.IsEnabledProperty.PropertyName)
 				UpdateEnabled();
-			else if (e.PropertyName == Button.FontProperty.PropertyName)
+			else if (e.PropertyName == FontElement.FontAttributesProperty.PropertyName
+					 || e.PropertyName == FontElement.FontAutoScalingEnabledProperty.PropertyName
+					 || e.PropertyName == FontElement.FontFamilyProperty.PropertyName
+					 || e.PropertyName == FontElement.FontSizeProperty.PropertyName)
 				UpdateFont();
 			else if (e.PropertyName == Button.CharacterSpacingProperty.PropertyName)
 				UpdateCharacterSpacing();
@@ -143,6 +149,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			UpdateCharacterSpacing();
 		}
 
+		[PortHandler]
 		void UpdateEnabled()
 		{
 			Control.Enabled = Element.IsEnabled;
@@ -152,7 +159,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 		void UpdateFont()
 		{
 			Button button = Element;
-			Font font = button.Font;
+			Font font = (button as ITextStyle).Font;
 
 			if (font == Font.Default && _defaultFontSize == 0f)
 				return;
@@ -170,23 +177,21 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			}
 			else
 			{
-				NativeButton.Typeface = font.ToTypeface();
-				NativeButton.SetTextSize(ComplexUnitType.Sp, font.ToScaledPixel());
+				NativeButton.Typeface = font.ToTypeface(Element.RequireFontManager());
+				NativeButton.SetTextSize(ComplexUnitType.Sp, (float)font.Size);
 			}
 		}
 
+		[PortHandler]
 		void UpdateTextColor()
 		{
 			_textColorSwitcher?.UpdateTextColor(Control, Element.TextColor);
 		}
 
+		[PortHandler]
 		void UpdateCharacterSpacing()
 		{
-			if (Forms.IsLollipopOrNewer)
-			{
-				NativeButton.LetterSpacing = Element.CharacterSpacing.ToEm();
-			}
-
+			NativeButton.LetterSpacing = Element.CharacterSpacing.ToEm();
 		}
 
 		void IOnClickListener.OnClick(AView v) => ButtonElementManager.OnClick(Element, Element, v);

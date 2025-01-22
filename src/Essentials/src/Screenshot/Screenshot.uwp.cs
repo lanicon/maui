@@ -4,65 +4,116 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
-using Windows.UI.Xaml;
-using Windows.UI.Xaml.Media.Imaging;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Controls;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Media
 {
-    public static partial class Screenshot
-    {
-        internal static bool PlatformIsCaptureSupported =>
-            true;
+	partial class ScreenshotImplementation : IPlatformScreenshot, IScreenshot
+	{
+		public bool IsCaptureSupported =>
+			true;
 
-        static async Task<ScreenshotResult> PlatformCaptureAsync()
-        {
-            var element = Window.Current?.Content as FrameworkElement;
-            if (element == null)
-                throw new InvalidOperationException("Unable to find main window content.");
+		public Task<IScreenshotResult> CaptureAsync()
+		{
+			var element = WindowStateManager.Default.GetActiveWindow(true);
 
-            var bmp = new RenderTargetBitmap();
+			return CaptureAsync(element);
+		}
 
-            // NOTE: Return to the main thread so we can access view properties such as
-            //       width and height. Do not ConfigureAwait!
-            await bmp.RenderAsync(element);
+		public Task<IScreenshotResult> CaptureAsync(Window window) =>
+			CaptureAsync(window.Content);
 
-            // get the view information first
-            var width = bmp.PixelWidth;
-            var height = bmp.PixelHeight;
+		public async Task<IScreenshotResult> CaptureAsync(UIElement element)
+		{
+			if (element is WebView2 webView)
+			{
+				InMemoryRandomAccessStream stream = new();
+				await webView.CoreWebView2.CapturePreviewAsync(Web.WebView2.Core.CoreWebView2CapturePreviewImageFormat.Png, stream);
 
-            // then potentially move to a different thread
-            var pixels = await bmp.GetPixelsAsync().AsTask().ConfigureAwait(false);
+				BitmapDecoder decoder = await BitmapDecoder.CreateAsync(stream);
+				PixelDataProvider provider = await decoder.GetPixelDataAsync();
+				byte[] byteArray = provider.DetachPixelData();
 
-            return new ScreenshotResult(width, height, pixels);
-        }
-    }
+				return new ScreenshotResult((int)decoder.PixelWidth, (int)decoder.PixelHeight, byteArray, decoder.DpiX, decoder.DpiY);
+			}
+			else
+			{
+				var bmp = new RenderTargetBitmap();
 
-    public partial class ScreenshotResult
-    {
-        readonly byte[] bytes;
+				// NOTE: Return to the main thread so we can access view properties such as
+				//       width and height. Do not ConfigureAwait!
+				await bmp.RenderAsync(element);
 
-        public ScreenshotResult(int width, int height, IBuffer pixels)
-        {
-            Width = width;
-            Height = height;
-            bytes = pixels?.ToArray() ?? throw new ArgumentNullException(nameof(pixels));
-        }
+				// get the view information first
+				var width = bmp.PixelWidth;
+				var height = bmp.PixelHeight;
 
-        internal async Task<Stream> PlatformOpenReadAsync(ScreenshotFormat format)
-        {
-            var f = format switch
-            {
-                ScreenshotFormat.Jpeg => BitmapEncoder.JpegEncoderId,
-                _ => BitmapEncoder.PngEncoderId
-            };
+				// then potentially move to a different thread
+				IBuffer pixels = await bmp.GetPixelsAsync().AsTask().ConfigureAwait(false);
 
-            var ms = new InMemoryRandomAccessStream();
+				return new ScreenshotResult(width, height, pixels);
+			}
+		}
+	}
 
-            var encoder = await BitmapEncoder.CreateAsync(f, ms).AsTask().ConfigureAwait(false);
-            encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, (uint)Width, (uint)Height, 96, 96, bytes);
-            await encoder.FlushAsync().AsTask().ConfigureAwait(false);
+	partial class ScreenshotResult
+	{
+		readonly double _dpiX;
+		readonly double _dpiY;
+		readonly byte[] _bytes;
 
-            return ms.AsStreamForRead();
-        }
-    }
+		internal ScreenshotResult(int width, int height, byte[] bytes, double dpiX, double dpiY)
+		{
+			Width = width;
+			Height = height;
+			_bytes = bytes;
+			_dpiX = dpiX;
+			_dpiY = dpiY;
+		}
+
+		public ScreenshotResult(int width, int height, IBuffer pixels)
+		{
+			Width = width;
+			Height = height;
+			_bytes = pixels.ToArray() ?? throw new ArgumentNullException(nameof(pixels));
+			_dpiX = 96;
+			_dpiY = 96;
+		}
+
+		async Task<Stream> PlatformOpenReadAsync(ScreenshotFormat format, int quality)
+		{
+			var ms = new InMemoryRandomAccessStream();
+			await EncodeAsync(format, ms).ConfigureAwait(false);
+			return ms.AsStreamForRead();
+		}
+
+		Task PlatformCopyToAsync(Stream destination, ScreenshotFormat format, int quality)
+		{
+			var ms = destination.AsRandomAccessStream();
+			return EncodeAsync(format, ms);
+		}
+
+		Task<byte[]> PlatformToPixelBufferAsync() =>
+			Task.FromResult(_bytes);
+
+		async Task EncodeAsync(ScreenshotFormat format, IRandomAccessStream ms)
+		{
+			var f = ToBitmapEncoder(format);
+
+			var encoder = await BitmapEncoder.CreateAsync(f, ms).AsTask().ConfigureAwait(false);
+			encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Ignore, (uint)Width, (uint)Height, _dpiX, _dpiY, _bytes);
+			await encoder.FlushAsync().AsTask().ConfigureAwait(false);
+		}
+
+		static Guid ToBitmapEncoder(ScreenshotFormat format) =>
+			format switch
+			{
+				ScreenshotFormat.Jpeg => BitmapEncoder.JpegEncoderId,
+				ScreenshotFormat.Png => BitmapEncoder.PngEncoderId,
+				_ => throw new ArgumentOutOfRangeException(nameof(format))
+			};
+	}
 }

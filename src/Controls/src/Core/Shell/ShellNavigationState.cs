@@ -1,11 +1,15 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace Microsoft.Maui.Controls
 {
-
+	/// <include file="../../../docs/Microsoft.Maui.Controls/ShellNavigationState.xml" path="Type[@FullName='Microsoft.Maui.Controls.ShellNavigationState']/Docs/*" />
 	[DebuggerDisplay("Location = {Location}")]
+	[TypeConverter(typeof(ShellNavigationStateTypeConverter))]
 	public class ShellNavigationState
 	{
 		Uri _fullLocation;
@@ -19,13 +23,16 @@ namespace Microsoft.Maui.Controls
 			}
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellNavigationState.xml" path="//Member[@MemberName='Location']/Docs/*" />
 		public Uri Location
 		{
 			get;
 			private set;
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellNavigationState.xml" path="//Member[@MemberName='.ctor'][1]/Docs/*" />
 		public ShellNavigationState() { }
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellNavigationState.xml" path="//Member[@MemberName='.ctor'][2]/Docs/*" />
 		public ShellNavigationState(string location) : this(location, true)
 		{
 		}
@@ -45,6 +52,7 @@ namespace Microsoft.Maui.Controls
 				Location = FullLocation;
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellNavigationState.xml" path="//Member[@MemberName='.ctor'][3]/Docs/*" />
 		public ShellNavigationState(Uri location)
 		{
 			FullLocation = location;
@@ -59,7 +67,7 @@ namespace Microsoft.Maui.Controls
 			uri = ShellUriHandler.FormatUri(uri, null);
 
 			// don't trim relative pushes
-			if (!uri.OriginalString.StartsWith($"{Routing.PathSeparator}{Routing.PathSeparator}"))
+			if (!uri.OriginalString.StartsWith("//", StringComparison.Ordinal))
 				return uri;
 
 			string[] parts = uri.OriginalString.TrimEnd(Routing.PathSeparator[0]).Split(Routing.PathSeparator[0]);
@@ -91,6 +99,23 @@ namespace Microsoft.Maui.Controls
 			toKeep.Insert(0, "");
 			toKeep.Insert(0, "");
 			return new Uri(string.Join(Routing.PathSeparator, toKeep), UriKind.Relative);
+		}
+
+		private sealed class ShellNavigationStateTypeConverter : TypeConverter
+		{
+			public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType) => false;
+			public override object ConvertTo(ITypeDescriptorContext context, CultureInfo cultureInfo, object value, Type destinationType) => throw new NotSupportedException();
+
+			public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+				=> sourceType == typeof(string) || sourceType == typeof(Uri);
+
+			public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
+				=> value switch
+				{
+					string str => (ShellNavigationState)str,
+					Uri uri => (ShellNavigationState)uri,
+					_ => throw new NotSupportedException(),
+				};
 		}
 	}
 }

@@ -1,16 +1,20 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using Android.Content;
 using Android.Views;
 using Android.Views.Accessibility;
 using AndroidX.Core.Content;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AColor = Android.Graphics.Color;
 using AColorRes = Android.Resource.Color;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
-	public class PageRenderer : VisualElementRenderer<Page>, IOrderedTraversalController
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
+	public class PageRenderer : VisualElementRenderer<Page>
 	{
 		public PageRenderer(Context context) : base(context)
 		{
@@ -24,8 +28,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 
 		IPageController PageController => Element as IPageController;
-
-		IOrderedTraversalController OrderedTraversalController => this;
 
 		double _previousHeight;
 		bool _isDisposed = false;
@@ -68,12 +70,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			if (Id == NoId)
 			{
-				Id = AppCompat.Platform.GenerateViewId();
+				Id = Platform.GenerateViewId();
 			}
 
 			UpdateBackground(false);
-
-			Clickable = true;
 		}
 
 		protected override void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -135,7 +135,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					else
 					{
 						Color backgroundColor = page.BackgroundColor;
-						bool isDefaultBackgroundColor = backgroundColor.IsDefault;
+						bool isDefaultBackgroundColor = backgroundColor == null;
 
 						// A TabbedPage has no background. See Github6384.
 						bool isInShell = page.Parent is BaseShellItem ||
@@ -143,7 +143,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 						if (isInShell && isDefaultBackgroundColor)
 						{
-							var color = Forms.IsMarshmallowOrNewer ?
+							var color = OperatingSystem.IsAndroidVersionAtLeast(23) ?
 								Context.Resources.GetColor(AColorRes.BackgroundLight, Context.Theme) :
 								new AColor(ContextCompat.GetColor(Context, AColorRes.BackgroundLight));
 							SetBackgroundColor(color);
@@ -157,68 +157,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			});
 		}
 
-		void IOrderedTraversalController.UpdateTraversalOrder()
-		{
-			// traversal order wasn't added until API 22
-			if ((int)Forms.SdkInt < 22)
-				return;
-
-			// since getting and updating the traversal order is expensive, let's only do it when a screen reader is active
-			// note that this does NOT get auto updated when you enable TalkBack, so the page will need to be reloaded to enable this path 
-			var am = AccessibilityManager.FromContext(Context);
-			if (!am.IsEnabled)
-				return;
-
-			SortedDictionary<int, List<ITabStopElement>> tabIndexes = null;
-			foreach (var child in Element.LogicalChildren)
-			{
-				if (!(child is VisualElement ve))
-					continue;
-
-				tabIndexes = ve.GetSortedTabIndexesOnParentPage();
-				break;
-			}
-
-			if (tabIndexes == null)
-				return;
-
-			// Let the page handle tab order itself
-			if (tabIndexes.Count <= 1)
-				return;
-
-			AView prevControl = null;
-			foreach (var idx in tabIndexes?.Keys)
-			{
-				var tabGroup = tabIndexes[idx];
-				foreach (var child in tabGroup)
-				{
-					if (!(child is VisualElement ve && ve.GetRenderer()?.View is AView view))
-						continue;
-
-					AView thisControl = null;
-
-					if (view is ITabStop tabStop)
-						thisControl = tabStop.TabStop;
-
-					if (thisControl == null)
-						continue;
-
-					// this element should be the first thing focused after the root
-					if (prevControl == null)
-					{
-						thisControl.AccessibilityTraversalAfter = NoId;
-					}
-					else
-					{
-						if (thisControl != prevControl)
-							thisControl.AccessibilityTraversalAfter = prevControl.Id;
-					}
-
-					prevControl = thisControl;
-				}
-			}
-		}
-
 		protected override void OnLayout(bool changed, int l, int t, int r, int b)
 		{
 			var deviceIndependentLeft = Context.FromPixels(l);
@@ -226,12 +164,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			var deviceIndependentRight = Context.FromPixels(r);
 			var deviceIndependentBottom = Context.FromPixels(b);
 
-			var destination = Rectangle.FromLTRB(deviceIndependentLeft, deviceIndependentTop,
+			var destination = Rect.FromLTRB(deviceIndependentLeft, deviceIndependentTop,
 				deviceIndependentRight, deviceIndependentBottom);
 
-			(Element as IFrameworkElement)?.Arrange(destination);
+			(Element as IView)?.Arrange(destination);
 			base.OnLayout(changed, l, t, r, b);
-			OrderedTraversalController.UpdateTraversalOrder();
 		}
 	}
 }

@@ -1,12 +1,15 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using Android.Content;
 using Android.Graphics.Drawables;
 using Android.Widget;
 using AndroidX.AppCompat.Widget;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class SwitchRenderer : ViewRenderer<Switch, SwitchCompat>, CompoundButton.IOnCheckedChangeListener
 	{
 		bool _disposed;
@@ -118,7 +121,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 
 			if (Control.Checked)
 			{
-				if (Element.OnColor == Color.Default)
+				if (Element.OnColor == null)
 				{
 					Control.TrackDrawable = _defaultTrackDrawable;
 				}
@@ -139,7 +142,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			if (Element == null)
 				return;
 
-			if (Element.ThumbColor != Color.Default)
+			if (Element.ThumbColor != null)
 			{
 				Control.ThumbDrawable?.SetColorFilter(Element.ThumbColor, FilterMode.SrcAtop);
 				_changedThumbColor = true;

@@ -1,10 +1,14 @@
-using System;
+﻿using System;
 using System.ComponentModel;
-using System.Drawing;
+using CoreGraphics;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class SwitchRenderer : ViewRenderer<Switch, UISwitch>
 	{
 		UIColor _defaultOnColor;
@@ -35,7 +39,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			{
 				if (Control == null)
 				{
-					SetNativeControl(new UISwitch(RectangleF.Empty));
+					SetNativeControl(new UISwitch(CGRect.Empty));
 					Control.ValueChanged += OnControlValueChanged;
 				}
 
@@ -55,10 +59,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			if (Element != null)
 			{
-				if (Element.OnColor == Color.Default)
+				if (Element.OnColor == null)
 					Control.OnTintColor = _defaultOnColor;
 				else
-					Control.OnTintColor = Element.OnColor.ToUIColor();
+					Control.OnTintColor = Element.OnColor.ToPlatform();
 			}
 		}
 
@@ -69,7 +73,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			Color thumbColor = Element.ThumbColor;
-			Control.ThumbTintColor = thumbColor.IsDefault ? _defaultThumbColor : thumbColor.ToUIColor();
+			Control.ThumbTintColor = thumbColor?.ToPlatform() ?? _defaultThumbColor;
 		}
 
 		[PortHandler]

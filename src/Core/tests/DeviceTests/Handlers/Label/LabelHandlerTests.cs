@@ -1,28 +1,26 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.Maui.DeviceTests.Stubs;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Xunit;
 
 namespace Microsoft.Maui.DeviceTests
 {
 	[Category(TestCategory.Label)]
-	public partial class LabelHandlerTests : HandlerTestBase<LabelHandler, LabelStub>
+	public partial class LabelHandlerTests : CoreHandlerTestBase<LabelHandler, LabelStub>
 	{
-		public LabelHandlerTests(HandlerTestFixture fixture) : base(fixture)
+		[Fact(DisplayName = "Background Initializes Correctly")]
+		public async Task BackgroundInitializesCorrectly()
 		{
-		}
+			var brush = new SolidPaintStub(Colors.Blue);
 
-		[Fact(DisplayName = "Background Color Initializes Correctly")]
-		public async Task BackgroundColorInitializesCorrectly()
-		{
 			var label = new LabelStub()
 			{
-				BackgroundColor = Color.Blue,
+				Background = brush,
 				Text = "Test"
 			};
 
-			await ValidateNativeBackgroundColor(label, Color.Blue);
+			await ValidateHasColor(label, Colors.Blue);
 		}
 
 		[Fact(DisplayName = "Text Initializes Correctly")]
@@ -42,44 +40,25 @@ namespace Microsoft.Maui.DeviceTests
 			var label = new LabelStub()
 			{
 				Text = "Test",
-				TextColor = Color.Red
+				TextColor = Colors.Red
 			};
 
 			await ValidatePropertyInitValue(label, () => label.TextColor, GetNativeTextColor, label.TextColor);
 		}
 
-		[Theory(DisplayName = "Font Size Initializes Correctly")]
-		[InlineData(1)]
-		[InlineData(10)]
-		[InlineData(20)]
-		[InlineData(100)]
-		public async Task FontSizeInitializesCorrectly(int fontSize)
+		[Fact(DisplayName = "Null Text Color Doesn't Crash")]
+		public async Task NullTextColorDoesntCrash()
 		{
 			var label = new LabelStub()
 			{
 				Text = "Test",
-				Font = Font.OfSize("Arial", fontSize)
+				TextColor = null
 			};
 
-			await ValidatePropertyInitValue(label, () => label.Font.FontSize, GetNativeUnscaledFontSize, label.Font.FontSize);
+			await CreateHandlerAsync(label);
 		}
 
-		[Theory(DisplayName = "Font Attributes Initialize Correctly")]
-		[InlineData(FontAttributes.None, false, false)]
-		[InlineData(FontAttributes.Bold, true, false)]
-		[InlineData(FontAttributes.Italic, false, true)]
-		[InlineData(FontAttributes.Bold | FontAttributes.Italic, true, true)]
-		public async Task FontAttributesInitializeCorrectly(FontAttributes attributes, bool isBold, bool isItalic)
-		{
-			var label = new LabelStub()
-			{
-				Text = "Test",
-				Font = Font.OfSize("Arial", 10).WithAttributes(attributes)
-			};
-
-			await ValidatePropertyInitValue(label, () => label.Font.FontAttributes.HasFlag(FontAttributes.Bold), GetNativeIsBold, isBold);
-			await ValidatePropertyInitValue(label, () => label.Font.FontAttributes.HasFlag(FontAttributes.Italic), GetNativeIsItalic, isItalic);
-		}
+#if !WINDOWS
 
 		[Fact(DisplayName = "CharacterSpacing Initializes Correctly")]
 		public async Task CharacterSpacingInitializesCorrectly()
@@ -115,21 +94,23 @@ namespace Microsoft.Maui.DeviceTests
 				unsetValue);
 		}
 
-		[Fact(DisplayName = "Updating Font Does Not Affect CharacterSpacing")]
-		public async Task FontDoesNotAffectCharacterSpacing()
+		[Theory(DisplayName = "Updating Font Does Not Affect CharacterSpacing")]
+		[InlineData(10, 20)]
+		[InlineData(20, 10)]
+		public async Task FontDoesNotAffectCharacterSpacing(double initialSize, double newSize)
 		{
 			var label = new LabelStub
 			{
 				Text = "This is TEXT!",
 				CharacterSpacing = 5,
-				Font = Font.SystemFontOfSize(20)
+				Font = Font.SystemFontOfSize(initialSize)
 			};
 
 			await ValidateUnrelatedPropertyUnaffected(
 				label,
 				GetNativeCharacterSpacing,
 				nameof(ILabel.Font),
-				() => label.Font = Font.SystemFontOfSize(15));
+				() => label.Font = Font.SystemFontOfSize(newSize));
 		}
 
 		[Theory(DisplayName = "Updating Text Does Not Affect CharacterSpacing")]
@@ -149,128 +130,194 @@ namespace Microsoft.Maui.DeviceTests
 				nameof(ILabel.Text),
 				() => label.Text = newText);
 		}
+#endif
 
-		[Fact(DisplayName = "LineBreakMode Initializes Correctly")]
-		public async Task LineBreakModeInitializesCorrectly()
+		[Theory(DisplayName = "Updating Font Does Not Affect HorizontalTextAlignment")]
+		[InlineData(10, 20)]
+		[InlineData(20, 10)]
+		public async Task FontDoesNotAffectHorizontalTextAlignment(double initialSize, double newSize)
 		{
-			var xplatLineBreakMode = LineBreakMode.TailTruncation;
-
-			var label = new LabelStub()
+			var label = new LabelStub
 			{
-				LineBreakMode = xplatLineBreakMode
+				Text = "This is TEXT!",
+				HorizontalTextAlignment = TextAlignment.Center,
+				Font = Font.SystemFontOfSize(initialSize),
 			};
 
-			var expectedValue = xplatLineBreakMode.ToNative();
+			await ValidateUnrelatedPropertyUnaffected(
+				label,
+				GetNativeHorizontalTextAlignment,
+				nameof(ILabel.Font),
+				() => label.Font = Font.SystemFontOfSize(newSize));
+		}
 
-			var values = await GetValueAsync(label, (handler) =>
+		[Theory(DisplayName = "Updating Text Does Not Affect HorizontalTextAlignment")]
+		[InlineData("Short", "Longer Text")]
+		[InlineData("Long thext here", "Short")]
+		public async Task TextDoesNotAffectHorizontalTextAlignment(string initialText, string newText)
+		{
+			var label = new LabelStub
+			{
+				Text = initialText,
+				HorizontalTextAlignment = TextAlignment.Center,
+			};
+
+			await ValidateUnrelatedPropertyUnaffected(
+				label,
+				GetNativeHorizontalTextAlignment,
+				nameof(ILabel.Text),
+				() => label.Text = newText);
+		}
+
+		[Theory(DisplayName = "Updating LineHeight Does Not Affect HorizontalTextAlignment")]
+		[InlineData(1, 2)]
+		[InlineData(2, 1)]
+		public async Task LineHeightDoesNotAffectHorizontalTextAlignment(double initialSize, double newSize)
+		{
+			var label = new LabelStub
+			{
+				Text = "This is TEXT!",
+				HorizontalTextAlignment = TextAlignment.Center,
+				LineHeight = initialSize,
+			};
+
+			await ValidateUnrelatedPropertyUnaffected(
+				label,
+				GetNativeHorizontalTextAlignment,
+				nameof(ILabel.LineHeight),
+				() => label.LineHeight = newSize);
+		}
+
+		[Theory(DisplayName = "Updating TextDecorations Does Not Affect HorizontalTextAlignment")]
+		[InlineData(TextDecorations.None, TextDecorations.Underline)]
+		[InlineData(TextDecorations.Underline, TextDecorations.Strikethrough)]
+		[InlineData(TextDecorations.Underline, TextDecorations.None)]
+		public async Task TextDecorationsDoesNotAffectHorizontalTextAlignment(TextDecorations initialDecorations, TextDecorations newDecorations)
+		{
+			var label = new LabelStub
+			{
+				Text = "This is TEXT!",
+				HorizontalTextAlignment = TextAlignment.Center,
+				TextDecorations = initialDecorations,
+			};
+
+			await ValidateUnrelatedPropertyUnaffected(
+				label,
+				GetNativeHorizontalTextAlignment,
+				nameof(ILabel.TextDecorations),
+				() => label.TextDecorations = newDecorations);
+		}
+
+#if !WINDOWS
+
+		[Fact]
+		[Category(TestCategory.TextFormatting)]
+		public async Task LineHeightAppliedWhenTextAdded()
+		{
+			double xplatLineHeight = 2;
+			var expectedLineHeight = xplatLineHeight;
+
+			var label = new LabelStub() { LineHeight = xplatLineHeight }; // No text set
+
+			var handler = await CreateHandlerAsync(label);
+
+			label.Text = "Now we have text";
+			await InvokeOnMainThreadAsync(() => handler.UpdateValue(nameof(label.Text)));
+
+			var actualLineHeight = await InvokeOnMainThreadAsync(() => GetNativeLineHeight(handler));
+
+			Assert.Equal(expectedLineHeight, actualLineHeight);
+		}
+
+		[Fact]
+		[Category(TestCategory.TextFormatting)]
+		public async Task CharacterSpacingAppliedWhenTextAdded()
+		{
+			double xplatCharacterSpacing = 1.5;
+			var expectedCharacterSpacing = xplatCharacterSpacing;
+
+			var label = new LabelStub() { CharacterSpacing = xplatCharacterSpacing }; // No text set
+
+			var handler = await CreateHandlerAsync(label);
+
+			label.Text = "Now we have text";
+			await InvokeOnMainThreadAsync(() => handler.UpdateValue(nameof(label.Text)));
+
+			var actualCharacterSpacing = await InvokeOnMainThreadAsync(() => GetNativeCharacterSpacing(handler));
+
+			Assert.Equal(expectedCharacterSpacing, actualCharacterSpacing);
+		}
+
+		[Fact]
+		[Category(TestCategory.TextFormatting)]
+		public async Task LineHeightSurvivesCharacterSpacing()
+		{
+			double xplatCharacterSpacing = 1.5;
+			var expectedCharacterSpacing = xplatCharacterSpacing;
+			double xplatLineHeight = 2;
+			var expectedLineHeight = xplatLineHeight;
+
+			var label = new LabelStub() { Text = "test", LineHeight = xplatLineHeight };
+
+			var handler = await CreateHandlerAsync(label);
+
+			label.CharacterSpacing = xplatCharacterSpacing;
+			await InvokeOnMainThreadAsync(() => handler.UpdateValue(nameof(label.CharacterSpacing)));
+
+			var actualLineHeight = await InvokeOnMainThreadAsync(() => GetNativeLineHeight(handler));
+			var actualCharacterSpacing = await InvokeOnMainThreadAsync(() => GetNativeCharacterSpacing(handler));
+
+			Assert.Equal(expectedLineHeight, actualLineHeight);
+			Assert.Equal(expectedCharacterSpacing, actualCharacterSpacing);
+		}
+
+		[Fact(DisplayName = "LineHeight Initializes Correctly")]
+		public async Task LineHeightInitializesCorrectly()
+		{
+			var xplatLineHeight = 1.5d;
+
+			var labelHandler = new LabelStub()
+			{
+				Text = "test",
+				LineHeight = xplatLineHeight
+			};
+
+			var values = await GetValueAsync(labelHandler, (handler) =>
 			{
 				return new
 				{
-					ViewValue = label.LineBreakMode,
-					NativeViewValue = GetNativeLineBreakMode(handler)
+					ViewValue = labelHandler.LineHeight,
+					PlatformViewValue = GetNativeLineHeight(handler)
 				};
 			});
 
-			Assert.Equal(xplatLineBreakMode, values.ViewValue);
-			Assert.Equal(expectedValue, values.NativeViewValue);
-		}
+			float expectedValue = 1.5f;
 
-		[Fact(DisplayName = "LineBreakMode does not affect to MaxLines")]
-		public async Task LineBreakModeDoesNotAffectMaxLines()
+			Assert.Equal(xplatLineHeight, values.ViewValue);
+			Assert.Equal(expectedValue, values.PlatformViewValue);
+		}
+#endif
+
+		[Fact(DisplayName = "Html Text Initializes Correctly")]
+		public async Task HtmlTextInitializesCorrectly()
 		{
 			var label = new LabelStub()
 			{
-				Text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
-				MaxLines = 3,
-				LineBreakMode = LineBreakMode.WordWrap,
+				TextType = TextType.Html,
+				Text = "<h2><strong>Test1&nbsp;</strong>Test2</h2>"
 			};
 
-			var handler = await CreateHandlerAsync(label);
-			var nativeLabel = GetNativeLabel(handler);
-
-			await InvokeOnMainThreadAsync(() =>
+			var platformText = await GetValueAsync(label, (handler) =>
 			{
-				Assert.Equal(3, GetNativeMaxLines(handler));
-				Assert.Equal(LineBreakMode.WordWrap.ToNative(), GetNativeLineBreakMode(handler));
-
-				label.LineBreakMode = LineBreakMode.CharacterWrap;
-				nativeLabel.UpdateLineBreakMode(label);
-
-				Assert.Equal(3, GetNativeMaxLines(handler));
-				Assert.Equal(LineBreakMode.CharacterWrap.ToNative(), GetNativeLineBreakMode(handler));
+				return handler.PlatformView.Text;
 			});
+
+			Assert.NotNull(platformText);
 		}
 
-		[Fact(DisplayName = "Single LineBreakMode changes MaxLines")]
-		public async Task SingleLineBreakModeChangesMaxLines()
+		[Category(TestCategory.Label)]
+		public class LabelTextStyleTests : TextStyleHandlerTests<LabelHandler, LabelStub>
 		{
-			var label = new LabelStub()
-			{
-				Text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
-				MaxLines = 3,
-				LineBreakMode = LineBreakMode.WordWrap,
-			};
-
-			var handler = await CreateHandlerAsync(label);
-			var nativeLabel = GetNativeLabel(handler);
-
-			await InvokeOnMainThreadAsync(() =>
-			{
-				Assert.Equal(3, GetNativeMaxLines(handler));
-				Assert.Equal(LineBreakMode.WordWrap.ToNative(), GetNativeLineBreakMode(handler));
-
-				label.LineBreakMode = LineBreakMode.HeadTruncation;
-				nativeLabel.UpdateLineBreakMode(label);
-
-				Assert.Equal(1, GetNativeMaxLines(handler));
-				Assert.Equal(LineBreakMode.HeadTruncation.ToNative(), GetNativeLineBreakMode(handler));
-			});
-		}
-
-		[Theory(DisplayName = "Unsetting single LineBreakMode resets MaxLines")]
-		[InlineData(LineBreakMode.HeadTruncation)]
-		[InlineData(LineBreakMode.NoWrap)]
-		public async Task UnsettingSingleLineBreakModeResetsMaxLines(LineBreakMode newMode)
-		{
-			var label = new LabelStub()
-			{
-				Text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
-				MaxLines = 3,
-				LineBreakMode = LineBreakMode.WordWrap,
-			};
-
-			var handler = await CreateHandlerAsync(label);
-			var nativeLabel = GetNativeLabel(handler);
-
-			await InvokeOnMainThreadAsync(() =>
-			{
-				Assert.Equal(3, GetNativeMaxLines(handler));
-				Assert.Equal(LineBreakMode.WordWrap.ToNative(), GetNativeLineBreakMode(handler));
-
-				label.LineBreakMode = newMode;
-				nativeLabel.UpdateLineBreakMode(label);
-
-				Assert.Equal(1, GetNativeMaxLines(handler));
-				Assert.Equal(newMode.ToNative(), GetNativeLineBreakMode(handler));
-
-				label.LineBreakMode = LineBreakMode.WordWrap;
-				nativeLabel.UpdateLineBreakMode(label);
-
-				Assert.Equal(3, GetNativeMaxLines(handler));
-				Assert.Equal(LineBreakMode.WordWrap.ToNative(), GetNativeLineBreakMode(handler));
-			});
-		}
-
-		[Fact(DisplayName = "MaxLines Initializes Correctly")]
-		public async Task MaxLinesInitializesCorrectly()
-		{
-			var label = new LabelStub()
-			{
-				Text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
-				MaxLines = 2
-			};
-
-			await ValidatePropertyInitValue(label, () => label.MaxLines, GetNativeMaxLines, label.MaxLines);
 		}
 	}
 }

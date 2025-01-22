@@ -1,39 +1,69 @@
-using System;
 using CoreGraphics;
-using Microsoft.Maui;
 using UIKit;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
-	public class LayoutView : UIView
+	public class LayoutView : MauiView
 	{
-		public override CGSize SizeThatFits(CGSize size)
+		bool _userInteractionEnabled;
+
+		public override void SubviewAdded(UIView uiview)
 		{
-			if (CrossPlatformMeasure == null)
+			InvalidateConstraintsCache();
+			base.SubviewAdded(uiview);
+			TryToInvalidateSuperView(false);
+		}
+
+		public override void WillRemoveSubview(UIView uiview)
+		{
+			InvalidateConstraintsCache();
+			base.WillRemoveSubview(uiview);
+			TryToInvalidateSuperView(false);
+		}
+
+		public override UIView? HitTest(CGPoint point, UIEvent? uievent)
+		{
+			var result = base.HitTest(point, uievent);
+
+			if (result is null)
 			{
-				return base.SizeThatFits(size);
+				return null;
 			}
 
-			var width = size.Width;
-			var height = size.Height;
+			if (!_userInteractionEnabled && Equals(result))
+			{
+				// If user interaction is disabled (IOW, if the corresponding Layout is InputTransparent),
+				// then we exclude the LayoutView itself from hit testing. But it's children are valid
+				// hit testing targets.
 
-			var crossPlatformSize = CrossPlatformMeasure(width, height);
+				return null;
+			}
 
-			return base.SizeThatFits(crossPlatformSize.ToCGSize());
+			if (result is LayoutView layoutView && !layoutView.UserInteractionEnabledOverride)
+			{
+				// If the child is a layout then we need to check the UserInteractionEnabledOverride
+				// since layouts always have user interaction enabled.
+
+				return null;
+			}
+
+			return result;
 		}
 
-		public override void LayoutSubviews()
+		internal bool UserInteractionEnabledOverride => _userInteractionEnabled;
+
+		public override bool UserInteractionEnabled
 		{
-			base.LayoutSubviews();
+			get => base.UserInteractionEnabled;
+			set
+			{
+				// We leave the base UIE value true no matter what, so that hit testing will find children
+				// of the LayoutView. But we track the intended value so we can use it during hit testing
+				// to ignore the LayoutView itself, if necessary.
 
-			var width = Frame.Width;
-			var height = Frame.Height;
-
-			CrossPlatformMeasure?.Invoke(width, height);
-			CrossPlatformArrange?.Invoke(Frame.ToRectangle());
+				base.UserInteractionEnabled = true;
+				_userInteractionEnabled = value;
+			}
 		}
-
-		internal Func<double, double, Size>? CrossPlatformMeasure { get; set; }
-		internal Action<Rectangle>? CrossPlatformArrange { get; set; }
 	}
 }

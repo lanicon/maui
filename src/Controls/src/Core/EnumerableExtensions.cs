@@ -1,115 +1,86 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 
 namespace Microsoft.Maui.Controls.Internals
 {
-	[EditorBrowsable(EditorBrowsableState.Never)]
-	public static class EnumerableExtensions
+	static class EnumerableExtensions
 	{
-
-		public static IEnumerable<T> GetChildGesturesFor<T>(this IEnumerable<GestureElement> elements, Func<T, bool> predicate = null) where T : GestureRecognizer
+		public static bool HasChildGesturesFor<T>(this IEnumerable<GestureElement>? elements, Func<T, bool>? predicate = null) where T : GestureRecognizer
 		{
-			if (elements == null)
-				yield break;
-
-			if (predicate == null)
-				predicate = x => true;
+			if (elements is null)
+			{
+				return false;
+			}
 
 			foreach (var element in elements)
+			{
 				foreach (var item in element.GestureRecognizers)
 				{
-					var gesture = item as T;
-					if (gesture != null && predicate(gesture))
-						yield return gesture;
+					if (item is T gesture && (predicate is null || predicate(gesture)))
+					{
+						return true;
+					}
 				}
+			}
+
+			return false;
 		}
 
-		public static IEnumerable<T> GetGesturesFor<T>(this IEnumerable<IGestureRecognizer> gestures, Func<T, bool> predicate = null) where T : GestureRecognizer
+		public static IEnumerable<T> GetChildGesturesFor<T>(this IEnumerable<GestureElement>? elements, Func<T, bool>? predicate = null) where T : GestureRecognizer
 		{
-			if (gestures == null)
+			if (elements is null)
+			{
 				yield break;
+			}
 
-			if (predicate == null)
-				predicate = x => true;
+			foreach (var element in elements)
+			{
+				foreach (var item in element.GestureRecognizers)
+				{
+					if (item is T gesture && (predicate is null || predicate(gesture)))
+					{
+						yield return gesture;
+					}
+				}
+			}
+		}
+
+		/// <remarks>The method makes a defensive copy of the gestures.</remarks>
+		public static IEnumerable<T> GetGesturesFor<T>(this IEnumerable<IGestureRecognizer>? gestures, Func<T, bool>? predicate = null) where T : GestureRecognizer
+		{
+			if (gestures is null)
+			{
+				yield break;
+			}
 
 			foreach (IGestureRecognizer item in new List<IGestureRecognizer>(gestures))
 			{
-				var gesture = item as T;
-				if (gesture != null && predicate(gesture))
+				if (item is T gesture && (predicate is null || predicate(gesture)))
 				{
 					yield return gesture;
 				}
 			}
 		}
 
-		internal static IEnumerable<T> Append<T>(this IEnumerable<T> enumerable, T item)
-		{
-			foreach (T x in enumerable)
-				yield return x;
+		internal static bool HasAnyGesturesFor<T>(this IEnumerable<IGestureRecognizer>? gestures, Func<T, bool>? predicate = null) where T : GestureRecognizer
+			=> FirstGestureOrDefault(gestures, predicate) is not null;
 
-			yield return item;
-		}
-
-		public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T> action)
+		internal static T? FirstGestureOrDefault<T>(this IEnumerable<IGestureRecognizer>? gestures, Func<T, bool>? predicate = null) where T : GestureRecognizer
 		{
-			foreach (T item in enumeration)
+			if (gestures is null)
 			{
-				action(item);
-			}
-		}
-
-		public static IDictionary<TKey, List<TSource>> GroupToDictionary<TSource, TKey>(this IEnumerable<TSource> enumeration, Func<TSource, TKey> func)
-		{
-			var result = new Dictionary<TKey, List<TSource>>();
-			foreach (TSource item in enumeration)
-			{
-				var group = func(item);
-				if (!result.ContainsKey(group))
-					result.Add(group, new List<TSource> { item });
-				else
-					result[group].Add(item);
-			}
-			return result;
-		}
-
-		public static int IndexOf<T>(this IEnumerable<T> enumerable, T item)
-		{
-			if (enumerable == null)
-				throw new ArgumentNullException("enumerable");
-
-			var i = 0;
-			foreach (T element in enumerable)
-			{
-				if (Equals(element, item))
-					return i;
-
-				i++;
+				return null;
 			}
 
-			return -1;
-		}
-
-		public static int IndexOf<T>(this IEnumerable<T> enumerable, Func<T, bool> predicate)
-		{
-			var i = 0;
-			foreach (T element in enumerable)
+			foreach (IGestureRecognizer item in gestures)
 			{
-				if (predicate(element))
-					return i;
-
-				i++;
+				if (item is T gesture && (predicate is null || predicate(gesture)))
+				{
+					return gesture;
+				}
 			}
 
-			return -1;
-		}
-
-		public static IEnumerable<T> Prepend<T>(this IEnumerable<T> enumerable, T item)
-		{
-			yield return item;
-
-			foreach (T x in enumerable)
-				yield return x;
+			return null;
 		}
 	}
 }

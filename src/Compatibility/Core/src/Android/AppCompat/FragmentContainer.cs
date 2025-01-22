@@ -4,11 +4,13 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using AndroidX.Fragment.App;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.AppCompat;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 {
+	[System.Obsolete]
 	internal class FragmentContainer : Fragment
 	{
 		readonly WeakReference _pageRenderer;
@@ -54,7 +56,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 		{
 			if (Page != null)
 			{
-				_visualElementRenderer = Platform.CreateRenderer(Page, ChildFragmentManager, inflater.Context);
+				_visualElementRenderer = Platform.CreateRenderer(Page, inflater.Context, ChildFragmentManager, inflater);
 				Platform.SetRenderer(Page, _visualElementRenderer);
 
 				_pageContainer = CreatePageContainer(inflater.Context, _visualElementRenderer, true);
@@ -73,7 +75,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			{
 				if (_visualElementRenderer != null)
 				{
-					if (_visualElementRenderer.View.Handle != IntPtr.Zero)
+					if (_visualElementRenderer.View.IsAlive())
 					{
 						_visualElementRenderer.View.RemoveFromParent();
 					}

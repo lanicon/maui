@@ -1,25 +1,46 @@
-﻿namespace Microsoft.Maui.Handlers
+﻿#nullable enable
+#if __IOS__ || MACCATALYST
+using PlatformView = UIKit.UIProgressView;
+#elif MONOANDROID
+using PlatformView = Android.Widget.ProgressBar;
+#elif WINDOWS
+using PlatformView = Microsoft.UI.Xaml.Controls.ProgressBar;
+#elif TIZEN
+using PlatformView = Tizen.UIExtensions.NUI.GraphicsView.ProgressBar;
+#elif (NETSTANDARD || !PLATFORM) || (NET6_0_OR_GREATER && !IOS && !ANDROID && !TIZEN)
+using PlatformView = System.Object;
+#endif
+
+namespace Microsoft.Maui.Handlers
 {
-	public partial class ProgressBarHandler
+	public partial class ProgressBarHandler : IProgressBarHandler
 	{
-		public static PropertyMapper<IProgress, ProgressBarHandler> ProgressMapper = new PropertyMapper<IProgress, ProgressBarHandler>(ViewHandler.ViewMapper)
+		public static IPropertyMapper<IProgress, IProgressBarHandler> Mapper = new PropertyMapper<IProgress, ProgressBarHandler>(ViewHandler.ViewMapper)
 		{
 			[nameof(IProgress.Progress)] = MapProgress,
+			[nameof(IProgress.ProgressColor)] = MapProgressColor
 		};
 
-		public static void MapProgress(ProgressBarHandler handler, IProgress progress)
+		public static CommandMapper<IProgress, IProgressBarHandler> CommandMapper = new(ViewCommandMapper)
 		{
-			handler.TypedNativeView?.UpdateProgress(progress);
+		};
+
+		public ProgressBarHandler() : base(Mapper, CommandMapper)
+		{
 		}
 
-		public ProgressBarHandler() : base(ProgressMapper)
+		public ProgressBarHandler(IPropertyMapper? mapper)
+			: base(mapper ?? Mapper, CommandMapper)
 		{
-
 		}
 
-		public ProgressBarHandler(PropertyMapper mapper) : base(mapper ?? ProgressMapper)
+		public ProgressBarHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
+			: base(mapper ?? Mapper, commandMapper ?? CommandMapper)
 		{
-
 		}
+
+		IProgress IProgressBarHandler.VirtualView => VirtualView;
+
+		PlatformView IProgressBarHandler.PlatformView => PlatformView;
 	}
 }

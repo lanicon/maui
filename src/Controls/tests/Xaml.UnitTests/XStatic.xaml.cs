@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -16,7 +17,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		public static string MockField = "Field";
 		public static string MockFieldRef = Icons.CLOSE;
 		public string InstanceProperty { get { return "InstanceProperty"; } }
-		public static readonly Color BackgroundColor = Color.Fuchsia;
+		public static readonly Color BackgroundColor = Colors.Fuchsia;
 
 		public class Nested
 		{
@@ -55,18 +56,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			// - An enumeration value
 			// All other cases should throw
 
-			[SetUp]
-			public void Setup()
-			{
-				Device.PlatformServices = new MockPlatformServices();
-			}
-
-			[TearDown]
-			public void TearDown()
-			{
-				Device.PlatformServices = null;
-			}
-
 			[TestCase(false)]
 			[TestCase(true)]
 			public void StaticProperty(bool useCompiledXaml)
@@ -88,7 +77,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			public void FieldColor(bool useCompiledXaml)
 			{
 				var layout = new XStatic(useCompiledXaml);
-				Assert.AreEqual(Color.Fuchsia, layout.color.TextColor);
+				Assert.AreEqual(Colors.Fuchsia, layout.color.TextColor);
 			}
 
 			[TestCase(false)]

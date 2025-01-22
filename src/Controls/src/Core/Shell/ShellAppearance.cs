@@ -1,9 +1,12 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls
 {
+	/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="Type[@FullName='Microsoft.Maui.Controls.ShellAppearance']/Docs/*" />
 	[EditorBrowsable(EditorBrowsableState.Never)]
 	public class ShellAppearance : IShellAppearanceElement
 	{
@@ -32,48 +35,59 @@ namespace Microsoft.Maui.Controls
 			Shell.FlyoutHeightProperty
 		};
 
-		Color?[] _colorArray = new Color?[s_ingestArray.Length];
+		Color[] _colorArray = new Color[s_ingestArray.Length];
 		Brush[] _brushArray = new Brush[s_ingestBrushArray.Length];
 		double[] _doubleArray = new double[s_ingestDoubleArray.Length];
 
-		public Color BackgroundColor => _colorArray[0].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='BackgroundColor']/Docs/*" />
+		public Color BackgroundColor => _colorArray[0];
 
-		public Color DisabledColor => _colorArray[1].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='DisabledColor']/Docs/*" />
+		public Color DisabledColor => _colorArray[1];
 
-		public Color ForegroundColor => _colorArray[2].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='ForegroundColor']/Docs/*" />
+		public Color ForegroundColor => _colorArray[2];
 
-		public Color TabBarBackgroundColor => _colorArray[3].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='TabBarBackgroundColor']/Docs/*" />
+		public Color TabBarBackgroundColor => _colorArray[3];
 
-		public Color TabBarDisabledColor => _colorArray[4].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='TabBarDisabledColor']/Docs/*" />
+		public Color TabBarDisabledColor => _colorArray[4];
 
-		public Color TabBarForegroundColor => _colorArray[5].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='TabBarForegroundColor']/Docs/*" />
+		public Color TabBarForegroundColor => _colorArray[5];
 
-		public Color TabBarTitleColor => _colorArray[6].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='TabBarTitleColor']/Docs/*" />
+		public Color TabBarTitleColor => _colorArray[6];
 
-		public Color TabBarUnselectedColor => _colorArray[7].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='TabBarUnselectedColor']/Docs/*" />
+		public Color TabBarUnselectedColor => _colorArray[7];
 
-		public Color TitleColor => _colorArray[8].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='TitleColor']/Docs/*" />
+		public Color TitleColor => _colorArray[8];
 
-		public Color UnselectedColor => _colorArray[9].Value;
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='UnselectedColor']/Docs/*" />
+		public Color UnselectedColor => _colorArray[9];
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='FlyoutBackdrop']/Docs/*" />
 		public Brush FlyoutBackdrop => _brushArray[0];
 		public double FlyoutWidth => _doubleArray[0];
 		public double FlyoutHeight => _doubleArray[1];
 
 		Color IShellAppearanceElement.EffectiveTabBarBackgroundColor =>
-			!TabBarBackgroundColor.IsDefault ? TabBarBackgroundColor : BackgroundColor;
+			TabBarBackgroundColor ?? BackgroundColor;
 
 		Color IShellAppearanceElement.EffectiveTabBarDisabledColor =>
-			!TabBarDisabledColor.IsDefault ? TabBarDisabledColor : DisabledColor;
+			TabBarDisabledColor ?? DisabledColor;
 
 		Color IShellAppearanceElement.EffectiveTabBarForegroundColor =>
-			!TabBarForegroundColor.IsDefault ? TabBarForegroundColor : ForegroundColor;
+			TabBarForegroundColor ?? ForegroundColor;
 
 		Color IShellAppearanceElement.EffectiveTabBarTitleColor =>
-			!TabBarTitleColor.IsDefault ? TabBarTitleColor : TitleColor;
+			TabBarTitleColor ?? TitleColor;
 
 		Color IShellAppearanceElement.EffectiveTabBarUnselectedColor =>
-			!TabBarUnselectedColor.IsDefault ? TabBarUnselectedColor : UnselectedColor;
+			TabBarUnselectedColor ?? UnselectedColor;
 
 		internal ShellAppearance()
 		{
@@ -84,6 +98,7 @@ namespace Microsoft.Maui.Controls
 				_doubleArray[i] = -1;
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='Equals']/Docs/*" />
 		public override bool Equals(object obj)
 		{
 			if (!(obj is ShellAppearance appearance))
@@ -91,7 +106,7 @@ namespace Microsoft.Maui.Controls
 
 			for (int i = 0; i < _colorArray.Length; i++)
 			{
-				if (!EqualityComparer<Color>.Default.Equals(_colorArray[i].Value, appearance._colorArray[i].Value))
+				if (!EqualityComparer<Color>.Default.Equals(_colorArray[i], appearance._colorArray[i]))
 					return false;
 			}
 
@@ -110,11 +125,12 @@ namespace Microsoft.Maui.Controls
 			return true;
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='GetHashCode']/Docs/*" />
 		public override int GetHashCode()
 		{
 			var hashCode = -1988429770;
 			for (int i = 0; i < _colorArray.Length; i++)
-				hashCode = hashCode * -1521134295 + EqualityComparer<Color>.Default.GetHashCode(_colorArray[i].Value);
+				hashCode = hashCode * -1521134295 + EqualityComparer<Color>.Default.GetHashCode(_colorArray[i]);
 
 			for (int i = 0; i < _brushArray.Length; i++)
 				hashCode = hashCode * -1521134295 + EqualityComparer<Brush>.Default.GetHashCode(_brushArray[i]);
@@ -125,6 +141,7 @@ namespace Microsoft.Maui.Controls
 			return hashCode;
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='Ingest']/Docs/*" />
 		public bool Ingest(Element pivot)
 		{
 			bool anySet = false;
@@ -132,7 +149,7 @@ namespace Microsoft.Maui.Controls
 			var dataSet = pivot.GetValues<Color>(s_ingestArray);
 			for (int i = 0; i < s_ingestArray.Length; i++)
 			{
-				if (!_colorArray[i].HasValue && dataSet[i].IsSet)
+				if (_colorArray[i] == null && dataSet[i].IsSet)
 				{
 					anySet = true;
 					_colorArray[i] = dataSet[i].Value;
@@ -162,12 +179,13 @@ namespace Microsoft.Maui.Controls
 			return anySet;
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/ShellAppearance.xml" path="//Member[@MemberName='MakeComplete']/Docs/*" />
 		public void MakeComplete()
 		{
 			for (int i = 0; i < s_ingestArray.Length; i++)
 			{
 				if (_colorArray[i] == null)
-					_colorArray[i] = Color.Default;
+					_colorArray[i] = null;
 			}
 		}
 

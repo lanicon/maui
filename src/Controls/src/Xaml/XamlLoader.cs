@@ -5,7 +5,7 @@
 //       Stephane Delcroix <stephane@mi8.be>
 //
 // Copyright (c) 2013 Mobile Inception
-// Copyright (c) 2013-2014 Microsoft.Maui.Controls, Inc
+// Copyright (c) 2013-2014 Xamarin, Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,41 +29,21 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Xml;
 using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Controls.Xaml.Diagnostics;
 
-namespace Microsoft.Maui.Controls.Xaml.Internals
-{
-	[Obsolete("Replaced by ResourceLoader")]
-	[EditorBrowsable(EditorBrowsableState.Never)]
-	public static class XamlLoader
-	{
-		static Func<Type, string> xamlFileProvider;
-
-		public static Func<Type, string> XamlFileProvider
-		{
-			get { return xamlFileProvider; }
-			internal set
-			{
-				xamlFileProvider = value;
-				Microsoft.Maui.Controls.DesignMode.IsDesignModeEnabled = true;
-				//¯\_(ツ)_/¯ the previewer forgot to set that bool
-				DoNotThrowOnExceptions = value != null;
-			}
-		}
-
-		internal static bool DoNotThrowOnExceptions { get; set; }
-	}
-}
-
 namespace Microsoft.Maui.Controls.Xaml
 {
-	static class XamlLoader
+	[RequiresUnreferencedCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#if !NETSTANDARD
+	[RequiresDynamicCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#endif
+	static partial class XamlLoader
 	{
 		public static void Load(object view, Type callingType)
 		{
@@ -97,14 +77,12 @@ namespace Microsoft.Maui.Controls.Xaml
 
 					var rootnode = new RuntimeRootNode(new XmlType(reader.NamespaceURI, reader.Name, null), view, (IXmlNamespaceResolver)reader) { LineNumber = ((IXmlLineInfo)reader).LineNumber, LinePosition = ((IXmlLineInfo)reader).LinePosition };
 					XamlParser.ParseXaml(rootnode, reader);
-#pragma warning disable 0618
-					var doNotThrow = ResourceLoader.ExceptionHandler2 != null || Internals.XamlLoader.DoNotThrowOnExceptions;
-#pragma warning restore 0618
+					var doNotThrow = ResourceLoader.ExceptionHandler2 != null;
 					void ehandler(Exception e) => ResourceLoader.ExceptionHandler2?.Invoke((e, XamlFilePathAttribute.GetFilePathForObject(view)));
 					Visit(rootnode, new HydrationContext
 					{
 						RootElement = view,
-						RootAssembly = rootAssembly ?? view.GetType().GetTypeInfo().Assembly,
+						RootAssembly = rootAssembly ?? view.GetType().Assembly,
 						ExceptionHandler = doNotThrow ? ehandler : (Action<Exception>)null
 					}, useDesignProperties);
 
@@ -184,7 +162,7 @@ namespace Microsoft.Maui.Controls.Xaml
 					RootNode rootNode = new RuntimeRootNode(new XmlType(reader.NamespaceURI, reader.Name, null), null, (IXmlNamespaceResolver)reader) { LineNumber = ((IXmlLineInfo)reader).LineNumber, LinePosition = ((IXmlLineInfo)reader).LinePosition };
 					XamlParser.ParseXaml(rootNode, reader);
 					var rNode = (IElementNode)rootNode;
-					if (!rNode.Properties.TryGetValue(new XmlName(XamlParser.XFUri, "Resources"), out var resources))
+					if (!rNode.Properties.TryGetValue(new XmlName(XamlParser.MauiUri, "Resources"), out var resources))
 						return null;
 
 					var visitorContext = new HydrationContext
@@ -192,14 +170,14 @@ namespace Microsoft.Maui.Controls.Xaml
 						ExceptionHandler = ResourceLoader.ExceptionHandler2 != null ? ehandler : (Action<Exception>)null,
 					};
 					var cvv = new CreateValuesVisitor(visitorContext);
-					if (resources is ElementNode resourcesEN && (resourcesEN.XmlType.NamespaceUri != XamlParser.XFUri || resourcesEN.XmlType.Name != nameof(ResourceDictionary)))
+					if (resources is ElementNode resourcesEN && (resourcesEN.XmlType.NamespaceUri != XamlParser.MauiUri || resourcesEN.XmlType.Name != nameof(ResourceDictionary)))
 					{ //single implicit resource
-						resources = new ElementNode(new XmlType(XamlParser.XFUri, nameof(ResourceDictionary), null), XamlParser.XFUri, rootNode.NamespaceResolver);
+						resources = new ElementNode(new XmlType(XamlParser.MauiUri, nameof(ResourceDictionary), null), XamlParser.MauiUri, rootNode.NamespaceResolver);
 						((ElementNode)resources).CollectionItems.Add(resourcesEN);
 					}
 					else if (resources is ListNode resourcesLN)
 					{ //multiple implicit resources
-						resources = new ElementNode(new XmlType(XamlParser.XFUri, nameof(ResourceDictionary), null), XamlParser.XFUri, rootNode.NamespaceResolver);
+						resources = new ElementNode(new XmlType(XamlParser.MauiUri, nameof(ResourceDictionary), null), XamlParser.MauiUri, rootNode.NamespaceResolver);
 						foreach (var n in resourcesLN.CollectionItems)
 							((ElementNode)resources).CollectionItems.Add(n);
 					}
@@ -213,6 +191,7 @@ namespace Microsoft.Maui.Controls.Xaml
 					resources.Accept(new NamescopingVisitor(visitorContext), null); //set namescopes for {x:Reference}
 					resources.Accept(new CreateValuesVisitor(visitorContext), null);
 					resources.Accept(new RegisterXNamesVisitor(visitorContext), null);
+					resources.Accept(new SimplifyTypeExtensionVisitor(), null);
 					resources.Accept(new FillResourceDictionariesVisitor(visitorContext), null);
 					resources.Accept(new ApplyPropertiesVisitor(visitorContext, true), null);
 
@@ -232,6 +211,7 @@ namespace Microsoft.Maui.Controls.Xaml
 			rootnode.Accept(new NamescopingVisitor(visitorContext), null); //set namescopes for {x:Reference}
 			rootnode.Accept(new CreateValuesVisitor(visitorContext), null);
 			rootnode.Accept(new RegisterXNamesVisitor(visitorContext), null);
+			rootnode.Accept(new SimplifyTypeExtensionVisitor(), null);
 			rootnode.Accept(new FillResourceDictionariesVisitor(visitorContext), null);
 			rootnode.Accept(new ApplyPropertiesVisitor(visitorContext, true), null);
 		}
@@ -243,12 +223,7 @@ namespace Microsoft.Maui.Controls.Xaml
 			//the check at the end is preferred (using ResourceLoader). keep this until all the previewers are updated
 
 			string xaml;
-#pragma warning disable 0618
-			if (ResourceLoader.ResourceProvider2 == null && (xaml = Internals.XamlLoader.XamlFileProvider?.Invoke(type)) != null)
-				return xaml;
-#pragma warning restore 0618
-
-			var assembly = type.GetTypeInfo().Assembly;
+			var assembly = type.Assembly;
 			var resourceId = XamlResourceIdAttribute.GetResourceIdForType(type);
 
 			var rlr = ResourceLoader.ResourceProvider2?.Invoke(new ResourceLoader.ResourceLoadingQuery
@@ -284,7 +259,7 @@ namespace Microsoft.Maui.Controls.Xaml
 		static readonly Dictionary<Type, string> XamlResources = new Dictionary<Type, string>();
 		static string LegacyGetXamlForType(Type type)
 		{
-			var assembly = type.GetTypeInfo().Assembly;
+			var assembly = type.Assembly;
 
 			string resourceId;
 			if (XamlResources.TryGetValue(type, out resourceId))
@@ -384,41 +359,85 @@ namespace Microsoft.Maui.Controls.Xaml
 
 				var xaml = reader.ReadToEnd();
 
-				var pattern = String.Format("x:Class *= *\"{0}\"", type.FullName);
-				var regex = new Regex(pattern, RegexOptions.ECMAScript);
-				if (regex.IsMatch(xaml) || xaml.Contains(String.Format("x:Class=\"{0}\"", type.FullName)))
+				if (ContainsXClass(xaml, type.FullName))
+				{
 					return xaml;
+				}
 			}
 			return null;
-		}
 
-		public class RuntimeRootNode : RootNode
-		{
-			public RuntimeRootNode(XmlType xmlType, object root, IXmlNamespaceResolver resolver) : base(xmlType, resolver)
+			// Equivalent to regex $"x:Class *= *\"{fullName}\""
+			static bool ContainsXClass(string xaml, string fullName)
 			{
-				Root = root;
+				int index = 0;
+				while (index >= 0 && index < xaml.Length)
+				{
+					if (FindNextXClass()
+						&& SkipWhitespaces()
+						&& NextCharacter('=')
+						&& SkipWhitespaces()
+						&& NextCharacter('"')
+						&& NextFullName()
+						&& NextCharacter('"'))
+					{
+						return true;
+					}
+				}
+
+				return false;
+
+				bool FindNextXClass()
+				{
+					const string xClass = "x:Class";
+
+					index = xaml.IndexOf(xClass, startIndex: index);
+					if (index < 0)
+					{
+						return false;
+					}
+
+					index += xClass.Length;
+					return true;
+				}
+
+				bool SkipWhitespaces()
+				{
+					while (index < xaml.Length && xaml[index] == ' ')
+					{
+						index++;
+					}
+
+					return true;
+				}
+
+				bool NextCharacter(char character)
+				{
+					if (index < xaml.Length && xaml[index] != character)
+					{
+						return false;
+					}
+
+					index++;
+					return true;
+				}
+
+				bool NextFullName()
+				{
+					if (index >= xaml.Length - fullName.Length)
+					{
+						return false;
+					}
+
+					var slice = xaml.AsSpan().Slice(index, fullName.Length);
+					if (!MemoryExtensions.Equals(slice, fullName.AsSpan(), StringComparison.Ordinal))
+					{
+						return false;
+					}
+
+					index += fullName.Length;
+					return true;
+				}
 			}
-
-			public object Root { get; internal set; }
 		}
-
-		public struct FallbackTypeInfo
-		{
-			public string ClrNamespace { get; internal set; }
-			public string TypeName { get; internal set; }
-			public string AssemblyName { get; internal set; }
-			public string XmlNamespace { get; internal set; }
-		}
-
-		public struct CallbackTypeInfo
-		{
-			public string XmlNamespace { get; internal set; }
-			public string XmlTypeName { get; internal set; }
-
-		}
-
-		internal static Func<IList<FallbackTypeInfo>, Type, Type> FallbackTypeResolver { get; set; }
-		internal static Action<CallbackTypeInfo, object> ValueCreatedCallback { get; set; }
-		internal static Func<CallbackTypeInfo, Type, Exception, object> InstantiationFailedCallback { get; set; }
 	}
 }

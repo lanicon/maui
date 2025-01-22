@@ -1,3 +1,4 @@
+#nullable disable
 using System;
 using System.IO;
 using System.Threading;
@@ -5,13 +6,17 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Maui.Controls
 {
-	public class StreamImageSource : ImageSource, IStreamImageSource
+	/// <include file="../../docs/Microsoft.Maui.Controls/StreamImageSource.xml" path="Type[@FullName='Microsoft.Maui.Controls.StreamImageSource']/Docs/*" />
+	public partial class StreamImageSource : ImageSource, IStreamImageSource
 	{
-		public static readonly BindableProperty StreamProperty = BindableProperty.Create("Stream", typeof(Func<CancellationToken, Task<Stream>>), typeof(StreamImageSource),
+		/// <summary>Bindable property for <see cref="Stream"/>.</summary>
+		public static readonly BindableProperty StreamProperty = BindableProperty.Create(nameof(Stream), typeof(Func<CancellationToken, Task<Stream>>), typeof(StreamImageSource),
 			default(Func<CancellationToken, Task<Stream>>));
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/StreamImageSource.xml" path="//Member[@MemberName='IsEmpty']/Docs/*" />
 		public override bool IsEmpty => Stream == null;
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/StreamImageSource.xml" path="//Member[@MemberName='Stream']/Docs/*" />
 		public virtual Func<CancellationToken, Task<Stream>> Stream
 		{
 			get { return (Func<CancellationToken, Task<Stream>>)GetValue(StreamProperty); }
@@ -27,7 +32,7 @@ namespace Microsoft.Maui.Controls
 
 		async Task<Stream> IStreamImageSource.GetStreamAsync(CancellationToken userToken)
 		{
-			if (Stream == null)
+			if (IsEmpty)
 				return null;
 
 			OnLoadingStarted();

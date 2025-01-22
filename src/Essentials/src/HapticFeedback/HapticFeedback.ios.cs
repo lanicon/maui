@@ -1,46 +1,59 @@
 using System;
-using System.Threading.Tasks;
 using UIKit;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Devices
 {
-	public static partial class HapticFeedback
+	partial class HapticFeedbackImplementation : IHapticFeedback
 	{
-		internal static bool IsSupported => true;
+		public bool IsSupported => true;
 
-		static void PlatformPerform(HapticFeedbackType type)
+		public void Perform(HapticFeedbackType type)
 		{
 			switch (type)
 			{
 				case HapticFeedbackType.LongPress:
-					PlatformLongPress();
+					LongPress();
 					break;
 				default:
-					PlatformClick();
+					Click();
 					break;
 			}
 		}
 
-		static void PlatformClick()
+		void Click()
 		{
-			if (Platform.HasOSVersion(10, 0))
+			UIImpactFeedbackGenerator impact;
+#if IOS17_5_OR_GREATER || MACCATALYST17_5_OR_GREATER
+			if (OperatingSystem.IsIOSVersionAtLeast(17, 5) || OperatingSystem.IsMacCatalystVersionAtLeast(17, 5))
 			{
-				var impact = new UIImpactFeedbackGenerator(UIImpactFeedbackStyle.Light);
-				impact.Prepare();
-				impact.ImpactOccurred();
-				impact.Dispose();
+				impact = UIImpactFeedbackGenerator.GetFeedbackGenerator(UIImpactFeedbackStyle.Light, new UIView());
 			}
+			else
+#endif
+			{
+				impact = new UIImpactFeedbackGenerator(UIImpactFeedbackStyle.Light);
+			}
+			impact.Prepare();
+			impact.ImpactOccurred();
+			impact.Dispose();
 		}
 
-		static void PlatformLongPress()
+		void LongPress()
 		{
-			if (Platform.HasOSVersion(10, 0))
+			UIImpactFeedbackGenerator impact;
+#if IOS17_5_OR_GREATER || MACCATALYST17_5_OR_GREATER
+			if (OperatingSystem.IsIOSVersionAtLeast(17, 5) || OperatingSystem.IsMacCatalystVersionAtLeast(17, 5))
 			{
-				var impact = new UIImpactFeedbackGenerator(UIImpactFeedbackStyle.Medium);
-				impact.Prepare();
-				impact.ImpactOccurred();
-				impact.Dispose();
+				impact = UIImpactFeedbackGenerator.GetFeedbackGenerator(UIImpactFeedbackStyle.Medium, new UIView());
 			}
+			else
+#endif
+			{
+				impact = new UIImpactFeedbackGenerator(UIImpactFeedbackStyle.Medium);
+			}
+			impact.Prepare();
+			impact.ImpactOccurred();
+			impact.Dispose();
 		}
 	}
 }

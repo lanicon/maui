@@ -1,10 +1,14 @@
 using System;
 using System.ComponentModel;
 using CoreGraphics;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public abstract class CheckBoxRendererBase<T> : ViewRenderer<CheckBox, T>
 		where T : FormsCheckBox
 	{
@@ -88,7 +92,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			_disposed = true;
-			
+
 			if (disposing && Control != null)
 			{
 				Control.CheckedChanged -= OnControlCheckedChanged;

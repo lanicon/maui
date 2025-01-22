@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -30,9 +31,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp] public void Setup() => Device.PlatformServices = new MockPlatformServices();
-			[TearDown] public void TearDown() => Device.PlatformServices = null;
-
 			[Test]
 			public void BehaviorAndStaticResource([Values(false, true)] bool useCompiledXaml)
 			{

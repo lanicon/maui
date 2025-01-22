@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using Android.Content;
@@ -9,11 +9,15 @@ using Android.Views;
 using AndroidX.Core.View;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AView = Android.Views.View;
+using Color = Microsoft.Maui.Graphics.Color;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
-	public abstract class VisualElementRenderer<TElement> : FormsViewGroup, IVisualElementRenderer, IDisposedState,
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.VisualElementRenderer instead")]
+	public abstract class VisualElementRenderer<TElement> : Microsoft.Maui.MauiViewGroup, IVisualElementRenderer, IDisposedState,
 		IEffectControlProvider where TElement : VisualElement
 	{
 		readonly List<EventHandler<VisualElementChangedEventArgs>> _elementChangedHandlers = new List<EventHandler<VisualElementChangedEventArgs>>();
@@ -21,24 +25,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		VisualElementRendererFlags _flags = VisualElementRendererFlags.AutoPackage | VisualElementRendererFlags.AutoTrack;
 
 		string _defaultContentDescription;
-		bool? _defaultFocusable;
-		ImportantForAccessibility? _defaultImportantForAccessibility;
 		string _defaultHint;
 		bool _cascadeInputTransparent = true;
 		bool _defaultAutomationSet;
 		VisualElementPackager _packager;
 		PropertyChangedEventHandler _propertyChangeHandler;
 
-		GestureManager _gestureManager;
-
 		protected VisualElementRenderer(Context context) : base(context)
 		{
-			_gestureManager = new GestureManager(this);
-		}
-
-		public override bool OnTouchEvent(MotionEvent e)
-		{
-			return _gestureManager.OnTouchEvent(e) || base.OnTouchEvent(e);
 		}
 
 		public override bool OnInterceptTouchEvent(MotionEvent ev)
@@ -133,69 +127,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			Performance.Stop(reference);
 		}
 
-		protected int TabIndex { get; set; } = 0;
-
-		protected bool TabStop { get; set; } = true;
-
-		protected void UpdateTabStop()
-		{
-			TabStop = Element.IsTabStop;
-			UpdateParentPageTraversalOrder();
-		}
-
-		protected void UpdateTabIndex()
-		{
-			TabIndex = Element.TabIndex;
-			UpdateParentPageTraversalOrder();
-		}
-
-		bool CheckCustomNextFocus(AView focused, FocusSearchDirection direction)
-		{
-			return direction == FocusSearchDirection.Forward && focused.NextFocusForwardId != NoId ||
-				direction == FocusSearchDirection.Down && focused.NextFocusDownId != NoId ||
-				direction == FocusSearchDirection.Left && focused.NextFocusLeftId != NoId ||
-				direction == FocusSearchDirection.Right && focused.NextFocusRightId != NoId ||
-				direction == FocusSearchDirection.Up && focused.NextFocusUpId != NoId;
-		}
-
-		public override AView FocusSearch(AView focused, [GeneratedEnum] FocusSearchDirection direction)
-		{
-			if (CheckCustomNextFocus(focused, direction))
-				return base.FocusSearch(focused, direction);
-
-			var element = Element as ITabStopElement;
-			int maxAttempts = 0;
-			var tabIndexes = element?.GetTabIndexesOnParentPage(out maxAttempts);
-			if (tabIndexes == null)
-				return base.FocusSearch(focused, direction);
-
-			// use OS default--there's no need for us to keep going if there's one or fewer tab indexes!
-			if (tabIndexes.Count <= 1)
-				return base.FocusSearch(focused, direction);
-
-			int tabIndex = element.TabIndex;
-			AView control = null;
-			int attempt = 0;
-			bool forwardDirection = !(
-				(direction & FocusSearchDirection.Backward) != 0 ||
-				(direction & FocusSearchDirection.Left) != 0 ||
-				(direction & FocusSearchDirection.Up) != 0);
-
-			do
-			{
-				element = element.FindNextElement(forwardDirection, tabIndexes, ref tabIndex);
-				var renderer = (element as VisualElement)?.GetRenderer();
-				control = (renderer as ITabStop)?.TabStop;
-			} while (!(control?.Focusable == true || ++attempt >= maxAttempts));
-
-			// when the user focuses on picker show a popup dialog
-			if (control is IPopupTrigger popupElement)
-				popupElement.ShowPopupOnFocus = true;
-
-			return control?.Focusable == true ? control : null;
-		}
-
-		public ViewGroup ViewGroup => this;
 		AView IVisualElementRenderer.View => this;
 
 		public event EventHandler<ElementChangedEventArgs<TElement>> ElementChanged;
@@ -213,7 +144,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				oldElement.PropertyChanged -= _propertyChangeHandler;
 			}
 
-			Color currentColor = oldElement?.BackgroundColor ?? Color.Default;
+			Color currentColor = oldElement?.BackgroundColor ?? null;
 
 			if (element.BackgroundColor != currentColor)
 				UpdateBackgroundColor();
@@ -251,11 +182,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				SetAutomationId(element.AutomationId);
 
 			SetContentDescription();
-			SetFocusable();
+			SetImportantForAccessibility();
 			UpdateInputTransparent();
 			UpdateInputTransparentInherited();
-			UpdateTabStop();
-			UpdateTabIndex();
 
 			Performance.Stop(reference);
 		}
@@ -300,12 +229,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					_packager = null;
 				}
 
-				if (_gestureManager != null)
-				{
-					_gestureManager.Dispose();
-					_gestureManager = null;
-				}
-
 				if (ManageNativeControlLifetime)
 				{
 					while (ChildCount > 0)
@@ -318,8 +241,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (Element != null)
 				{
-					if (AppCompat.Platform.GetRenderer(Element) == this)
-						AppCompat.Platform.SetRenderer(Element, null);
+					if (Platform.GetRenderer(Element) == this)
+						Platform.SetRenderer(Element, null);
 
 					Element = null;
 				}
@@ -366,27 +289,21 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			else if (e.PropertyName == AutomationProperties.NameProperty.PropertyName)
 				SetContentDescription();
 			else if (e.PropertyName == AutomationProperties.IsInAccessibleTreeProperty.PropertyName)
-				SetFocusable();
+				SetImportantForAccessibility();
 			else if (e.PropertyName == VisualElement.InputTransparentProperty.PropertyName)
 				UpdateInputTransparent();
-			else if (e.PropertyName == Microsoft.Maui.Controls.Layout.CascadeInputTransparentProperty.PropertyName)
+			else if (e.PropertyName == Microsoft.Maui.Controls.Compatibility.Layout.CascadeInputTransparentProperty.PropertyName)
 				UpdateInputTransparentInherited();
-			else if (e.PropertyName == VisualElement.IsTabStopProperty.PropertyName)
-				UpdateTabStop();
-			else if (e.PropertyName == VisualElement.TabIndexProperty.PropertyName)
-				UpdateTabIndex();
-			else if (e.PropertyName == nameof(Element.Parent))
-				UpdateParentPageTraversalOrder();
 
 			ElementPropertyChanged?.Invoke(this, e);
 		}
 
 		protected override void OnLayout(bool changed, int l, int t, int r, int b)
 		{
-			if (Element == null)
-				return;
-
-			UpdateLayout(((IElementController)Element).LogicalChildren);
+			if (Element is IElementController controller)
+			{
+				UpdateLayout(controller.LogicalChildren);
+			}
 		}
 
 		public override void Draw(Canvas canvas)
@@ -404,27 +321,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				if (visualElement == null)
 					continue;
 
-				IVisualElementRenderer renderer = AppCompat.Platform.GetRenderer(visualElement);
+				IVisualElementRenderer renderer = Platform.GetRenderer(visualElement);
 				if (renderer == null && CompressedLayout.GetIsHeadless(visualElement))
-					UpdateLayout(visualElement.LogicalChildren);
+					UpdateLayout(((IElementController)visualElement).LogicalChildren);
 
 				renderer?.UpdateLayout();
 			}
 		}
 
-		void UpdateParentPageTraversalOrder()
-		{
-			IViewParent parentRenderer = Parent;
-			while (parentRenderer != null && !(parentRenderer is IOrderedTraversalController))
-				parentRenderer = parentRenderer.Parent;
-
-			if (parentRenderer is IOrderedTraversalController controller)
-				controller.UpdateTraversalOrder();
-		}
-
 		protected virtual void OnRegisterEffect(PlatformEffect effect)
 		{
-			effect.SetContainer(this);
+			effect.Container = this;
 		}
 
 		void SetupAutomationDefaults()
@@ -432,24 +339,24 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (!_defaultAutomationSet)
 			{
 				_defaultAutomationSet = true;
-				AutomationPropertiesProvider.SetupDefaults(this, ref _defaultContentDescription, ref _defaultHint);
+				Controls.Platform.AutomationPropertiesProvider.SetupDefaults(this, ref _defaultContentDescription, ref _defaultHint);
 			}
 		}
 
 		protected virtual void SetAutomationId(string id)
 		{
 			SetupAutomationDefaults();
-			AutomationPropertiesProvider.SetAutomationId(this, Element, id);
+			Controls.Platform.AutomationPropertiesProvider.SetAutomationId(this, Element, id);
 		}
 
 		protected virtual void SetContentDescription()
 		{
 			SetupAutomationDefaults();
-			AutomationPropertiesProvider.SetContentDescription(this, Element, _defaultContentDescription, _defaultHint);
+			Controls.Platform.AutomationPropertiesProvider.SetContentDescription(this, Element, _defaultContentDescription, _defaultHint);
 		}
 
-		protected virtual void SetFocusable()
-			=> AutomationPropertiesProvider.SetFocusable(this, Element, ref _defaultFocusable, ref _defaultImportantForAccessibility);
+		protected virtual void SetImportantForAccessibility()
+			=> Controls.Platform.AutomationPropertiesProvider.SetImportantForAccessibility(this, Element);
 
 		void UpdateInputTransparent()
 		{
@@ -498,15 +405,5 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void IVisualElementRenderer.SetLabelFor(int? id)
 			=> ViewCompat.SetLabelFor(this, id ?? ViewCompat.GetLabelFor(this));
-
-		protected override void OnMeasure(int widthMeasureSpec, int heightMeasureSpec)
-		{
-			if (Element is Layout layout)
-			{
-				layout.ResolveLayoutChanges();
-			}
-
-			base.OnMeasure(widthMeasureSpec, heightMeasureSpec);
-		}
 	}
 }

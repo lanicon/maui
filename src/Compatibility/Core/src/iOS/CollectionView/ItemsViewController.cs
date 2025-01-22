@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using CoreGraphics;
 using Foundation;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete]
 	public abstract class ItemsViewController<TItemsView> : UICollectionViewController
 	where TItemsView : ItemsView
 	{
@@ -16,7 +19,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		public TItemsView ItemsView { get; }
 		protected ItemsViewLayout ItemsViewLayout { get; set; }
 		bool _initialized;
-		bool _isEmpty;
+		bool _isEmpty = true;
 		bool _emptyViewDisplayed;
 		bool _disposed;
 
@@ -45,7 +48,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (_initialized)
 			{
-				// Reload the data so the currently visible cells get laid out according to the new layout
+				// Reload the data so the currently visible cells are arranged in accordance with the updated layout configuration.
 				CollectionView.ReloadData();
 			}
 		}
@@ -114,9 +117,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (wasEmpty != _isEmpty)
 			{
-				 UpdateEmptyViewVisibility(_isEmpty);
+				UpdateEmptyViewVisibility(_isEmpty);
 			}
-			
+
 			if (wasEmpty && !_isEmpty)
 			{
 				// If we're going from empty to having stuff, it's possible that we've never actually measured
@@ -161,7 +164,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			LayoutEmptyView();
 		}
 
-		void ConstrainToItemsView() 
+		void ConstrainToItemsView()
 		{
 			var itemsViewWidth = ItemsView.Width;
 			var itemsViewHeight = ItemsView.Height;
@@ -209,6 +212,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			_measurementCells.Clear();
 			ItemsViewLayout?.ClearCellSizeCache();
+			ItemsSource?.Dispose();
 			ItemsSource = CreateItemsViewSource();
 			CollectionView.ReloadData();
 			CollectionView.CollectionViewLayout.InvalidateLayout();
@@ -305,7 +309,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			CacheCellAttributes(args.NewAttributes.IndexPath, args.NewAttributes.Size);
 		}
 
-		protected virtual void CacheCellAttributes(NSIndexPath indexPath, CGSize size) 
+		protected virtual void CacheCellAttributes(NSIndexPath indexPath, CGSize size)
 		{
 			if (!ItemsSource.IsIndexPathValid(indexPath))
 			{
@@ -372,7 +376,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		protected abstract bool IsHorizontal { get; }
 
-		protected virtual CGRect DetermineEmptyViewFrame() 
+		protected virtual CGRect DetermineEmptyViewFrame()
 		{
 			return new CGRect(CollectionView.Frame.X, CollectionView.Frame.Y,
 				CollectionView.Frame.Width, CollectionView.Frame.Height);
@@ -383,12 +387,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (IsHorizontal)
 			{
 				var request = formsElement.Measure(double.PositiveInfinity, CollectionView.Frame.Height, MeasureFlags.IncludeMargins);
-				Controls.Layout.LayoutChildIntoBoundingRegion(formsElement, new Rectangle(0, 0, request.Request.Width, CollectionView.Frame.Height));
+				Controls.Compatibility.Layout.LayoutChildIntoBoundingRegion(formsElement, new Rect(0, 0, request.Request.Width, CollectionView.Frame.Height));
 			}
 			else
 			{
 				var request = formsElement.Measure(CollectionView.Frame.Width, double.PositiveInfinity, MeasureFlags.IncludeMargins);
-				Controls.Layout.LayoutChildIntoBoundingRegion(formsElement, new Rectangle(0, 0, CollectionView.Frame.Width, request.Request.Height));
+				Controls.Compatibility.Layout.LayoutChildIntoBoundingRegion(formsElement, new Rect(0, 0, CollectionView.Frame.Width, request.Request.Height));
 			}
 		}
 
@@ -403,7 +407,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		protected virtual void HandleFormsElementMeasureInvalidated(VisualElement formsElement)
 		{
 			RemeasureLayout(formsElement);
-        }
+		}
 
 		internal void UpdateView(object view, DataTemplate viewTemplate, ref UIView uiView, ref VisualElement formsElement)
 		{
@@ -460,16 +464,23 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 		}
 
-		void AlignEmptyView() 
+		void AlignEmptyView()
 		{
 			if (_emptyUIView == null)
 			{
 				return;
 			}
 
-			if (CollectionView.EffectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirection.RightToLeft)
+			bool isRtl;
+
+			if (OperatingSystem.IsIOSVersionAtLeast(10) || OperatingSystem.IsTvOSVersionAtLeast(10))
+				isRtl = CollectionView.EffectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirection.RightToLeft;
+			else
+				isRtl = CollectionView.SemanticContentAttribute == UISemanticContentAttribute.ForceRightToLeft;
+
+			if (isRtl)
 			{
-				if (_emptyUIView.Transform.xx == -1)
+				if (_emptyUIView.Transform.A == -1)
 				{
 					return;
 				}
@@ -478,7 +489,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 			else
 			{
-				if (_emptyUIView.Transform.xx == -1)
+				if (_emptyUIView.Transform.A == -1)
 				{
 					FlipEmptyView();
 				}
@@ -491,7 +502,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_emptyUIView.Transform = CGAffineTransform.Scale(_emptyUIView.Transform, -1, 1);
 		}
 
-		void ShowEmptyView() 
+		void ShowEmptyView()
 		{
 			if (_emptyViewDisplayed || _emptyUIView == null)
 			{
@@ -501,7 +512,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_emptyUIView.Tag = EmptyTag;
 			CollectionView.AddSubview(_emptyUIView);
 
-			if (!ItemsView.LogicalChildren.Contains(_emptyViewFormsElement))
+			if (((IElementController)ItemsView).LogicalChildren.IndexOf(_emptyViewFormsElement) == -1)
 			{
 				ItemsView.AddLogicalChild(_emptyViewFormsElement);
 			}
@@ -512,7 +523,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_emptyViewDisplayed = true;
 		}
 
-		void HideEmptyView() 
+		void HideEmptyView()
 		{
 			if (!_emptyViewDisplayed || _emptyUIView == null)
 			{
@@ -524,13 +535,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_emptyViewDisplayed = false;
 		}
 
-		void TearDownEmptyView() 
+		void TearDownEmptyView()
 		{
 			HideEmptyView();
 
 			// RemoveLogicalChild will trigger a disposal of the native view and its content
 			ItemsView.RemoveLogicalChild(_emptyViewFormsElement);
-			
+
 			_emptyUIView = null;
 			_emptyViewFormsElement = null;
 		}
@@ -546,7 +557,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			_emptyUIView.Frame = frame;
 
-			if (_emptyViewFormsElement != null && ItemsView.LogicalChildren.Contains(_emptyViewFormsElement))
+			if (_emptyViewFormsElement != null && ((IElementController)ItemsView).LogicalChildren.IndexOf(_emptyViewFormsElement) != -1)
 				_emptyViewFormsElement.Layout(frame.ToRectangle());
 		}
 
@@ -558,11 +569,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			{
 				return new HorizontalCell(frame);
 			}
-			
+
 			return new VerticalCell(frame);
 		}
 
-		public UICollectionViewCell CreateMeasurementCell(NSIndexPath indexPath) 
+		public UICollectionViewCell CreateMeasurementCell(NSIndexPath indexPath)
 		{
 			if (ItemsView.ItemTemplate == null)
 			{
@@ -577,13 +588,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				{
 					cell = new VerticalDefaultCell(frame);
 				}
-				
+
 				UpdateDefaultCell(cell, indexPath);
 				return cell;
 			}
 
-			TemplatedCell templatedCell = CreateAppropriateCellForLayout(); 
-						
+			TemplatedCell templatedCell = CreateAppropriateCellForLayout();
+
 			UpdateTemplatedCell(templatedCell, indexPath);
 
 			// Keep this cell around, we can transfer the contents to the actual cell when the UICollectionView creates it
@@ -592,7 +603,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			return templatedCell;
 		}
 
-		internal CGSize GetSizeForItem(NSIndexPath indexPath) 
+		internal CGSize GetSizeForItem(NSIndexPath indexPath)
 		{
 			if (ItemsViewLayout.EstimatedItemSize.IsEmpty)
 			{
@@ -611,13 +622,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			return ItemsViewLayout.EstimatedItemSize;
 		}
-		
-		internal protected virtual void UpdateVisibility() 
+
+		internal protected virtual void UpdateVisibility()
 		{
 			if (ItemsView.IsVisible)
 			{
 				if (CollectionView.Hidden)
 				{
+					CollectionView.ReloadData();
 					CollectionView.Hidden = false;
 					Layout.InvalidateLayout();
 					CollectionView.LayoutIfNeeded();

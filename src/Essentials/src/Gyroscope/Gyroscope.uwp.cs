@@ -1,40 +1,40 @@
 using Windows.Devices.Sensors;
 using WindowsGyro = Windows.Devices.Sensors.Gyrometer;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Devices.Sensors
 {
-    public static partial class Gyroscope
-    {
-        // keep around a reference so we can stop this same instance
-        static WindowsGyro sensor;
+	partial class GyroscopeImplementation : IGyroscope
+	{
+		// keep around a reference so we can stop this same instance
+		WindowsGyro sensor;
 
-        internal static WindowsGyro DefaultSensor =>
-            WindowsGyro.GetDefault();
+		static WindowsGyro DefaultSensor =>
+			WindowsGyro.GetDefault();
 
-        internal static bool IsSupported =>
-            DefaultSensor != null;
+		bool PlatformIsSupported =>
+			DefaultSensor != null;
 
-        internal static void PlatformStart(SensorSpeed sensorSpeed)
-        {
-            sensor = DefaultSensor;
+		void PlatformStart(SensorSpeed sensorSpeed)
+		{
+			sensor = DefaultSensor;
 
-            var interval = sensorSpeed.ToPlatform();
-            sensor.ReportInterval = sensor.MinimumReportInterval >= interval ? sensor.MinimumReportInterval : interval;
+			var interval = sensorSpeed.ToPlatform();
+			sensor.ReportInterval = sensor.MinimumReportInterval >= interval ? sensor.MinimumReportInterval : interval;
 
-            sensor.ReadingChanged += DataUpdated;
-        }
+			sensor.ReadingChanged += DataUpdated;
+		}
 
-        static void DataUpdated(object sender, GyrometerReadingChangedEventArgs e)
-        {
-            var reading = e.Reading;
-            var data = new GyroscopeData(reading.AngularVelocityX, reading.AngularVelocityY, reading.AngularVelocityZ);
-            OnChanged(data);
-        }
+		void DataUpdated(object sender, GyrometerReadingChangedEventArgs e)
+		{
+			var reading = e.Reading;
+			var data = new GyroscopeData(reading.AngularVelocityX, reading.AngularVelocityY, reading.AngularVelocityZ);
+			RaiseReadingChanged(data);
+		}
 
-        internal static void PlatformStop()
-        {
-            sensor.ReadingChanged -= DataUpdated;
-            sensor.ReportInterval = 0;
-        }
-    }
+		void PlatformStop()
+		{
+			sensor.ReadingChanged -= DataUpdated;
+			sensor.ReportInterval = 0;
+		}
+	}
 }

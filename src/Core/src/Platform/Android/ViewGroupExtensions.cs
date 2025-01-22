@@ -1,16 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using AView = Android.Views.View;
 using AViewGroup = Android.Views.ViewGroup;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class ViewGroupExtensions
 	{
-		public static IEnumerable<T> GetChildrenOfType<T>(this AViewGroup self) where T : AView
+		public static IEnumerable<T> GetChildrenOfType<T>(this AViewGroup viewGroup) where T : AView
 		{
-			for (var i = 0; i < self.ChildCount; i++)
+			for (var i = 0; i < viewGroup.ChildCount; i++)
 			{
-				AView? child = self.GetChildAt(i);
+				AView? child = viewGroup.GetChildAt(i);
 
 				if (child is T typedChild)
 					yield return typedChild;
@@ -23,6 +25,42 @@ namespace Microsoft.Maui
 							yield return nextChild;
 				}
 			}
+		}
+
+		public static T? GetFirstChildOfType<T>(this AViewGroup viewGroup) where T : AView
+		{
+			for (var i = 0; i < viewGroup.ChildCount; i++)
+			{
+				AView? child = viewGroup.GetChildAt(i);
+
+				if (child is T typedChild)
+					return typedChild;
+
+				if (child is AViewGroup vg)
+				{
+					var descendant = vg.GetFirstChildOfType<T>();
+					if (descendant != null)
+					{
+						return descendant;
+					}
+				}
+			}
+
+			return null;
+		}
+
+		public static bool TryGetFirstChildOfType<T>(this AViewGroup viewGroup, [NotNullWhen(true)] out T? result) where T : AView
+		{
+			result = viewGroup.GetFirstChildOfType<T>();
+			return result is not null;
+		}
+
+		internal static T? GetChildAt<T>(this AView view, int index) where T : AView
+		{
+			if (view is AViewGroup viewGroup && viewGroup.ChildCount < index)
+				return (T?)viewGroup.GetChildAt(index);
+
+			return null;
 		}
 	}
 }

@@ -1,7 +1,9 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.DeviceTests.Stubs;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
+using ObjCRuntime;
 using UIKit;
 using Xunit;
 
@@ -9,59 +11,141 @@ namespace Microsoft.Maui.DeviceTests
 {
 	public partial class ButtonHandlerTests
 	{
-		[Theory(DisplayName = "Font Family Initializes Correctly")]
-		[InlineData(null)]
-		[InlineData("Times New Roman")]
-		[InlineData("Dokdo")]
-		public async Task FontFamilyInitializesCorrectly(string family)
+		[Fact(DisplayName = "CharacterSpacing Initializes Correctly")]
+		public async Task CharacterSpacingInitializesCorrectly()
 		{
-			var button = new ButtonStub
-			{
-				Text = "Test",
-				Font = Font.OfSize(family, 10)
-			};
+			string originalText = "Test";
+			var xplatCharacterSpacing = 4;
 
-			var nativeFont = await GetValueAsync(button, handler => GetNativeButton(handler).Font);
-
-			var fontManager = App.Services.GetRequiredService<IFontManager>();
-
-			var expectedNativeFont = fontManager.GetFont(Font.OfSize(family, 0.0));
-
-			Assert.Equal(expectedNativeFont.FamilyName, nativeFont.FamilyName);
-			if (string.IsNullOrEmpty(family))
-				Assert.Equal(fontManager.DefaultFont.FamilyName, nativeFont.FamilyName);
-			else
-				Assert.NotEqual(fontManager.DefaultFont.FamilyName, nativeFont.FamilyName);
-		}
-
-		[Fact(DisplayName = "Button Padding Initializing")]
-		public async Task PaddingInitializesCorrectly()
-		{
 			var button = new ButtonStub()
 			{
-				Text = "Test",
-				Padding = new Thickness(5, 10, 15, 20)
+				CharacterSpacing = xplatCharacterSpacing,
+				Text = originalText
 			};
 
-			var handler = await CreateHandlerAsync(button);
-			var uiButton = (UIButton)handler.View;
+			var values = await GetValueAsync(button, (handler) =>
+			{
+				return new
+				{
+					ViewValue = button.CharacterSpacing,
+					PlatformViewValue = GetNativeCharacterSpacing(handler)
+				};
+			});
 
-			var insets = await InvokeOnMainThreadAsync(() => { return uiButton.ContentEdgeInsets; });
-
-			Assert.Equal(5, insets.Left);
-			Assert.Equal(10, insets.Top);
-			Assert.Equal(15, insets.Right);
-			Assert.Equal(20, insets.Bottom);
+			Assert.Equal(xplatCharacterSpacing, values.ViewValue);
+			Assert.Equal(xplatCharacterSpacing, values.PlatformViewValue);
 		}
 
+		[Fact(DisplayName = "CharacterSpacing Initializes Correctly")]
+		public async Task CharacterSpacingAndTextColorInitializesCorrectly()
+		{
+			string originalText = "Test";
+			var xplatCharacterSpacing = 4;
+			var color = Colors.HotPink;
+
+			var button = new ButtonStub()
+			{
+				CharacterSpacing = xplatCharacterSpacing,
+				TextColor = color,
+				Text = originalText
+			};
+
+			var values = await GetValueAsync(button, (handler) =>
+			{
+				return new
+				{
+					ViewValue = button.CharacterSpacing,
+					PlatformViewValue = GetNativeCharacterSpacing(handler)
+				};
+			});
+
+			var colorvalues = await GetValueAsync(button, (handler) =>
+			{
+				return new
+				{
+					ViewValue = button.TextColor,
+					PlatformViewValue = GetNativeTextColor(handler)
+				};
+			});
+
+			Assert.Equal(xplatCharacterSpacing, values.ViewValue);
+			Assert.Equal(xplatCharacterSpacing, values.PlatformViewValue);
+
+			Assert.Equal(color, colorvalues.ViewValue);
+			Assert.Equal(color, colorvalues.PlatformViewValue);
+		}
+
+		[Fact(DisplayName = "CharacterSpacing updates size Correctly")]
+		public async Task CharacterSpacingUpdatesSizeCorrectly()
+		{
+			string originalText = "Loren ipsum";
+
+			var button = new ButtonStub()
+			{
+				CharacterSpacing = 4,
+				Text = originalText
+			};
+
+			double newCharacterSpacing = 14;
+
+			var handler = await CreateHandlerAsync(button);
+
+			await InvokeOnMainThreadAsync(async () =>
+			{
+				await handler.PlatformView.AttachAndRun(() =>
+				{
+					double previousWidth = handler.PlatformView.Bounds.Width;
+
+					button.CharacterSpacing = newCharacterSpacing;
+					handler.UpdateValue(nameof(ILabel.CharacterSpacing));
+
+					var platformCharacterSpacing = GetNativeCharacterSpacing(handler);
+					Assert.Equal(newCharacterSpacing, platformCharacterSpacing);
+
+					handler.PlatformView.SizeToFit();
+					double newWidth = handler.PlatformView.Bounds.Width;
+					Assert.True(newWidth > previousWidth);
+				});
+			});
+		}
+
+		[Fact(DisplayName = "Default Accessibility Traits Don't Change")]
+		[InlineData()]
+		public async Task ValidateDefaultAccessibilityTraits()
+		{
+			var view = new ButtonStub();
+			var trait = await GetValueAsync((IView)view,
+				handler =>
+				{
+					// Accessibility Traits don't initialize until after
+					// a UIView is added to the visual hierarchy so we are just 
+					// initializing here and then validating that the value doesn't get cleared
+
+					handler.PlatformView.AccessibilityTraits = UIAccessibilityTrait.Button;
+					view.Semantics.Hint = "Test Hint";
+					view.Handler.UpdateValue("Semantics");
+					return handler.PlatformView.AccessibilityTraits;
+				});
+
+			Assert.Equal(UIAccessibilityTrait.Button, trait);
+		}
+
+		bool ImageSourceLoaded(ButtonHandler buttonHandler) =>
+			buttonHandler.PlatformView.ImageView.Image != null;
+
 		UIButton GetNativeButton(ButtonHandler buttonHandler) =>
-			(UIButton)buttonHandler.View;
+			(UIButton)buttonHandler.PlatformView;
 
 		string GetNativeText(ButtonHandler buttonHandler) =>
 			GetNativeButton(buttonHandler).CurrentTitle;
 
 		Color GetNativeTextColor(ButtonHandler buttonHandler) =>
 			GetNativeButton(buttonHandler).CurrentTitleColor.ToColor();
+
+#pragma warning disable CA1416, CA1422
+		UIEdgeInsets GetNativePadding(ButtonHandler buttonHandler) =>
+			GetNativeButton(buttonHandler).ContentEdgeInsets;
+#pragma warning restore CA1416, CA1422
 
 		Task PerformClick(IButton button)
 		{
@@ -71,13 +155,16 @@ namespace Microsoft.Maui.DeviceTests
 			});
 		}
 
-		double GetNativeUnscaledFontSize(ButtonHandler buttonHandler) =>
-			GetNativeButton(buttonHandler).TitleLabel.Font.PointSize;
+		double GetNativeCharacterSpacing(ButtonHandler buttonHandler)
+		{
+			var button = GetNativeButton(buttonHandler);
 
-		bool GetNativeIsBold(ButtonHandler buttonHandler) =>
-			GetNativeButton(buttonHandler).TitleLabel.Font.FontDescriptor.SymbolicTraits.HasFlag(UIFontDescriptorSymbolicTraits.Bold);
+			var attributedText = button.GetAttributedTitle(UIControlState.Normal);
 
-		bool GetNativeIsItalic(ButtonHandler buttonHandler) =>
-			GetNativeButton(buttonHandler).TitleLabel.Font.FontDescriptor.SymbolicTraits.HasFlag(UIFontDescriptorSymbolicTraits.Italic);
+			return attributedText.GetCharacterSpacing();
+		}
+
+		UILineBreakMode GetNativeLineBreakMode(ButtonHandler buttonHandler) =>
+			GetNativeButton(buttonHandler).TitleLabel.LineBreakMode;
 	}
 }

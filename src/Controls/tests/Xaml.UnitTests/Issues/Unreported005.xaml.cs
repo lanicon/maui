@@ -3,6 +3,10 @@ using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
+	using Constraint = Microsoft.Maui.Controls.Compatibility.Constraint;
+	using RelativeLayout = Microsoft.Maui.Controls.Compatibility.RelativeLayout;
+
+	[RequireService([typeof(IReferenceProvider), typeof(IProvideValueTarget)])]
 	public abstract class Unreported005RelativeToView : IMarkupExtension
 	{
 		protected Unreported005RelativeToView()

@@ -1,9 +1,11 @@
 using System;
 using Android.Content;
 using Android.Views;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete]
 	public class ItemContentView : ViewGroup
 	{
 		protected IVisualElementRenderer Content;
@@ -53,6 +55,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				RemoveView(Content.View);
 			}
 
+			Content?.Dispose();
 			Content = null;
 			_size = null;
 		}
@@ -72,7 +75,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			var size = Context.FromPixels(r - l, b - t);
 
-			Content.Element.Layout(new Rectangle(Point.Zero, size));
+			Content.Element.Layout(new Rect(Point.Zero, size));
 
 			Content.UpdateLayout();
 		}
@@ -123,8 +126,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		static IVisualElementRenderer CreateRenderer(View view, Context context)
 		{
-			var renderer = AppCompat.Platform.CreateRenderer(view, context);
-			AppCompat.Platform.SetRenderer(view, renderer);
+			var renderer = Platform.CreateRenderer(view, context);
+			Platform.SetRenderer(view, renderer);
 
 			return renderer;
 		}

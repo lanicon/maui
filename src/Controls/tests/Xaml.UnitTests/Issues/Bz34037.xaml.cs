@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
+	[AcceptEmptyServiceProvider]
 	public class Bz34037Converter0 : IValueConverter, IMarkupExtension
 	{
 		public static int Invoked { get; set; }
@@ -27,7 +28,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			return new Bz34037Converter0();
 		}
 	}
-
+	[AcceptEmptyServiceProvider]
 	public class Bz34037Converter1 : IValueConverter, IMarkupExtension
 	{
 		public static int Invoked { get; set; }
@@ -73,7 +74,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			[SetUp]
 			public void Setup()
 			{
-				Device.PlatformServices = new MockPlatformServices();
 				Bz34037Converter0.Invoked = 0;
 				Bz34037Converter1.Invoked = 0;
 			}
@@ -81,7 +81,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			[TearDown]
 			public void TearDown()
 			{
-				Device.PlatformServices = null;
 				Application.Current = null;
 			}
 

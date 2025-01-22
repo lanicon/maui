@@ -1,6 +1,8 @@
+using System;
 using System.Threading.Tasks;
 using Android.Widget;
 using Microsoft.Maui.DeviceTests.Stubs;
+using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using Xunit;
 
@@ -8,15 +10,42 @@ namespace Microsoft.Maui.DeviceTests
 {
 	public partial class SliderHandlerTests
 	{
+		[Fact(DisplayName = "Thumb Color Initializes Correctly")]
+		public async Task ThumbColorInitializesCorrectly()
+		{
+			var slider = new SliderStub()
+			{
+				ThumbColor = Colors.Purple
+			};
+
+			await ValidateNativeThumbColor(slider, Colors.Purple);
+		}
+
+		[Fact(DisplayName = "ThumbImageSource Initializes Correctly", Skip = "There seems to be an issue, so disable for now: https://github.com/dotnet/maui/issues/1275")]
+		public async Task ThumbImageSourceInitializesCorrectly()
+		{
+			var slider = new SliderStub()
+			{
+				ThumbImageSource = new FileImageSourceStub("red.png")
+			};
+
+			await InvokeOnMainThreadAsync(async () =>
+			{
+				var handler = CreateHandler<SliderHandler>(slider);
+				await Task.Delay(1000);
+				await handler.PlatformView.AssertContainsColor(Colors.Red, MauiContext);
+			});
+		}
+
 		SeekBar GetNativeSlider(SliderHandler sliderHandler) =>
-			(SeekBar)sliderHandler.View;
+			sliderHandler.PlatformView;
 
 		double GetNativeProgress(SliderHandler sliderHandler) =>
 			GetNativeSlider(sliderHandler).Progress;
 
 		double GetNativeMinimum(SliderHandler sliderHandler)
 		{
-			if (NativeVersion.Supports(NativeApis.SeekBarSetMin))
+			if (OperatingSystem.IsAndroidVersionAtLeast(26))
 			{
 				return GetNativeSlider(sliderHandler).Min;
 			}
@@ -31,7 +60,7 @@ namespace Microsoft.Maui.DeviceTests
 		{
 			return InvokeOnMainThreadAsync(() =>
 			{
-				return GetNativeSlider(CreateHandler(slider)).AssertContainsColor(color);
+				return GetNativeSlider(CreateHandler(slider)).AssertContainsColor(color, MauiContext);
 			});
 		}
 
@@ -44,19 +73,19 @@ namespace Microsoft.Maui.DeviceTests
 				Maximum = xplatMaximum
 			};
 
-			double expectedValue = SliderExtensions.NativeMaxValue;
+			double expectedValue = SliderExtensions.PlatformMaxValue;
 
 			var values = await GetValueAsync(slider, (handler) =>
 			{
 				return new
 				{
 					ViewValue = slider.Maximum,
-					NativeViewValue = GetNativeMaximum(handler)
+					PlatformViewValue = GetNativeMaximum(handler)
 				};
 			});
 
 			Assert.Equal(xplatMaximum, values.ViewValue);
-			Assert.Equal(expectedValue, values.NativeViewValue);
+			Assert.Equal(expectedValue, values.PlatformViewValue);
 		}
 
 		[Fact(DisplayName = "Value Initializes Correctly")]
@@ -70,19 +99,19 @@ namespace Microsoft.Maui.DeviceTests
 				Value = xplatValue
 			};
 
-			int expectedValue = (int)(SliderExtensions.NativeMaxValue / 2);
+			int expectedValue = (int)(SliderExtensions.PlatformMaxValue / 2);
 
 			var values = await GetValueAsync(slider, (handler) =>
 			{
 				return new
 				{
 					ViewValue = slider.Value,
-					NativeViewValue = GetNativeProgress(handler)
+					PlatformViewValue = GetNativeProgress(handler)
 				};
 			});
 
 			Assert.Equal(xplatValue, values.ViewValue);
-			Assert.Equal(expectedValue, values.NativeViewValue);
+			Assert.Equal(expectedValue, values.PlatformViewValue);
 		}
 	}
 }

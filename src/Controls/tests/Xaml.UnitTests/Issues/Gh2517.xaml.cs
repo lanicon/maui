@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
-	[XamlCompilation(XamlCompilationOptions.Skip)]
+	// related to https://github.com/dotnet/maui/issues/23711
 	public partial class Gh2517 : ContentPage
 	{
 		public Gh2517()
@@ -23,23 +23,16 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp]
-			public void Setup()
-			{
-				Device.PlatformServices = new MockPlatformServices();
-			}
-
-			[TearDown]
-			public void TearDown()
-			{
-				Device.PlatformServices = null;
-			}
-
 			[TestCase(true)]
-			public void ErrorOnMissingBindingTarget(bool useCompiledXaml)
+			public void BindingWithInvalidPathIsNotCompiled(bool useCompiledXaml)
 			{
 				if (useCompiledXaml)
-					Assert.Throws<BuildException>(() => MockCompiler.Compile(typeof(Gh2517)));
+					MockCompiler.Compile(typeof(Gh2517));
+
+				var view = new Gh2517(useCompiledXaml);
+
+				var binding = view.Label.GetContext(Label.TextProperty).Bindings.GetValue();
+				Assert.That(binding, Is.TypeOf<Binding>());
 			}
 		}
 	}

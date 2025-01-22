@@ -1,8 +1,9 @@
 ﻿using System;
 using Foundation;
+using ObjCRuntime;
 using UIKit;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class AttributedStringExtensions
 	{
@@ -27,6 +28,22 @@ namespace Microsoft.Maui
 			return mutableAttributedString;
 		}
 
+		internal static NSMutableAttributedString? WithTextColor(this NSAttributedString attributedString, Graphics.Color color)
+		{
+			if (attributedString == null || attributedString.Length == 0)
+				return null;
+
+			var mutableAttributedString = new NSMutableAttributedString(attributedString);
+			mutableAttributedString.AddAttribute
+			(
+				UIStringAttributeKey.ForegroundColor,
+				Foundation.NSObject.FromObject(color.ToPlatform().CGColor),
+				new NSRange(0, mutableAttributedString.Length)
+			);
+			return mutableAttributedString;
+
+		}
+
 		public static NSMutableAttributedString? WithLineHeight(this NSAttributedString attributedString, double lineHeight)
 		{
 			if (attributedString == null || attributedString.Length == 0)
@@ -39,6 +56,9 @@ namespace Microsoft.Maui
 				return null;
 
 			var mutableParagraphStyle = new NSMutableParagraphStyle();
+			if (attribute != null)
+				mutableParagraphStyle.SetParagraphStyle(attribute);
+
 			mutableParagraphStyle.LineHeightMultiple = new nfloat(lineHeight >= 0 ? lineHeight : -1);
 
 			var mutableAttributedString = new NSMutableAttributedString(attributedString);
@@ -70,8 +90,13 @@ namespace Microsoft.Maui
 			return mutable;
 		}
 
-		static void UpdateDecoration(NSMutableAttributedString attributedString, NSString key, 
-			NSRange range, TextDecorations decorations) 
+		public static NSAttributedString? TrimToMaxLength(this NSAttributedString? attributedString, int maxLength) =>
+			maxLength >= 0 && attributedString?.Length > maxLength
+				? attributedString.Substring(0, maxLength)
+				: attributedString;
+
+		static void UpdateDecoration(NSMutableAttributedString attributedString, NSString key,
+			NSRange range, TextDecorations decorations)
 		{
 			if (decorations == 0)
 			{

@@ -4,6 +4,7 @@ using Android.Graphics.Drawables;
 using Android.Util;
 using AndroidX.Core.Content;
 using AndroidX.RecyclerView.Widget;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
@@ -16,7 +17,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		protected SelectableViewHolder(global::Android.Views.View itemView, bool isSelectionEnabled = true) : base(itemView)
 		{
-			itemView.SetOnClickListener(this);
+			if (isSelectionEnabled)
+				itemView.SetOnClickListener(this);
+
 			_isSelectionEnabled = isSelectionEnabled;
 		}
 
@@ -40,7 +43,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		{
 			if (_isSelectionEnabled)
 			{
-				OnViewHolderClicked(AdapterPosition);
+				OnViewHolderClicked(BindingAdapterPosition);
 			}
 		}
 
@@ -62,7 +65,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				return;
 			}
 
-			if (Forms.IsMarshmallowOrNewer)
+			if (OperatingSystem.IsAndroidVersionAtLeast(23))
 			{
 				// We're looking for the foreground ripple effect, which is not available on older APIs
 				// Limiting this to Marshmallow and newer, because View.setForeground() is not available on lower APIs

@@ -1,40 +1,44 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Maui.ApplicationModel;
 using Windows.Devices.Geolocation;
 using Windows.Services.Maps;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Devices.Sensors
 {
-    public static partial class Geocoding
-    {
-        static async Task<IEnumerable<Placemark>> PlatformGetPlacemarksAsync(double latitude, double longitude)
-        {
-            ValidateMapServiceToken();
+	class GeocodingImplementation : IPlatformGeocoding, IGeocoding
+	{
+		public string? MapServiceToken { get; set; }
 
-            var point = new Geopoint(new BasicGeoposition { Latitude = latitude, Longitude = longitude });
+		public async Task<IEnumerable<Placemark>> GetPlacemarksAsync(double latitude, double longitude)
+		{
+			ValidateMapServiceToken();
 
-            var queryResults = await MapLocationFinder.FindLocationsAtAsync(point).AsTask();
+			var point = new Geopoint(new BasicGeoposition { Latitude = latitude, Longitude = longitude });
 
-            return queryResults?.Locations?.ToPlacemarks();
-        }
+			var queryResults = await MapLocationFinder.FindLocationsAtAsync(point).AsTask();
 
-        static async Task<IEnumerable<Location>> PlatformGetLocationsAsync(string address)
-        {
-            ValidateMapServiceToken();
+			return queryResults?.Locations?.ToPlacemarks() ?? Array.Empty<Placemark>();
+		}
 
-            var queryResults = await MapLocationFinder.FindLocationsAsync(address, null, 10);
+		public async Task<IEnumerable<Location>> GetLocationsAsync(string address)
+		{
+			ValidateMapServiceToken();
 
-            return queryResults?.Locations?.ToLocations();
-        }
+			var queryResults = await MapLocationFinder.FindLocationsAsync(address, null, 10);
 
-        internal static void ValidateMapServiceToken()
-        {
-            if (string.IsNullOrWhiteSpace(Platform.MapServiceToken) && string.IsNullOrWhiteSpace(MapService.ServiceToken))
-                throw new ArgumentNullException(nameof(Platform.MapServiceToken), "Please set the map service token(MapService.ServiceToken) to be able to use this API.");
+			return queryResults?.Locations?.ToLocations() ?? Array.Empty<Location>();
+		}
 
-            if (!string.IsNullOrWhiteSpace(Platform.MapServiceToken))
-                MapService.ServiceToken = Platform.MapServiceToken;
-        }
-    }
+		void ValidateMapServiceToken()
+		{
+			if (string.IsNullOrWhiteSpace(MapServiceToken) && string.IsNullOrWhiteSpace(MapService.ServiceToken))
+				throw new ArgumentNullException(nameof(MapServiceToken), "Please set the map service token to be able to use this API.");
+
+			if (!string.IsNullOrWhiteSpace(MapServiceToken))
+				MapService.ServiceToken = MapServiceToken;
+		}
+	}
 }

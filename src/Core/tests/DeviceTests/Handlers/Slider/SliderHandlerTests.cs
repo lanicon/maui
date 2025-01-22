@@ -1,18 +1,13 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Maui.DeviceTests.Stubs;
-using Microsoft.Maui.Handlers;
 using Xunit;
 
 namespace Microsoft.Maui.DeviceTests
 {
 	[Category(TestCategory.Slider)]
-	public partial class SliderHandlerTests : HandlerTestBase<SliderHandler, SliderStub>
+	public partial class SliderHandlerTests : CoreHandlerTestBase<SliderHandler, SliderStub>
 	{
-		public SliderHandlerTests(HandlerTestFixture fixture) : base(fixture)
-		{
-		}
-
 		[Theory(DisplayName = "Percent Value Initializes Correctly")]
 		[InlineData(0, 1, 0)]
 		[InlineData(0, 1, 0.5)]
@@ -56,15 +51,15 @@ namespace Microsoft.Maui.DeviceTests
 			Assert.Equal(expectedPercent, nativePercent, 5);
 		}
 
-		[Fact(DisplayName = "Thumb Color Initializes Correctly")]
-		public async Task ThumbColorInitializesCorrectly()
+		[Fact(DisplayName = "Null Thumb Color Doesn't Crash")]
+		public async Task NullThumbColorDoesntCrash()
 		{
 			var slider = new SliderStub()
 			{
-				ThumbColor = Color.Purple
+				ThumbColor = null,
 			};
 
-			await ValidateNativeThumbColor(slider, Color.Purple);
+			await CreateHandlerAsync(slider);
 		}
 
 #if !__ANDROID__ // Android native control behavior works differently; see SliderHandlerTests.Android.cs

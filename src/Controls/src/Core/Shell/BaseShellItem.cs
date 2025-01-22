@@ -1,16 +1,20 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Controls.StyleSheets;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls
 {
+	/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="Type[@FullName='Microsoft.Maui.Controls.BaseShellItem']/Docs/*" />
 	[DebuggerDisplay("Title = {Title}, Route = {Route}")]
-	public class BaseShellItem : NavigableElement, IPropertyPropagationController, IVisualController, IFlowDirectionController, ITabStopElement
+	public class BaseShellItem : NavigableElement, IPropertyPropagationController, IVisualController, IFlowDirectionController, IWindowController
 	{
 		public event EventHandler Appearing;
 		public event EventHandler Disappearing;
@@ -20,117 +24,108 @@ namespace Microsoft.Maui.Controls
 		const string DefaultFlyoutItemImageStyle = "Default_FlyoutItemImageStyle";
 		const string DefaultFlyoutItemLayoutStyle = "Default_FlyoutItemLayoutStyle";
 
+		protected private ObservableCollection<Element> DeclaredChildren { get; } = new ObservableCollection<Element>();
+
 		#region PropertyKeys
 
 		internal static readonly BindablePropertyKey IsCheckedPropertyKey = BindableProperty.CreateReadOnly(nameof(IsChecked), typeof(bool), typeof(BaseShellItem), false);
 
 		#endregion PropertyKeys
 
+		/// <summary>Bindable property for <see cref="FlyoutIcon"/>.</summary>
 		public static readonly BindableProperty FlyoutIconProperty =
 			BindableProperty.Create(nameof(FlyoutIcon), typeof(ImageSource), typeof(BaseShellItem), null, BindingMode.OneTime);
 
+		/// <summary>Bindable property for <see cref="Icon"/>.</summary>
 		public static readonly BindableProperty IconProperty =
 			BindableProperty.Create(nameof(Icon), typeof(ImageSource), typeof(BaseShellItem), null, BindingMode.OneWay,
 				propertyChanged: OnIconChanged);
 
+		/// <summary>Bindable property for <see cref="IsChecked"/>.</summary>
 		public static readonly BindableProperty IsCheckedProperty = IsCheckedPropertyKey.BindableProperty;
 
+		/// <summary>Bindable property for <see cref="IsEnabled"/>.</summary>
 		public static readonly BindableProperty IsEnabledProperty =
 			BindableProperty.Create(nameof(IsEnabled), typeof(bool), typeof(BaseShellItem), true, BindingMode.OneWay);
 
+		/// <summary>Bindable property for <see cref="Title"/>.</summary>
 		public static readonly BindableProperty TitleProperty =
-			BindableProperty.Create(nameof(Title), typeof(string), typeof(BaseShellItem), null, BindingMode.OneTime);
+			BindableProperty.Create(nameof(Title), typeof(string), typeof(BaseShellItem), null, BindingMode.TwoWay, propertyChanged: OnTitlePropertyChanged);
 
-		public static readonly BindableProperty TabIndexProperty =
-			BindableProperty.Create(nameof(TabIndex),
-							typeof(int),
-							typeof(BaseShellItem),
-							defaultValue: 0,
-							propertyChanged: OnTabIndexPropertyChanged,
-							defaultValueCreator: TabIndexDefaultValueCreator);
-
-		public static readonly BindableProperty IsTabStopProperty =
-			BindableProperty.Create(nameof(IsTabStop),
-									typeof(bool),
-									typeof(BaseShellItem),
-									defaultValue: true,
-									propertyChanged: OnTabStopPropertyChanged,
-									defaultValueCreator: TabStopDefaultValueCreator);
-
+		/// <summary>Bindable property for <see cref="IsVisible"/>.</summary>
 		public static readonly BindableProperty IsVisibleProperty =
 			BindableProperty.Create(nameof(IsVisible), typeof(bool), typeof(BaseShellItem), true);
 
-		static void OnTabIndexPropertyChanged(BindableObject bindable, object oldValue, object newValue) =>
-			((BaseShellItem)bindable).OnTabIndexPropertyChanged((int)oldValue, (int)newValue);
+		/// <summary>Bindable property for <see cref="FlyoutItemIsVisible"/>.</summary>
+		public static readonly BindableProperty FlyoutItemIsVisibleProperty =
+			BindableProperty.Create(nameof(FlyoutItemIsVisible), typeof(bool), typeof(BaseShellItem), true, propertyChanged: OnFlyoutItemIsVisibleChanged);
 
-		static object TabIndexDefaultValueCreator(BindableObject bindable) =>
-			((BaseShellItem)bindable).TabIndexDefaultValueCreator();
+		public BaseShellItem()
+		{
+			DeclaredChildren.CollectionChanged += (_, args) =>
+			{
+				if (args.NewItems != null)
+					foreach (Element element in args.NewItems)
+						AddLogicalChild(element);
 
-		static void OnTabStopPropertyChanged(BindableObject bindable, object oldValue, object newValue) =>
-			((BaseShellItem)bindable).OnTabStopPropertyChanged((bool)oldValue, (bool)newValue);
+				if (args.OldItems != null)
+					foreach (Element element in args.OldItems)
+						RemoveLogicalChild(element);
+			};
+		}
 
-		static object TabStopDefaultValueCreator(BindableObject bindable) =>
-			((BaseShellItem)bindable).TabStopDefaultValueCreator();
-
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='FlyoutIcon']/Docs/*" />
 		public ImageSource FlyoutIcon
 		{
 			get { return (ImageSource)GetValue(FlyoutIconProperty); }
 			set { SetValue(FlyoutIconProperty, value); }
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='Icon']/Docs/*" />
 		public ImageSource Icon
 		{
 			get { return (ImageSource)GetValue(IconProperty); }
 			set { SetValue(IconProperty, value); }
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='IsChecked']/Docs/*" />
 		public bool IsChecked => (bool)GetValue(IsCheckedProperty);
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='IsEnabled']/Docs/*" />
 		public bool IsEnabled
 		{
 			get { return (bool)GetValue(IsEnabledProperty); }
 			set { SetValue(IsEnabledProperty, value); }
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='Route']/Docs/*" />
 		public string Route
 		{
 			get { return Routing.GetRoute(this); }
 			set { Routing.SetRoute(this, value); }
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='Title']/Docs/*" />
 		public string Title
 		{
 			get { return (string)GetValue(TitleProperty); }
 			set { SetValue(TitleProperty, value); }
 		}
 
-		public int TabIndex
-		{
-			get => (int)GetValue(TabIndexProperty);
-			set => SetValue(TabIndexProperty, value);
-		}
-
-		protected virtual void OnTabIndexPropertyChanged(int oldValue, int newValue) { }
-
-		protected virtual int TabIndexDefaultValueCreator() => 0;
-
-		public bool IsTabStop
-		{
-			get => (bool)GetValue(IsTabStopProperty);
-			set => SetValue(IsTabStopProperty, value);
-		}
-
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='IsVisible']/Docs/*" />
 		public bool IsVisible
 		{
 			get => (bool)GetValue(IsVisibleProperty);
 			set => SetValue(IsVisibleProperty, value);
 		}
 
+		/// <include file="../../../docs/Microsoft.Maui.Controls/BaseShellItem.xml" path="//Member[@MemberName='FlyoutItemIsVisible']/Docs/*" />
 		public bool FlyoutItemIsVisible
 		{
-			get => (bool)GetValue(Shell.FlyoutItemIsVisibleProperty);
-			set => SetValue(Shell.FlyoutItemIsVisibleProperty, value);
+			get => (bool)GetValue(FlyoutItemIsVisibleProperty);
+			set => SetValue(FlyoutItemIsVisibleProperty, value);
 		}
+
 
 		internal bool IsPartOfVisibleTree()
 		{
@@ -202,10 +197,6 @@ namespace Microsoft.Maui.Controls
 			}
 		}
 
-		protected virtual void OnTabStopPropertyChanged(bool oldValue, bool newValue) { }
-
-		protected virtual bool TabStopDefaultValueCreator() => true;
-
 		IVisual _effectiveVisual = Microsoft.Maui.Controls.VisualMarker.Default;
 		IVisual IVisualController.EffectiveVisual
 		{
@@ -221,6 +212,14 @@ namespace Microsoft.Maui.Controls
 		}
 		IVisual IVisualController.Visual => Microsoft.Maui.Controls.VisualMarker.MatchParent;
 
+
+		static void OnTitlePropertyChanged(BindableObject bindable, object oldValue, object newValue)
+		{
+			var shellItem = (BaseShellItem)bindable;
+			if (shellItem.FindParentOfType<Shell>()?.Toolbar is ShellToolbar st)
+				st.UpdateTitle();
+		}
+
 		static void OnIconChanged(BindableObject bindable, object oldValue, object newValue)
 		{
 			if (newValue == null || bindable.IsSet(FlyoutIconProperty))
@@ -228,6 +227,11 @@ namespace Microsoft.Maui.Controls
 
 			var shellItem = (BaseShellItem)bindable;
 			shellItem.FlyoutIcon = (ImageSource)newValue;
+		}
+
+		static void OnFlyoutItemIsVisibleChanged(BindableObject bindable, object oldValue, object newValue)
+		{
+			Shell.SetFlyoutItemIsVisible(bindable, (bool)newValue);
 		}
 
 		protected override void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -265,7 +269,7 @@ namespace Microsoft.Maui.Controls
 
 		void IPropertyPropagationController.PropagatePropertyChanged(string propertyName)
 		{
-			PropertyPropagationExtensions.PropagatePropertyChanged(propertyName, this, LogicalChildren);
+			PropertyPropagationExtensions.PropagatePropertyChanged(propertyName, this, ((IVisualTreeElement)this).GetVisualChildren());
 		}
 
 		EffectiveFlowDirection _effectiveFlowDirection = default(EffectiveFlowDirection);
@@ -288,7 +292,21 @@ namespace Microsoft.Maui.Controls
 		bool IFlowDirectionController.ApplyEffectiveFlowDirectionToChildContainer => true;
 		double IFlowDirectionController.Width => (Parent as VisualElement)?.Width ?? 0;
 
-		internal virtual void ApplyQueryAttributes(IDictionary<string, string> query)
+		static readonly BindablePropertyKey WindowPropertyKey = BindableProperty.CreateReadOnly(
+			nameof(Window), typeof(Window), typeof(BaseShellItem), null);
+
+		/// <summary>Bindable property for <see cref="Window"/>.</summary>
+		public static readonly BindableProperty WindowProperty = WindowPropertyKey.BindableProperty;
+
+		public Window Window => (Window)GetValue(WindowProperty);
+
+		Window IWindowController.Window
+		{
+			get => (Window)GetValue(WindowProperty);
+			set => SetValue(WindowPropertyKey, value);
+		}
+
+		internal virtual void ApplyQueryAttributes(ShellRouteParameters query)
 		{
 		}
 
@@ -330,12 +348,16 @@ namespace Microsoft.Maui.Controls
 			}
 		}
 
-		internal static DataTemplate CreateDefaultFlyoutItemCell(string textBinding, string iconBinding)
+		internal static DataTemplate CreateDefaultFlyoutItemCell(BindableObject bo)
 		{
 			return new DataTemplate(() =>
 			{
-				var grid = new Grid();
-				if (Device.RuntimePlatform == Device.UWP)
+				var grid = new Grid()
+				{
+					IgnoreSafeArea = true
+				};
+
+				if (OperatingSystem.IsWindows())
 					grid.ColumnSpacing = grid.RowSpacing = 0;
 
 				grid.Resources = new ResourceDictionary();
@@ -361,7 +383,6 @@ namespace Microsoft.Maui.Controls
 					Class = DefaultFlyoutItemLayoutStyle,
 				};
 
-
 				var groups = new VisualStateGroupList();
 
 				var commonGroup = new VisualStateGroup();
@@ -375,30 +396,26 @@ namespace Microsoft.Maui.Controls
 				var selectedState = new VisualState();
 				selectedState.Name = "Selected";
 
-				if (Device.RuntimePlatform != Device.UWP)
+				if (!OperatingSystem.IsWindows())
 				{
 					selectedState.Setters.Add(new Setter
 					{
 						Property = VisualElement.BackgroundColorProperty,
-						Value = new Color(0.95)
-
+						Value = new AppThemeBinding() { Light = Colors.Black.MultiplyAlpha(0.1f), Dark = Colors.White.MultiplyAlpha(0.1f) }
 					});
 				}
 
-				if (Device.RuntimePlatform == Device.UWP)
+				normalState.Setters.Add(new Setter
 				{
-					normalState.Setters.Add(new Setter
-					{
-						Property = VisualElement.BackgroundColorProperty,
-						Value = Color.Transparent
-					});
-				}
+					Property = VisualElement.BackgroundColorProperty,
+					Value = Colors.Transparent
+				});
 
 				commonGroup.States.Add(selectedState);
 
 				defaultGridClass.Setters.Add(new Setter { Property = VisualStateManager.VisualStateGroupsProperty, Value = groups });
 
-				if (Device.RuntimePlatform == Device.Android)
+				if (OperatingSystem.IsAndroid())
 					defaultGridClass.Setters.Add(new Setter { Property = Grid.HeightRequestProperty, Value = 50 });
 				else
 					defaultGridClass.Setters.Add(new Setter { Property = Grid.HeightRequestProperty, Value = 44 });
@@ -406,25 +423,45 @@ namespace Microsoft.Maui.Controls
 
 				ColumnDefinitionCollection columnDefinitions = new ColumnDefinitionCollection();
 
-				if (Device.RuntimePlatform == Device.Android)
+				if (OperatingSystem.IsAndroid())
 					columnDefinitions.Add(new ColumnDefinition { Width = 54 });
-				else if (Device.RuntimePlatform == Device.iOS)
+				else if (OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst())
 					columnDefinitions.Add(new ColumnDefinition { Width = 50 });
-				else if (Device.RuntimePlatform == Device.UWP)
+				else if (OperatingSystem.IsWindows())
+					columnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+				else if (DeviceInfo.Platform == DevicePlatform.Tizen)
 					columnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 				columnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
 				defaultGridClass.Setters.Add(new Setter { Property = Grid.ColumnDefinitionsProperty, Value = columnDefinitions });
 
+				BindingBase automationIdBinding = Binding.Create(static (Element element) => element.AutomationId);
+				defaultGridClass.Setters.Add(new Setter { Property = Element.AutomationIdProperty, Value = automationIdBinding });
+
+				BindingBase imageBinding = null;
+				BindingBase labelBinding = null;
+				if (bo is MenuItem)
+				{
+					imageBinding = Binding.Create(static (MenuItem item) => item.IconImageSource);
+					labelBinding = Binding.Create(static (MenuItem item) => item.Text);
+				}
+				else
+				{
+					imageBinding = Binding.Create(static (BaseShellItem item) => item.FlyoutIcon);
+					labelBinding = Binding.Create(static (BaseShellItem item) => item.Title);
+				}
+
 				var image = new Image();
 
 				double sizeRequest = -1;
-				if (Device.RuntimePlatform == Device.Android)
+				if (OperatingSystem.IsAndroid())
 					sizeRequest = 24;
-				else if (Device.RuntimePlatform == Device.iOS)
+				else if (OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst())
 					sizeRequest = 22;
-				else if (Device.RuntimePlatform == Device.UWP)
+				else if (OperatingSystem.IsWindows())
 					sizeRequest = 16;
+				else if (DeviceInfo.Platform == DevicePlatform.Tizen)
+					sizeRequest = 25;
 
 				if (sizeRequest > 0)
 				{
@@ -432,36 +469,50 @@ namespace Microsoft.Maui.Controls
 					defaultImageClass.Setters.Add(new Setter() { Property = Image.WidthRequestProperty, Value = sizeRequest });
 				}
 
-				if (Device.RuntimePlatform == Device.UWP)
+				if (OperatingSystem.IsWindows())
 				{
 					defaultImageClass.Setters.Add(new Setter { Property = Image.HorizontalOptionsProperty, Value = LayoutOptions.Start });
 					defaultImageClass.Setters.Add(new Setter { Property = Image.MarginProperty, Value = new Thickness(12, 0, 12, 0) });
 				}
 
-				Binding imageBinding = new Binding(iconBinding);
 				defaultImageClass.Setters.Add(new Setter { Property = Image.SourceProperty, Value = imageBinding });
 
-				grid.Children.Add(image);
+				grid.Add(image);
 
 				var label = new Label();
-				Binding labelBinding = new Binding(textBinding);
 				defaultLabelClass.Setters.Add(new Setter { Property = Label.TextProperty, Value = labelBinding });
 
-				grid.Children.Add(label, 1, 0);
+				grid.Add(label, 1, 0);
 
-				if (Device.RuntimePlatform == Device.Android)
+				if (OperatingSystem.IsAndroid())
 				{
+					object textColor;
+
+					if (Application.Current == null)
+					{
+						textColor = Colors.Black.MultiplyAlpha(0.87f);
+					}
+					else
+					{
+						textColor = new AppThemeBinding { Light = Colors.Black.MultiplyAlpha(0.87f), Dark = Colors.White };
+					}
+
 					defaultLabelClass.Setters.Add(new Setter { Property = Label.FontSizeProperty, Value = 14 });
-					defaultLabelClass.Setters.Add(new Setter { Property = Label.TextColorProperty, Value = Color.Black.MultiplyAlpha(0.87) });
+					defaultLabelClass.Setters.Add(new Setter { Property = Label.TextColorProperty, Value = textColor });
 					defaultLabelClass.Setters.Add(new Setter { Property = Label.FontFamilyProperty, Value = "sans-serif-medium" });
 					defaultLabelClass.Setters.Add(new Setter { Property = Label.MarginProperty, Value = new Thickness(20, 0, 0, 0) });
 				}
-				else if (Device.RuntimePlatform == Device.iOS)
+				else if (OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst())
 				{
-					defaultLabelClass.Setters.Add(new Setter { Property = Label.FontSizeProperty, Value = Device.GetNamedSize(NamedSize.Small, label) });
+					defaultLabelClass.Setters.Add(new Setter { Property = Label.FontSizeProperty, Value = 14 });
 					defaultLabelClass.Setters.Add(new Setter { Property = Label.FontAttributesProperty, Value = FontAttributes.Bold });
 				}
-				else if (Device.RuntimePlatform == Device.UWP)
+				else if (OperatingSystem.IsWindows())
+				{
+					defaultLabelClass.Setters.Add(new Setter { Property = Label.HorizontalOptionsProperty, Value = LayoutOptions.Start });
+					defaultLabelClass.Setters.Add(new Setter { Property = Label.HorizontalTextAlignmentProperty, Value = TextAlignment.Start });
+				}
+				else if (DeviceInfo.Platform == DevicePlatform.Tizen)
 				{
 					defaultLabelClass.Setters.Add(new Setter { Property = Label.HorizontalOptionsProperty, Value = LayoutOptions.Start });
 					defaultLabelClass.Setters.Add(new Setter { Property = Label.HorizontalTextAlignmentProperty, Value = TextAlignment.Start });
@@ -473,13 +524,32 @@ namespace Microsoft.Maui.Controls
 				nameScope.RegisterName("FlyoutItemImage", image);
 				nameScope.RegisterName("FlyoutItemLabel", label);
 
-				grid.BindingContextChanged += (sender, __) =>
+
+				ActionDisposable previousBindingContext = null;
+				grid.BindingContextChanged += (sender, _) =>
 				{
+					previousBindingContext?.Dispose();
+					previousBindingContext = null;
+
 					if (sender is Grid g)
 					{
 						var bo = g.BindingContext as BindableObject;
 						var styleClassSource = Shell.GetBindableObjectWithFlyoutItemTemplate(bo) as IStyleSelectable;
 						UpdateFlyoutItemStyles(g, styleClassSource);
+
+						// this means they haven't changed the BaseShellItemContext so we are
+						// going to propagate the semantic properties to the default template
+						if (g.BindingContext is BaseShellItem bsi)
+						{
+							previousBindingContext = SemanticProperties.FakeBindSemanticProperties(bsi, g);
+
+							// If the user hasn't set a semantic property on the flyout item then we'll
+							// just bind the semantic description to the title
+							if (!g.IsSet(SemanticProperties.DescriptionProperty))
+							{
+								g.SetBinding(SemanticProperties.DescriptionProperty, static (BaseShellItem item) => item.Title);
+							}
+						}
 					}
 				};
 
@@ -487,10 +557,20 @@ namespace Microsoft.Maui.Controls
 				return grid;
 			});
 		}
+
+#if NETSTANDARD
+		sealed class OperatingSystem
+		{
+			public static bool IsAndroid() => false;
+			public static bool IsIOS() => false;
+			public static bool IsMacCatalyst() => false;
+			public static bool IsWindows() => false;
+		}
+#endif
 	}
 
 	public interface IQueryAttributable
 	{
-		void ApplyQueryAttributes(IDictionary<string, string> query);
+		void ApplyQueryAttributes(IDictionary<string, object> query);
 	}
 }

@@ -1,57 +1,91 @@
-using Android.Content.Res;
-using Android.Util;
-using AndroidX.AppCompat.Widget;
-using XColor = Microsoft.Maui.Color;
+﻿using Android.Widget;
+using Google.Android.Material.Button;
+using AColor = Android.Graphics.Color;
+using R = Android.Resource;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class ButtonExtensions
 	{
-		public static void UpdateText(this AppCompatButton appCompatButton, IButton button) =>
-			appCompatButton.Text = button.Text;
+		public static void UpdateBackground(this MaterialButton platformView, IButton button) =>
+			platformView.UpdateButtonBackground(button);
 
-		public static void UpdateTextColor(this AppCompatButton appCompatButton, IButton button) =>
-			appCompatButton.UpdateTextColor(button.TextColor, appCompatButton.TextColors);
+		public static void UpdateStrokeColor(this MaterialButton platformView, IButton button) =>
+			platformView.UpdateButtonStroke(button);
 
-		public static void UpdateTextColor(this AppCompatButton button, XColor color, ColorStateList? defaultColor)
+		public static void UpdateStrokeThickness(this MaterialButton platformView, IButton button) =>
+			platformView.UpdateButtonStroke(button);
+
+		public static void UpdateCornerRadius(this MaterialButton platformView, IButton button) =>
+			platformView.UpdateButtonStroke(button);
+
+		public static void UpdatePadding(this Button platformControl, IPadding padding, Thickness? defaultPadding = null) =>
+			UpdatePadding(platformControl, padding.Padding, defaultPadding);
+
+		public static void UpdatePadding(this Button platformControl, Thickness padding, Thickness? defaultPadding = null)
 		{
-			if (color.IsDefault)
-				button.SetTextColor(defaultColor);
-			else
-				button.SetTextColor(color.ToNative());
-		}
-
-		public static void UpdateTextColor(this AppCompatButton appCompatButton, IButton button, XColor defaultColor) =>
-			appCompatButton.SetTextColor(button.TextColor.Cleanse(defaultColor).ToNative());
-
-		public static void UpdateFont(this AppCompatButton appCompatButton, IButton button, IFontManager fontManager)
-		{
-			var font = button.Font;
-
-			var tf = fontManager.GetTypeface(font);
-			appCompatButton.Typeface = tf;
-
-			var sp = fontManager.GetScaledPixel(font);
-			appCompatButton.SetTextSize(ComplexUnitType.Sp, sp);
-		}
-
-		public static void UpdatePadding(this AppCompatButton appCompatButton, IButton button)
-		{
-			var context = appCompatButton.Context;
-
+			var context = platformControl.Context;
 			if (context == null)
-			{
 				return;
-			}
-			var padding = button.Padding;
 
-			appCompatButton.SetPadding(
-					(int)context.ToPixels(padding.Left),
-					(int)context.ToPixels(padding.Top),
-					(int)context.ToPixels(padding.Right),
-					(int)context.ToPixels(padding.Bottom));
+			if (padding.IsNaN)
+				padding = defaultPadding ?? Thickness.Zero;
+
+			padding = context.ToPixels(padding);
+
+			platformControl.SetPadding(
+				(int)padding.Left,
+				(int)padding.Top,
+				(int)padding.Right,
+				(int)padding.Bottom);
 		}
 
-		static XColor Cleanse(this XColor color, XColor defaultColor) => color.IsDefault ? defaultColor : color;
+		internal static void UpdateButtonStroke(this MaterialButton platformView, IButton button)
+		{
+			if (!platformView.UpdateMauiRippleDrawableStroke(button))
+			{
+				// Fall back to the default mechanism. This may be due to the fact that the background
+				// is not a "MAUI" background, so we need to update the stroke on the button itself.
+
+				var (width, color, radius) = button.GetStrokeProperties(platformView.Context!, true);
+
+				platformView.StrokeColor = color;
+
+				platformView.StrokeWidth = width;
+
+				platformView.CornerRadius = radius;
+			}
+		}
+
+		internal static void UpdateButtonBackground(this MaterialButton platformView, IButton button)
+		{
+			platformView.UpdateMauiRippleDrawableBackground(
+				button.Background,
+				button,
+				() =>
+				{
+					// Copy the tints from a temporary button.
+					// TODO: optimize this to avoid creating a new button every time.
+
+					var context = platformView.Context!;
+					using var btn = new MaterialButton(context);
+					var defaultTintList = btn.BackgroundTintList;
+					var defaultColor = defaultTintList?.GetColorForState([R.Attribute.StateEnabled], AColor.Black);
+
+					return defaultColor ?? AColor.Black;
+				},
+				() =>
+				{
+					// If some theme or user value has been set, we can override the default, white
+					// ripple color using this button property.
+					return platformView.RippleColor;
+				},
+				() =>
+				{
+					// We have a background, so we need to null out the tint list to avoid the tint
+					// overriding the background.
+					platformView.BackgroundTintList = null;
+				});
+		}
 	}
 }

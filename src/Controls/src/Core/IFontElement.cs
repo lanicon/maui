@@ -1,3 +1,4 @@
+#nullable disable
 using System.ComponentModel;
 
 namespace Microsoft.Maui.Controls.Internals
@@ -9,14 +10,16 @@ namespace Microsoft.Maui.Controls.Internals
 		FontAttributes FontAttributes { get; }
 		string FontFamily { get; }
 
-		[TypeConverter(typeof(FontSizeConverter))]
+		[System.ComponentModel.TypeConverter(typeof(FontSizeConverter))]
 		double FontSize { get; }
+
+		bool FontAutoScalingEnabled { get; }
 
 		//note to implementor: but implement these methods explicitly
 		void OnFontFamilyChanged(string oldValue, string newValue);
 		void OnFontSizeChanged(double oldValue, double newValue);
+		void OnFontAutoScalingEnabledChanged(bool oldValue, bool newValue);
 		double FontSizeDefaultValueCreator();
 		void OnFontAttributesChanged(FontAttributes oldValue, FontAttributes newValue);
-		void OnFontChanged(Font oldValue, Font newValue);
 	}
 }

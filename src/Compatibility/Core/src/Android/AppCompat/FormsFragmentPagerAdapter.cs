@@ -1,15 +1,22 @@
 // error CS0618: 'FragmentStatePagerAdapter' is obsolete:
 #pragma warning disable 618
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Android.OS;
 using AndroidX.Fragment.App;
 using Java.Lang;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using FragmentTransit = Android.App.FragmentTransit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 {
-	internal class FormsFragmentPagerAdapter<T> : FragmentPagerAdapter where T : Page
+	[System.Obsolete]
+	internal class FormsFragmentPagerAdapter<[DynamicallyAccessedMembers(BindableProperty.DeclaringTypeMembers
+#if NET8_0 // IL2091
+	| BindableProperty.ReturnTypeMembers
+#endif
+	)] T> : FragmentPagerAdapter where T : Page
 	{
 		MultiPage<T> _page;
 		FragmentManager _fragmentManager;
@@ -81,7 +88,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 
 				_page = null;
 
-				if (!_fragmentManager.IsDestroyed)
+				if (!_fragmentManager.IsDestroyed(_page?.Handler?.MauiContext?.Context))
 				{
 					FragmentTransaction transaction = _fragmentManager.BeginTransactionEx();
 

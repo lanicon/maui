@@ -1,18 +1,19 @@
-using System;
-using UIKit;
-using Microsoft.Maui.Controls.Compatibility.Internals;
-using Microsoft.Maui.Controls.Xaml.Internals;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Xaml.Internals;
+using ObjCRuntime;
+using UIKit;
 
 [assembly: Microsoft.Maui.Controls.Dependency(typeof(Microsoft.Maui.Controls.Compatibility.Platform.iOS.NativeBindingService))]
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
-	[Preserve(AllMembers = true)]
 	class NativeBindingService : INativeBindingService
 	{
+		[RequiresUnreferencedCode(TrimmerConstants.StringPathBindingWarning, Url = TrimmerConstants.ExpressionBasedBindingsDocsUrl)]
 		public bool TrySetBinding(object target, string propertyName, BindingBase binding)
 		{
+			Hosting.MauiAppBuilderExtensions.CheckForCompatibility();
 			var view = target as UIView;
 			if (view == null)
 				return false;
@@ -24,6 +25,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public bool TrySetBinding(object target, BindableProperty property, BindingBase binding)
 		{
+			Hosting.MauiAppBuilderExtensions.CheckForCompatibility();
 			var view = target as UIView;
 			if (view == null)
 				return false;
@@ -33,6 +35,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public bool TrySetValue(object target, BindableProperty property, object value)
 		{
+			Hosting.MauiAppBuilderExtensions.CheckForCompatibility();
 			var view = target as UIView;
 			if (view == null)
 				return false;

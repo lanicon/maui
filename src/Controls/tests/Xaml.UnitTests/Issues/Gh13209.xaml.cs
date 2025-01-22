@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -17,16 +18,13 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-
-			[SetUp] public void Setup() => Device.PlatformServices = new MockPlatformServices();
-
-			[TearDown] public void TearDown() => Device.PlatformServices = null;
+			[TearDown] public void TearDown() => ResourceDictionary.ClearCache();
 
 			[TestCase(true), TestCase(false)]
 			public void RdWithSource(bool useCompiledXaml)
 			{
 				var layout = new Gh13209(useCompiledXaml);
-				Assert.That(layout.MyRect.BackgroundColor, Is.EqualTo(Color.Chartreuse));
+				Assert.That(layout.MyRect.BackgroundColor, Is.EqualTo(Colors.Chartreuse));
 				Assert.That(layout.Root.Resources.Count, Is.EqualTo(1));
 				Assert.That(layout.Root.Resources.MergedDictionaries.Count, Is.EqualTo(0));
 

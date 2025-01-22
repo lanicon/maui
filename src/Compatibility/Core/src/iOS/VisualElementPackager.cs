@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 
 #if __MOBILE__
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
@@ -9,6 +10,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 #endif
 {
+	[Obsolete]
 	public class VisualElementPackager : IDisposable
 	{
 		VisualElement _element;
@@ -49,7 +51,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 					OnChildAdded(child);
 			}
 		}
-		
+
 		internal void Disconnect()
 		{
 			Disconnect(_element);

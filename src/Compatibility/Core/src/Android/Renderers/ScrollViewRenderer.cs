@@ -8,10 +8,14 @@ using Android.Views;
 using Android.Widget;
 using AndroidX.Core.Widget;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AView = Android.Views.View;
+using Point = Microsoft.Maui.Graphics.Point;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class ScrollViewRenderer : NestedScrollView, IVisualElementRenderer, IEffectControlProvider, IScrollView
 	{
 		ScrollViewContainer _container;
@@ -136,10 +140,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			Tracker?.UpdateLayout();
 		}
 
-		public ViewGroup ViewGroup => this;
-
 		AView IVisualElementRenderer.View => this;
 
+		[PortHandler]
 		public override void Draw(Canvas canvas)
 		{
 			try
@@ -272,10 +275,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			// if the target sdk >= 17 then setting the LayoutDirection on the scroll view natively takes care of the scroll
 			if (!_checkedForRtlScroll && _hScrollView != null && Element is IVisualElementController controller && controller.EffectiveFlowDirection.IsRightToLeft())
 			{
-				if (Context.TargetSdkVersion() < 17)
-					_hScrollView.ScrollX = _container.MeasuredWidth - _hScrollView.MeasuredWidth - _hScrollView.ScrollX;
-				else
-					Device.BeginInvokeOnMainThread(() => UpdateScrollPosition(_hScrollView.ScrollX, ScrollY));
+				Post(() => UpdateScrollPosition(_hScrollView.ScrollX, ScrollY));
 			}
 
 			_checkedForRtlScroll = true;
@@ -317,8 +317,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void OnRegisterEffect(PlatformEffect effect)
 		{
-			effect.SetContainer(this);
-			effect.SetControl(this);
+			effect.Container = this;
+			effect.Control = this;
 		}
 
 		static int GetDistance(double start, double position, double v)
@@ -468,7 +468,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void UpdateBackgroundColor()
 		{
-			SetBackgroundColor(Element.BackgroundColor.ToAndroid(Color.Transparent));
+			SetBackgroundColor(Element.BackgroundColor.ToAndroid(Colors.Transparent));
 		}
 
 		void UpdateBackground()

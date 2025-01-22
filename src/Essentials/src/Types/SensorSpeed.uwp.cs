@@ -1,20 +1,20 @@
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Devices.Sensors
 {
-    static class SensorSpeedExtensions
-    {
-        internal static uint ToPlatform(this SensorSpeed sensorSpeed)
-        {
-            switch (sensorSpeed)
-            {
-                case SensorSpeed.Fastest:
-                    return 20;
-                case SensorSpeed.Game:
-                    return 40;
-                case SensorSpeed.UI:
-                    return 80;
-            }
+	internal static partial class SensorSpeedExtensions
+	{
+		internal static uint ToPlatform(this SensorSpeed sensorSpeed)
+		{
+			switch (sensorSpeed)
+			{
+				case SensorSpeed.Fastest:
+					return sensorIntervalFastest;
+				case SensorSpeed.Game:
+					return sensorIntervalGame;
+				case SensorSpeed.UI:
+					return sensorIntervalUI;
+			}
 
-            return 225;
-        }
-    }
+			return sensorIntervalDefault;
+		}
+	}
 }

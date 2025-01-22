@@ -1,6 +1,6 @@
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices;
 
 namespace Samples.ViewModel
 {
@@ -17,6 +17,13 @@ namespace Samples.ViewModel
 		public ICommand RequestActiveCommand { get; }
 
 		public ICommand RequestReleaseCommand { get; }
+
+		public override void OnDisappearing()
+		{
+			OnRequestRelease();
+
+			base.OnDisappearing();
+		}
 
 		void OnRequestActive()
 		{

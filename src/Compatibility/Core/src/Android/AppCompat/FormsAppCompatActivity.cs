@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using Android.App;
@@ -11,6 +12,7 @@ using Android.Views;
 using AndroidX.AppCompat.App;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.AppCompat;
 using AColor = Android.Graphics.Color;
@@ -25,7 +27,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		DisableSetStatusBarColor = 1 << 0,
 	}
 
+#pragma warning disable CA1815 // Override equals and operator equals on value types
 	public struct ActivationOptions
+#pragma warning restore CA1815 // Override equals and operator equals on value types
 	{
 		public ActivationOptions(Bundle bundle)
 		{
@@ -36,7 +40,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		public ActivationFlags Flags;
 	}
 
-	public class FormsAppCompatActivity : AppCompatActivity, IDeviceInfoProvider
+	[System.Obsolete]
+	class FormsAppCompatActivity : AppCompatActivity, IDeviceInfoProvider
 	{
 		public delegate bool BackButtonPressedEventHandler(object sender, EventArgs e);
 
@@ -45,15 +50,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		AndroidApplicationLifecycleState _currentState;
 		ARelativeLayout _layout;
 
-		internal AppCompat.Platform Platform { get; private set; }
+		internal Platform Platform { get; private set; }
 
 		AndroidApplicationLifecycleState _previousState;
 
 		bool _renderersAdded;
 		bool _activityCreated;
 		bool _needMainPageAssign;
-		bool _powerSaveReceiverRegistered;
-		PowerSaveModeBroadcastReceiver _powerSaveModeBroadcastReceiver;
 
 		static readonly ManualResetEventSlim PreviousActivityDestroying = new ManualResetEventSlim(true);
 
@@ -69,11 +72,16 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		public event EventHandler ConfigurationChanged;
 
+		[Obsolete]
+#pragma warning disable 809
 		public override void OnBackPressed()
+#pragma warning restore 809
 		{
 			if (BackPressed != null && BackPressed(this, EventArgs.Empty))
 				return;
+#pragma warning disable CA1416, CA1422 // Validate platform compatibility
 			base.OnBackPressed();
+#pragma warning restore CA1416, CA1422 // Validate platform compatibility
 		}
 
 		public override void OnConfigurationChanged(Configuration newConfig)
@@ -81,7 +89,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			base.OnConfigurationChanged(newConfig);
 			ConfigurationChanged?.Invoke(this, new EventArgs());
 
-			Microsoft.Maui.Controls.Application.Current?.TriggerThemeChanged(new AppThemeChangedEventArgs(Microsoft.Maui.Controls.Application.Current.RequestedTheme));
+			((IApplication)Microsoft.Maui.Controls.Application.Current)?.ThemeChanged();
 		}
 
 		public override bool OnOptionsItemSelected(IMenuItem item)
@@ -94,13 +102,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		public void SetStatusBarColor(AColor color)
 		{
-			if (Forms.IsLollipopOrNewer)
-			{
-				Window.SetStatusBarColor(color);
-			}
+#pragma warning disable CA1422 // Obsolete in API 35 https://developer.android.com/reference/android/view/Window#setStatusBarColor(int)
+			Window.SetStatusBarColor(color);
+#pragma warning restore CA1422 // Obsolete in API 35
 		}
 
-		static void RegisterHandler(Type target, Type handler, Type filter)
+		static void RegisterHandler(Type target, [DynamicallyAccessedMembers(Internals.HandlerType.TargetMembers)] Type handler, Type filter)
 		{
 			Profile.FrameBegin();
 
@@ -205,14 +212,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			Profile.FramePartition("SetSupportActionBar");
 			AToolbar bar = null;
 
-			if (ToolbarResource == 0)
+			if (_toolbarResource == 0)
 			{
 				ToolbarResource = Resource.Layout.toolbar;
 			}
 
-			if (TabLayoutResource == 0)
+			if (_tabLayoutResource == 0)
 			{
-				TabLayoutResource = Resource.Layout.tabbar;
+				_tabLayoutResource = Resource.Layout.tabbar;
 			}
 
 			if (ToolbarResource != 0)
@@ -241,31 +248,20 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			SetContentView(_layout);
 
 			Profile.FramePartition("OnStateChanged");
-			Microsoft.Maui.Controls.Application.ClearCurrent();
+			Microsoft.Maui.Controls.Application.Current = null;
 
 			_previousState = _currentState;
 			_currentState = AndroidApplicationLifecycleState.OnCreate;
 
 			OnStateChanged();
 
-			Profile.FramePartition("Forms.IsLollipopOrNewer");
-			if (Forms.IsLollipopOrNewer)
+			// Allow for the status bar color to be changed
+			if ((flags & ActivationFlags.DisableSetStatusBarColor) == 0)
 			{
-				// Allow for the status bar color to be changed
-				if ((flags & ActivationFlags.DisableSetStatusBarColor) == 0)
-				{
-					Profile.FramePartition("Set DrawsSysBarBkgrnds");
-					Window.AddFlags(WindowManagerFlags.DrawsSystemBarBackgrounds);
-				}
-			}
-			if (Forms.IsLollipopOrNewer)
-			{
-				// Listen for the device going into power save mode so we can handle animations being disabled
-				Profile.FramePartition("Allocate PowerSaveModeReceiver");
-				_powerSaveModeBroadcastReceiver = new PowerSaveModeBroadcastReceiver();
+				Profile.FramePartition("Set DrawsSysBarBkgrnds");
+				Window.AddFlags(WindowManagerFlags.DrawsSystemBarBackgrounds);
 			}
 
-			ContextExtensions.SetDesignerContext(_layout);
 			Profile.FrameEnd();
 		}
 
@@ -301,14 +297,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		protected override void OnPause()
 		{
-			_layout.HideKeyboard(true);
-
-			if (_powerSaveReceiverRegistered && Forms.IsLollipopOrNewer)
-			{
-				// Don't listen for power save mode changes while we're paused
-				UnregisterReceiver(_powerSaveModeBroadcastReceiver);
-				_powerSaveReceiverRegistered = false;
-			}
+			_layout.HideSoftInput();
 
 			// Stop animations or other ongoing actions that could consume CPU
 			// Commit unsaved changes, build only if users expect such changes to be permanently saved when thy leave such as a draft email
@@ -341,7 +330,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			if (_application != null && CurrentFocus != null && _application.OnThisPlatform().GetShouldPreserveKeyboardOnResume())
 			{
-				CurrentFocus.ShowKeyboard();
+				CurrentFocus.ShowSoftInput();
 			}
 
 			_previousState = _currentState;
@@ -352,16 +341,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				_needMainPageAssign = false;
 				SettingMainPage();
 				SetMainPage();
-			}
-
-			if (!_powerSaveReceiverRegistered && Forms.IsLollipopOrNewer)
-			{
-				// Start listening for power save mode changes
-				RegisterReceiver(_powerSaveModeBroadcastReceiver, new IntentFilter(
-					PowerManager.ActionPowerSaveModeChanged
-				));
-
-				_powerSaveReceiverRegistered = true;
 			}
 
 			OnStateChanged();
@@ -463,7 +442,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			PopupManager.ResetBusyCount(this);
 
-			Platform = new AppCompat.Platform(this);
+			Platform = new Platform(this);
 			Platform.SetPage(page);
 			_layout.AddView(Platform);
 			_layout.BringToFront();
@@ -483,7 +462,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 
 		// This is currently being used by the previewer please do not change or remove this
-		void RegisterHandlerForDefaultRenderer(Type target, Type handler, Type filter)
+		void RegisterHandlerForDefaultRenderer(Type target, [DynamicallyAccessedMembers(Internals.HandlerType.TargetMembers)] Type handler, Type filter)
 		{
 			RegisterHandler(target, handler, filter);
 		}
@@ -498,6 +477,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			Platform.SettingNewPage();
 		}
 
+		[PortHandler]
 		void SetSoftInputMode()
 		{
 			var adjust = SoftInput.AdjustPan;
@@ -530,9 +510,31 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		public static event BackButtonPressedEventHandler BackPressed;
 
-		public static int TabLayoutResource { get; set; }
+		static int _tabLayoutResource;
+		public static int TabLayoutResource
+		{
+			get
+			{
+				if (_tabLayoutResource == 0)
+					return Resource.Layout.tabbar;
 
-		public static int ToolbarResource { get; set; }
+				return _tabLayoutResource;
+			}
+			set => _tabLayoutResource = value;
+		}
+
+		static int _toolbarResource;
+		public static int ToolbarResource
+		{
+			get
+			{
+				if (_toolbarResource == 0)
+					return Resource.Layout.toolbar;
+
+				return _toolbarResource;
+			}
+			set => _toolbarResource = value;
+		}
 
 		#endregion
 	}

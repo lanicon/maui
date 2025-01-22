@@ -6,11 +6,15 @@ using Android.Graphics.Drawables;
 using Android.Views;
 using AndroidX.CardView.Widget;
 using AndroidX.Core.View;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AColor = Android.Graphics.Color;
 using AView = Android.Views.View;
+using Color = Microsoft.Maui.Graphics.Color;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.FrameRenderer instead")]
 	public class FrameRenderer : CardView, IVisualElementRenderer, IViewRenderer, ITabStop
 	{
 		float _defaultElevation = -1f;
@@ -60,10 +64,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 		}
 
 		VisualElement IVisualElementRenderer.Element => Element;
-		ViewGroup IVisualElementRenderer.ViewGroup => this;
 		AView IVisualElementRenderer.View => this;
 
-		SizeRequest IVisualElementRenderer.GetDesiredSize(int widthConstraint, int heightConstraint)
+		SizeRequest IVisualElementRenderer.GetDesiredSize(int widthMeasureSpec, int heightMeasureSpec)
 		{
 			Context context = Context;
 			return new SizeRequest(new Size(context.ToPixels(20), context.ToPixels(20)));
@@ -149,8 +152,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 
 				if (Element != null)
 				{
-					if (AppCompat.Platform.GetRenderer(Element) == this)
-						Element.ClearValue(AppCompat.Platform.RendererProperty);
+					if (Platform.GetRenderer(Element) == this)
+						Element.ClearValue(Platform.RendererProperty);
 				}
 			}
 
@@ -202,7 +205,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 				var visualElement = children[i] as VisualElement;
 				if (visualElement == null)
 					continue;
-				IVisualElementRenderer renderer = AppCompat.Platform.GetRenderer(visualElement);
+				IVisualElementRenderer renderer = Platform.GetRenderer(visualElement);
 				renderer?.UpdateLayout();
 			}
 
@@ -218,7 +221,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 
 		public override bool OnTouchEvent(MotionEvent e)
 		{
-			if (_visualElementRenderer.OnTouchEvent(e) || base.OnTouchEvent(e))
+			if (base.OnTouchEvent(e))
 			{
 				return true;
 			}
@@ -258,13 +261,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 				UpdateCornerRadius();
 			else if (e.PropertyName == Frame.BorderColorProperty.PropertyName)
 				UpdateBorderColor();
-			else if (e.Is(Microsoft.Maui.Controls.Layout.IsClippedToBoundsProperty))
+			else if (e.Is(Microsoft.Maui.Controls.Compatibility.Layout.IsClippedToBoundsProperty))
 				UpdateClippedToBounds();
 		}
 
 		void UpdateClippedToBounds()
 		{
-			var shouldClip = Element.IsSet(Microsoft.Maui.Controls.Layout.IsClippedToBoundsProperty)
+			var shouldClip = Element.IsSet(Microsoft.Maui.Controls.Compatibility.Layout.IsClippedToBoundsProperty)
 					? Element.IsClippedToBounds : Element.CornerRadius > 0f;
 
 			this.SetClipToOutline(shouldClip);
@@ -276,7 +279,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 				return;
 
 			Color bgColor = Element.BackgroundColor;
-			_backgroundDrawable.SetColor(bgColor.IsDefault ? AColor.White : bgColor.ToAndroid());
+			_backgroundDrawable.SetColor(bgColor?.ToAndroid() ?? AColor.White);
 		}
 
 		void UpdateBackground()
@@ -316,7 +319,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 
 			Color borderColor = Element.BorderColor;
 
-			if (borderColor.IsDefault)
+			if (borderColor == null)
 				_backgroundDrawable.SetStroke(0, AColor.Transparent);
 			else
 				_backgroundDrawable.SetStroke(3, borderColor.ToAndroid());

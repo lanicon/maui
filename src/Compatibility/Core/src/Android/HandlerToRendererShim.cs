@@ -5,6 +5,7 @@ using AndroidX.AppCompat.View.Menu;
 using AndroidX.Core.View;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 
 namespace Microsoft.Maui.Controls.Compatibility
 {
@@ -12,20 +13,21 @@ namespace Microsoft.Maui.Controls.Compatibility
 	{
 		int? _defaultLabelFor;
 
-		public HandlerToRendererShim(IViewHandler vh)
+		public HandlerToRendererShim(IPlatformViewHandler vh)
 		{
+			Compatibility.Hosting.MauiAppBuilderExtensions.CheckForCompatibility();
 			ViewHandler = vh;
 		}
 
-		IViewHandler ViewHandler { get; }
+		IPlatformViewHandler ViewHandler { get; }
 
 		public VisualElement Element { get; private set; }
 
 		public VisualElementTracker Tracker { get; private set; }
 
-		public ViewGroup ViewGroup => ViewHandler.NativeView as ViewGroup;
+		public ViewGroup ViewGroup => null;
 
-		public global::Android.Views.View View => ViewHandler.NativeView as global::Android.Views.View;
+		public global::Android.Views.View View => ViewHandler.ContainerView ?? ViewHandler.PlatformView;
 
 		public event EventHandler<VisualElementChangedEventArgs> ElementChanged;
 		public event EventHandler<PropertyChangedEventArgs> ElementPropertyChanged;
@@ -42,23 +44,26 @@ namespace Microsoft.Maui.Controls.Compatibility
 
 		public void SetElement(VisualElement element)
 		{
+			if (element == Element)
+				return;
+
 			var oldElement = Element;
 			if (oldElement != null)
 			{
 				oldElement.PropertyChanged -= OnElementPropertyChanged;
-				oldElement.BatchCommitted -= OnBatchCommitted;
 			}
 
 			if (element != null)
 			{
 				element.PropertyChanged += OnElementPropertyChanged;
-				element.BatchCommitted += OnBatchCommitted;
 			}
 
 			Element = element;
 
-			ViewHandler.SetVirtualView((IView)element);
 			((IView)element).Handler = ViewHandler;
+
+			if (ViewHandler.VirtualView != element)
+				ViewHandler.SetVirtualView((IView)element);
 
 			if (Tracker == null)
 			{
@@ -66,11 +71,6 @@ namespace Microsoft.Maui.Controls.Compatibility
 			}
 
 			ElementChanged?.Invoke(this, new VisualElementChangedEventArgs(oldElement, Element));
-		}
-
-		void OnBatchCommitted(object sender, EventArg<VisualElement> e)
-		{
-			ViewHandler?.SetFrame(Element.Bounds);
 		}
 
 		void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -82,10 +82,14 @@ namespace Microsoft.Maui.Controls.Compatibility
 		{
 			if (_defaultLabelFor == null)
 			{
+#pragma warning disable CS0618 // Obsolete
 				_defaultLabelFor = ViewCompat.GetLabelFor(View);
+#pragma warning restore CS0618 // Obsolete
 			}
 
+#pragma warning disable CS0618 // Obsolete
 			ViewCompat.SetLabelFor(View, (int)(id ?? _defaultLabelFor));
+#pragma warning restore CS0618 // Obsolete
 		}
 
 		public void UpdateLayout()

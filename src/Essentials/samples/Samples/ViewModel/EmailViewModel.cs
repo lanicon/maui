@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel.Communication;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Storage;
 
 namespace Samples.ViewModel
 {
@@ -24,6 +26,8 @@ namespace Samples.ViewModel
 		{
 			SendEmailCommand = new Command(OnSendEmail);
 		}
+
+		public bool IsComposeSupported => Email.Default.IsComposeSupported;
 
 		public ICommand SendEmailCommand { get; }
 

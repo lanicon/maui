@@ -2,15 +2,16 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Media;
+using Microsoft.Maui.Storage;
 
 namespace Samples.ViewModel
 {
 	public class MediaPickerViewModel : BaseViewModel
 	{
-		string photoPath;
-		string videoPath;
+		ImageSource photoSource;
+		ImageSource videoSource;
 
 		bool showPhoto;
 		bool showVideo;
@@ -44,16 +45,16 @@ namespace Samples.ViewModel
 			set => SetProperty(ref showVideo, value);
 		}
 
-		public string PhotoPath
+		public ImageSource PhotoSource
 		{
-			get => photoPath;
-			set => SetProperty(ref photoPath, value);
+			get => photoSource;
+			set => SetProperty(ref photoSource, value);
 		}
 
-		public string VideoPath
+		public ImageSource VideoSource
 		{
-			get => videoPath;
-			set => SetProperty(ref videoPath, value);
+			get => videoSource;
+			set => SetProperty(ref videoSource, value);
 		}
 
 		async void DoPickPhoto()
@@ -64,7 +65,7 @@ namespace Samples.ViewModel
 
 				await LoadPhotoAsync(photo);
 
-				Console.WriteLine($"PickPhotoAsync COMPLETED: {PhotoPath}");
+				Console.WriteLine($"PickPhotoAsync COMPLETED: {PhotoSource}");
 			}
 			catch (Exception ex)
 			{
@@ -80,7 +81,7 @@ namespace Samples.ViewModel
 
 				await LoadPhotoAsync(photo);
 
-				Console.WriteLine($"CapturePhotoAsync COMPLETED: {PhotoPath}");
+				Console.WriteLine($"CapturePhotoAsync COMPLETED: {PhotoSource}");
 			}
 			catch (Exception ex)
 			{
@@ -96,7 +97,7 @@ namespace Samples.ViewModel
 
 				await LoadVideoAsync(video);
 
-				Console.WriteLine($"PickVideoAsync COMPLETED: {PhotoPath}");
+				Console.WriteLine($"PickVideoAsync COMPLETED: {PhotoSource}");
 			}
 			catch (Exception ex)
 			{
@@ -112,7 +113,7 @@ namespace Samples.ViewModel
 
 				await LoadVideoAsync(photo);
 
-				Console.WriteLine($"CaptureVideoAsync COMPLETED: {PhotoPath}");
+				Console.WriteLine($"CaptureVideoAsync COMPLETED: {VideoSource}");
 			}
 			catch (Exception ex)
 			{
@@ -125,19 +126,13 @@ namespace Samples.ViewModel
 			// canceled
 			if (photo == null)
 			{
-				PhotoPath = null;
+				PhotoSource = null;
 				return;
 			}
 
-			// save the file into local storage
-			var newFile = Path.Combine(FileSystem.CacheDirectory, photo.FileName);
-			using (var stream = await photo.OpenReadAsync())
-			using (var newStream = File.OpenWrite(newFile))
-			{
-				await stream.CopyToAsync(newStream);
-			}
+			var stream = await photo.OpenReadAsync();
+			PhotoSource = ImageSource.FromStream(() => stream);
 
-			PhotoPath = newFile;
 			ShowVideo = false;
 			ShowPhoto = true;
 		}
@@ -147,27 +142,21 @@ namespace Samples.ViewModel
 			// canceled
 			if (video == null)
 			{
-				VideoPath = null;
+				VideoSource = null;
 				return;
 			}
 
-			// save the file into local storage
-			var newFile = Path.Combine(FileSystem.CacheDirectory, video.FileName);
-			using (var stream = await video.OpenReadAsync())
-			using (var newStream = File.OpenWrite(newFile))
-			{
-				await stream.CopyToAsync(newStream);
-			}
+			var stream = await video.OpenReadAsync();
+			VideoSource = ImageSource.FromStream(() => stream);
 
-			VideoPath = newFile;
 			ShowVideo = true;
 			ShowPhoto = false;
 		}
 
 		public override void OnDisappearing()
 		{
-			PhotoPath = null;
-			VideoPath = null;
+			PhotoSource = null;
+			VideoSource = null;
 
 			base.OnDisappearing();
 		}

@@ -1,4 +1,4 @@
-<views:BasePage xmlns="http://xamarin.com/schemas/2014/forms"
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                 xmlns:views="clr-namespace:Samples.View"
                 xmlns:viewmodels="clr-namespace:Samples.ViewModel"
@@ -12,10 +12,11 @@
         <ToolbarItem Text="Send" Command="{Binding SendEmailCommand}" IsEnabled="{Binding IsNotBusy}" />
     </views:BasePage.ToolbarItems>
 
-    <StackLayout>
-        <Label Text="Easily send email messages." FontAttributes="Bold" Margin="12" />
+    <Grid RowDefinitions="Auto,*">
+        <Label Text="{Binding IsComposeSupported, StringFormat='Easily send email messages. Supported on this device: {0}'}"
+            FontAttributes="Bold" Margin="12" />
 
-        <ScrollView>
+        <ScrollView Grid.Row="1">
             <StackLayout Padding="12,0,12,12" Spacing="6">
                 <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" />
 
@@ -55,6 +56,6 @@
 
             </StackLayout>
         </ScrollView>
-    </StackLayout>
+    </Grid>
 
 </views:BasePage>

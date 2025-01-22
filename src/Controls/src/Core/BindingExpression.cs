@@ -1,7 +1,9 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -11,7 +13,8 @@ using Microsoft.Maui.Controls.Xaml.Diagnostics;
 
 namespace Microsoft.Maui.Controls
 {
-	internal class BindingExpression
+	[RequiresUnreferencedCode(TrimmerConstants.StringPathBindingWarning, Url = TrimmerConstants.ExpressionBasedBindingsDocsUrl)]
+	internal sealed class BindingExpression
 	{
 		internal const string PropertyNotFoundErrorMessage = "'{0}' property not found on '{1}', target property: '{2}.{3}'";
 		internal const string CannotConvertTypeErrorMessage = "'{0}' cannot be converted to type '{1}'";
@@ -25,6 +28,7 @@ namespace Microsoft.Maui.Controls
 		WeakReference<BindableObject> _weakTarget;
 		List<WeakReference<Element>> _ancestryChain;
 		bool _isBindingContextRelativeSource;
+		SetterSpecificity _specificity;
 
 		internal BindingExpression(BindingBase binding, string path)
 		{
@@ -53,15 +57,30 @@ namespace Microsoft.Maui.Controls
 			}
 
 			if (_weakSource.TryGetTarget(out var source) && _targetProperty != null)
-				ApplyCore(source, target, _targetProperty, fromTarget);
+				ApplyCore(source, target, _targetProperty, fromTarget, _specificity);
 		}
 
 		/// <summary>
 		///     Applies the binding expression to a new source or target.
 		/// </summary>
-		internal void Apply(object sourceObject, BindableObject target, BindableProperty property)
+		internal void Apply(object sourceObject, BindableObject target, BindableProperty property, SetterSpecificity specificity)
 		{
+			if (Binding is Binding { Source: var source, DataType: Type dataType })
+			{
+				// Do not check type mismatch if this is a binding with Source and compilation of bindings with Source is disale
+				bool skipTypeMismatchCheck = source is not null && !RuntimeFeature.IsXamlCBindingWithSourceCompilationEnabled;
+				if (!skipTypeMismatchCheck)
+				{
+					if (sourceObject != null && !dataType.IsAssignableFrom(sourceObject.GetType()))
+					{
+						BindingDiagnostics.SendBindingFailure(Binding, "Binding", $"Mismatch between the specified x:DataType ({dataType}) and the current binding context ({sourceObject.GetType()}).");
+						sourceObject = null;
+					}
+				}
+			}
+
 			_targetProperty = property;
+			_specificity = specificity;
 
 			if (_weakTarget != null && _weakTarget.TryGetTarget(out BindableObject prevTarget) && !ReferenceEquals(prevTarget, target))
 				throw new InvalidOperationException("Binding instances cannot be reused");
@@ -72,7 +91,7 @@ namespace Microsoft.Maui.Controls
 			_weakSource = new WeakReference<object>(sourceObject);
 			_weakTarget = new WeakReference<BindableObject>(target);
 
-			ApplyCore(sourceObject, target, property);
+			ApplyCore(sourceObject, target, property, false, specificity);
 		}
 
 		internal void Unapply()
@@ -99,7 +118,7 @@ namespace Microsoft.Maui.Controls
 		/// <summary>
 		///     Applies the binding expression to a previously set source or target.
 		/// </summary>
-		void ApplyCore(object sourceObject, BindableObject target, BindableProperty property, bool fromTarget = false)
+		void ApplyCore(object sourceObject, BindableObject target, BindableProperty property, bool fromTarget, SetterSpecificity specificity)
 		{
 			BindingMode mode = Binding.GetRealizedMode(_targetProperty);
 			if ((mode == BindingMode.OneWay || mode == BindingMode.OneTime) && fromTarget)
@@ -151,19 +170,19 @@ namespace Microsoft.Maui.Controls
 				else
 					value = Binding.FallbackValue ?? property.GetDefaultValue(target);
 
-				if (!TryConvert(ref value, property, property.ReturnType, true))
+				if (!BindingExpressionHelper.TryConvert(ref value, property, property.ReturnType, true))
 				{
 					BindingDiagnostics.SendBindingFailure(Binding, current, target, property, "Binding", CannotConvertTypeErrorMessage, value, property.ReturnType);
 					return;
 				}
 
-				target.SetValueCore(property, value, SetValueFlags.ClearDynamicResource, BindableObject.SetValuePrivateFlags.Default | BindableObject.SetValuePrivateFlags.Converted);
+				target.SetValueCore(property, value, SetValueFlags.ClearDynamicResource, BindableObject.SetValuePrivateFlags.Default | BindableObject.SetValuePrivateFlags.Converted, specificity);
 			}
 			else if (needsSetter && part.LastSetter != null && current != null)
 			{
 				object value = Binding.GetTargetValue(target.GetValue(property), part.SetterType);
 
-				if (!TryConvert(ref value, property, part.SetterType, false))
+				if (!BindingExpressionHelper.TryConvert(ref value, property, part.SetterType, false))
 				{
 					BindingDiagnostics.SendBindingFailure(Binding, current, target, property, "Binding", CannotConvertTypeErrorMessage, value, part.SetterType);
 					return;
@@ -213,11 +232,11 @@ namespace Microsoft.Maui.Controls
 
 				BindingExpressionPart indexer = null;
 
-				int lbIndex = part.IndexOf('[');
+				int lbIndex = part.IndexOf("[", StringComparison.Ordinal);
 				if (lbIndex != -1)
 				{
-					int rbIndex = part.LastIndexOf(']');
-					if (rbIndex == -1)
+					int rbIndex = part.Length - 1;
+					if (part[rbIndex] != ']')
 						throw new FormatException("Indexer did not contain closing bracket");
 
 					int argLength = rbIndex - lbIndex - 1;
@@ -323,10 +342,10 @@ namespace Microsoft.Maui.Controls
 				}
 
 				string indexerName = "Item";
-				foreach (DefaultMemberAttribute attrib in sourceType.GetCustomAttributes(typeof(DefaultMemberAttribute), true))
+				var defaultMemberAttribute = (DefaultMemberAttribute)sourceType.GetCustomAttribute(typeof(DefaultMemberAttribute), true);
+				if (defaultMemberAttribute != null)
 				{
-					indexerName = attrib.MemberName;
-					break;
+					indexerName = defaultMemberAttribute.MemberName;
 				}
 
 				part.IndexerName = indexerName;
@@ -363,44 +382,31 @@ namespace Microsoft.Maui.Controls
 			else
 			{
 				TypeInfo type = sourceType;
-				while (type != null && property == null)
+				do
 				{
 					property = type.GetDeclaredProperty(part.Content);
-					type = type.BaseType?.GetTypeInfo();
-				}
+				} while (property == null && (type = type.BaseType?.GetTypeInfo()) != null);
 			}
 			if (property != null)
 			{
-				if (property.CanRead && property.GetMethod.IsPublic && !property.GetMethod.IsStatic)
-					part.LastGetter = property.GetMethod;
-				if (property.CanWrite && property.SetMethod.IsPublic && !property.SetMethod.IsStatic)
+				var propertyType = property.PropertyType;
+
+				if (property is { CanRead: true, GetMethod: { IsPublic: true, IsStatic: false } propertyGetMethod })
 				{
-					part.LastSetter = property.SetMethod;
-					var lastSetterParameters = part.LastSetter.GetParameters();
-					part.SetterType = lastSetterParameters[lastSetterParameters.Length - 1].ParameterType;
+					part.LastGetter = propertyGetMethod;
+				}
+
+				if (property is { CanWrite: true, SetMethod: { IsPublic: true, IsStatic: false } propertySetMethod })
+				{
+					part.LastSetter = propertySetMethod;
+					part.SetterType = propertyType;
 
 					if (Binding.AllowChaining)
 					{
 						FieldInfo bindablePropertyField = sourceType.GetDeclaredField(part.Content + "Property");
 						if (bindablePropertyField != null && bindablePropertyField.FieldType == typeof(BindableProperty) && sourceType.ImplementedInterfaces.Contains(typeof(IElementController)))
 						{
-							MethodInfo setValueMethod = null;
-#if NETSTANDARD1_0
-							foreach (MethodInfo m in sourceType.AsType().GetRuntimeMethods())
-							{
-								if (m.Name.EndsWith("IElementController.SetValueFromRenderer"))
-								{
-									ParameterInfo[] parameters = m.GetParameters();
-									if (parameters.Length == 2 && parameters[0].ParameterType == typeof(BindableProperty))
-									{
-										setValueMethod = m;
-										break;
-									}
-								}
-							}
-#else
-							setValueMethod = typeof(IElementController).GetMethod("SetValueFromRenderer", new[] { typeof(BindableProperty), typeof(object) });
-#endif
+							MethodInfo setValueMethod = typeof(IElementController).GetMethod(nameof(IElementController.SetValueFromRenderer), new[] { typeof(BindableProperty), typeof(object) });
 							if (setValueMethod != null)
 							{
 								part.LastSetter = setValueMethod;
@@ -410,78 +416,31 @@ namespace Microsoft.Maui.Controls
 						}
 					}
 				}
-#if !NETSTANDARD1_0
-				if (property != null
-					&& part.NextPart != null
-					&& property.PropertyType.IsGenericType
-					&& (property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,,>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,,,>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,,,,>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,,,,,>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,,,,,,>)
-						|| property.PropertyType.GetGenericTypeDefinition() == typeof(ValueTuple<,,,,,,,>))
-					&& property.GetCustomAttribute(typeof(TupleElementNamesAttribute)) is TupleElementNamesAttribute tupleEltNames)
+
+				if (part.NextPart != null && propertyType.IsGenericType && propertyType.IsValueType)
 				{
-					//modify the nextPart to access the tuple item via the ITuple indexer
-					var nextPart = part.NextPart;
-					var name = nextPart.Content;
-					var index = tupleEltNames.TransformNames.IndexOf(name);
-					if (index >= 0)
+					Type genericTypeDefinition = propertyType.GetGenericTypeDefinition();
+					if ((genericTypeDefinition == typeof(ValueTuple<>)
+						|| genericTypeDefinition == typeof(ValueTuple<,>)
+						|| genericTypeDefinition == typeof(ValueTuple<,,>)
+						|| genericTypeDefinition == typeof(ValueTuple<,,,>)
+						|| genericTypeDefinition == typeof(ValueTuple<,,,,>)
+						|| genericTypeDefinition == typeof(ValueTuple<,,,,,>)
+						|| genericTypeDefinition == typeof(ValueTuple<,,,,,,>)
+						|| genericTypeDefinition == typeof(ValueTuple<,,,,,,,>))
+						&& property.GetCustomAttribute(typeof(TupleElementNamesAttribute)) is TupleElementNamesAttribute tupleEltNames)
 					{
-						nextPart.IsIndexer = true;
-						nextPart.Content = index.ToString();
+						//modify the nextPart to access the tuple item via the ITuple indexer
+						var nextPart = part.NextPart;
+						var name = nextPart.Content;
+						var index = tupleEltNames.TransformNames.IndexOf(name);
+						if (index >= 0)
+						{
+							nextPart.IsIndexer = true;
+							nextPart.Content = index.ToString();
+						}
 					}
 				}
-#endif
-			}
-
-		}
-		static readonly Type[] DecimalTypes = { typeof(float), typeof(decimal), typeof(double) };
-
-		internal static bool TryConvert(ref object value, BindableProperty targetProperty, Type convertTo, bool toTarget)
-		{
-			if (value == null)
-				return !convertTo.GetTypeInfo().IsValueType || Nullable.GetUnderlyingType(convertTo) != null;
-			try
-			{
-				if ((toTarget && targetProperty.TryConvert(ref value)) || (!toTarget && convertTo.IsInstanceOfType(value)))
-					return true;
-			}
-			catch (InvalidOperationException)
-			{ //that's what TypeConverters ususally throw
-				return false;
-			}
-
-			object original = value;
-			try
-			{
-				var stringValue = value as string ?? string.Empty;
-				// see: https://bugzilla.xamarin.com/show_bug.cgi?id=32871
-				// do not canonicalize "*.[.]"; "1." should not update bound BindableProperty
-				if (stringValue.EndsWith(".", StringComparison.Ordinal) && DecimalTypes.Contains(convertTo))
-				{
-					value = original;
-					return false;
-				}
-
-				// do not canonicalize "-0"; user will likely enter a period after "-0"
-				if (stringValue == "-0" && DecimalTypes.Contains(convertTo))
-				{
-					value = original;
-					return false;
-				}
-
-				convertTo = Nullable.GetUnderlyingType(convertTo) ?? convertTo;
-
-				value = Convert.ChangeType(value, convertTo, CultureInfo.InvariantCulture);
-				return true;
-			}
-			catch (Exception ex) when (ex is InvalidCastException || ex is FormatException || ex is InvalidOperationException || ex is OverflowException)
-			{
-				value = original;
-				return false;
 			}
 		}
 
@@ -564,7 +523,7 @@ namespace Microsoft.Maui.Controls
 			}
 
 			binding.Unapply();
-			binding.Apply(null, target, _targetProperty);
+			binding.Apply(null, target, _targetProperty, false, SetterSpecificity.FromBinding);
 		}
 
 		void OnElementParentSet(object sender, EventArgs e)
@@ -593,16 +552,16 @@ namespace Microsoft.Maui.Controls
 				// Force the binding expression to resolve to null
 				// for now, until someone in the chain gets a new
 				// non-null parent.
-				this.ApplyCore(null, target, _targetProperty);
+				this.ApplyCore(null, target, _targetProperty, false, _specificity);
 			}
 			else
 			{
 				binding.Unapply();
-				binding.Apply(null, target, _targetProperty);
+				binding.Apply(null, target, _targetProperty, false, _specificity);
 			}
 		}
 
-		class BindingPair
+		private sealed class BindingPair
 		{
 			public BindingPair(BindingExpressionPart part, object source, bool isLast)
 			{
@@ -618,51 +577,39 @@ namespace Microsoft.Maui.Controls
 			public object Source { get; private set; }
 		}
 
-		internal class WeakPropertyChangedProxy
+		internal sealed class WeakPropertyChangedProxy : WeakEventProxy<INotifyPropertyChanged, PropertyChangedEventHandler>
 		{
-			readonly WeakReference<INotifyPropertyChanged> _source = new WeakReference<INotifyPropertyChanged>(null);
-			readonly WeakReference<PropertyChangedEventHandler> _listener = new WeakReference<PropertyChangedEventHandler>(null);
-			readonly PropertyChangedEventHandler _handler;
-			readonly EventHandler _bchandler;
-			internal WeakReference<INotifyPropertyChanged> Source => _source;
+			public WeakPropertyChangedProxy() { }
 
-			public WeakPropertyChangedProxy()
+			public WeakPropertyChangedProxy(INotifyPropertyChanged source, PropertyChangedEventHandler listener)
 			{
-				_handler = new PropertyChangedEventHandler(OnPropertyChanged);
-				_bchandler = new EventHandler(OnBCChanged);
+				Subscribe(source, listener);
 			}
 
-			public WeakPropertyChangedProxy(INotifyPropertyChanged source, PropertyChangedEventHandler listener) : this()
+
+
+			public override void Subscribe(INotifyPropertyChanged source, PropertyChangedEventHandler listener)
 			{
-				SubscribeTo(source, listener);
+				source.PropertyChanged += OnPropertyChanged;
+				if (source is BindableObject bo)
+					bo.BindingContextChanged += OnBCChanged;
+
+				base.Subscribe(source, listener);
 			}
 
-			public void SubscribeTo(INotifyPropertyChanged source, PropertyChangedEventHandler listener)
+			public override void Unsubscribe()
 			{
-				source.PropertyChanged += _handler;
-				var bo = source as BindableObject;
-				if (bo != null)
-					bo.BindingContextChanged += _bchandler;
-				_source.SetTarget(source);
-				_listener.SetTarget(listener);
-			}
+				if (TryGetSource(out var source))
+					source.PropertyChanged -= OnPropertyChanged;
+				if (source is BindableObject bo)
+					bo.BindingContextChanged -= OnBCChanged;
 
-			public void Unsubscribe()
-			{
-				INotifyPropertyChanged source;
-				if (_source.TryGetTarget(out source) && source != null)
-					source.PropertyChanged -= _handler;
-				var bo = source as BindableObject;
-				if (bo != null)
-					bo.BindingContextChanged -= _bchandler;
-
-				_source.SetTarget(null);
-				_listener.SetTarget(null);
+				base.Unsubscribe();
 			}
 
 			void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
 			{
-				if (_listener.TryGetTarget(out var handler) && handler != null)
+				if (TryGetHandler(out var handler))
 					handler(sender, e);
 				else
 					Unsubscribe();
@@ -670,15 +617,17 @@ namespace Microsoft.Maui.Controls
 
 			void OnBCChanged(object sender, EventArgs e)
 			{
-				OnPropertyChanged(sender, new PropertyChangedEventArgs("BindingContext"));
+				OnPropertyChanged(sender, new PropertyChangedEventArgs(nameof(BindableObject.BindingContext)));
 			}
 		}
 
-		class BindingExpressionPart
+		private sealed class BindingExpressionPart
 		{
 			readonly BindingExpression _expression;
 			readonly PropertyChangedEventHandler _changeHandler;
 			WeakPropertyChangedProxy _listener;
+
+			~BindingExpressionPart() => _listener?.Unsubscribe();
 
 			public BindingExpressionPart(BindingExpression expression, string content, bool isIndexer = false)
 			{
@@ -693,7 +642,7 @@ namespace Microsoft.Maui.Controls
 			public void Subscribe(INotifyPropertyChanged handler)
 			{
 				INotifyPropertyChanged source;
-				if (_listener != null && _listener.Source.TryGetTarget(out source) && ReferenceEquals(handler, source))
+				if (_listener != null && _listener.TryGetSource(out source) && ReferenceEquals(handler, source))
 					// Already subscribed
 					return;
 
@@ -745,7 +694,7 @@ namespace Microsoft.Maui.Controls
 				{
 					if (part.IsIndexer)
 					{
-						if (name.Contains("["))
+						if (name.IndexOf("[", StringComparison.Ordinal) != -1)
 						{
 							if (name != string.Format("{0}[{1}]", part.IndexerName, part.Content))
 								return;
@@ -759,20 +708,10 @@ namespace Microsoft.Maui.Controls
 					}
 				}
 
-				Action action = () => _expression.Apply();
-				if (_expression._weakTarget != null && _expression._weakTarget.TryGetTarget(out BindableObject obj) && obj.Dispatcher != null && obj.Dispatcher.IsInvokeRequired)
-				{
-					obj.Dispatcher.BeginInvokeOnMainThread(action);
-				}
-				else if (Device.IsInvokeRequired)
-				{
-					Device.BeginInvokeOnMainThread(action);
-				}
+				if (_expression._weakTarget is not null && _expression._weakTarget.TryGetTarget(out BindableObject obj))
+					obj.Dispatcher.DispatchIfRequired(() => _expression.Apply());
 				else
-				{
-					action();
-				}
-
+					_expression.Apply();
 			}
 
 			public bool TryGetValue(object source, out object value)

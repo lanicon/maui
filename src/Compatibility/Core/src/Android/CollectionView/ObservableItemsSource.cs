@@ -7,12 +7,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 	internal class ObservableItemsSource : IItemsViewSource
 	{
 		readonly IEnumerable _itemsSource;
+		readonly BindableObject _container;
 		readonly ICollectionChangedNotifier _notifier;
 		bool _disposed;
 
-		public ObservableItemsSource(IEnumerable itemSource, ICollectionChangedNotifier notifier)
+		public ObservableItemsSource(IEnumerable itemSource, BindableObject container, ICollectionChangedNotifier notifier)
 		{
 			_itemsSource = itemSource as IList ?? itemSource as IEnumerable;
+			_container = container;
 			_notifier = notifier;
 
 			((INotifyCollectionChanged)itemSource).CollectionChanged += CollectionChanged;
@@ -89,15 +91,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void CollectionChanged(object sender, NotifyCollectionChangedEventArgs args)
 		{
-			if (Device.IsInvokeRequired)
-			{
-				Device.BeginInvokeOnMainThread(() => CollectionChanged(args));
-			}
-			else
-			{
-				CollectionChanged(args);
-			}
-
+			_container.Dispatcher.DispatchIfRequired(() => CollectionChanged(args));
 		}
 
 		void CollectionChanged(NotifyCollectionChangedEventArgs args)
@@ -143,7 +137,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void Add(NotifyCollectionChangedEventArgs args)
 		{
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(args.NewItems[0]);
+			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
 			startIndex = AdjustPositionForHeader(startIndex);
 			var count = args.NewItems.Count;
 
@@ -184,7 +178,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void Replace(NotifyCollectionChangedEventArgs args)
 		{
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(args.NewItems[0]);
+			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
 			startIndex = AdjustPositionForHeader(startIndex);
 			var newCount = args.NewItems.Count;
 
@@ -230,22 +224,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			{
 				if (count == index)
 					return item;
-				count++;
-			}
-
-			return -1;
-		}
-
-		internal int IndexOf(object item)
-		{
-			if (_itemsSource is IList list)
-				return list.IndexOf(item);
-
-			int count = 0;
-			foreach (var i in _itemsSource)
-			{
-				if (i == item)
-					return count;
 				count++;
 			}
 

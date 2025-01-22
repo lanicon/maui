@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using CoreGraphics;
 using Foundation;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete]
 	public class CarouselViewController : ItemsViewController<CarouselView>
 	{
 		protected readonly CarouselView Carousel;
@@ -95,29 +97,19 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 		}
 
-		void BoundsSizeChanged() 
+		void BoundsSizeChanged()
 		{
 			//if the size changed center the item	
 			Carousel.ScrollTo(Carousel.Position, position: Microsoft.Maui.Controls.ScrollToPosition.Center, animate: false);
 		}
 
-#if MACCATALYST
-		[Foundation.Export("scrollViewWillBeginDragging:")]
-		public virtual void DraggingStarted(UIScrollView scrollView)
-#else
 		public override void DraggingStarted(UIScrollView scrollView)
-#endif
 		{
 			_isDragging = true;
 			Carousel.SetIsDragging(true);
 		}
 
-#if MACCATALYST
-		[Foundation.Export("scrollViewDidEndDragging:willDecelerate:")]
-		public virtual void DraggingEnded(UIScrollView scrollView, bool willDecelerate)
-#else
 		public override void DraggingEnded(UIScrollView scrollView, bool willDecelerate)
-#endif
 		{
 			Carousel.SetIsDragging(false);
 			_isDragging = false;
@@ -325,7 +317,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		}
 
 		void ScrollToPosition(int goToPosition, int carouselPosition, bool animate, bool forceScroll = false)
-		{	
+		{
 			if (Carousel.Loop)
 				carouselPosition = _carouselViewLoopManager?.GetCorrectPositionForCenterItem(CollectionView) ?? -1;
 
@@ -626,7 +618,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			var currentOffset = collectionView.ContentOffset;
 			var contentWidth = GetTotalContentWidth();
 			var boundsWidth = collectionView.Bounds.Size.Width;
-			
+
 			if (contentWidth == 0 || cellWidth == 0)
 				return;
 

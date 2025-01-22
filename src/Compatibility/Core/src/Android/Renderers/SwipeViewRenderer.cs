@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -11,7 +11,9 @@ using AndroidX.Core.Widget;
 using AndroidX.RecyclerView.Widget;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
+using Microsoft.Maui.Graphics;
 using AButton = AndroidX.AppCompat.Widget.AppCompatButton;
 using APointF = Android.Graphics.PointF;
 using ARect = Android.Graphics.Rect;
@@ -22,6 +24,7 @@ using Specifics = Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class SwipeViewRenderer : ViewRenderer<SwipeView, AView>
 	{
 		const float OpenSwipeThresholdPercentage = 0.6f; // 60%
@@ -112,7 +115,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		protected override void UpdateBackgroundColor()
 		{
-			if (Element.BackgroundColor != Color.Default)
+			if (Element.BackgroundColor != null)
 				SetBackgroundColor(Element.BackgroundColor.ToAndroid());
 			else
 				Control?.SetWindowBackground();
@@ -370,7 +373,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		AView CreateEmptyContent()
 		{
 			var emptyContentView = new AView(_context);
-			emptyContentView.SetBackgroundColor(Color.Default.ToAndroid());
+			emptyContentView.SetBackgroundColor(Colors.Transparent.ToAndroid());
 
 			return emptyContentView;
 		}
@@ -378,7 +381,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		AView CreateContent()
 		{
 			var renderer = Element.Content.GetRenderer() ?? Platform.CreateRendererWithContext(Element.Content, Context);
-			AppCompat.Platform.SetRenderer(Element.Content, renderer);
+			Platform.SetRenderer(Element.Content, renderer);
 
 			return renderer?.View;
 		}
@@ -849,8 +852,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		AView CreateSwipeItemView(SwipeItemView swipeItemView)
 		{
-			var renderer = AppCompat.Platform.CreateRenderer(swipeItemView, _context);
-			AppCompat.Platform.SetRenderer(swipeItemView, renderer);
+			var renderer = Platform.CreateRenderer(swipeItemView, _context);
+			Platform.SetRenderer(swipeItemView, renderer);
 			var swipeItem = renderer?.View;
 			swipeItem.Visibility = swipeItemView.IsVisible ? ViewStates.Visible : ViewStates.Gone;
 
@@ -861,7 +864,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		{
 			var swipeItemSize = GetSwipeItemSize(swipeItemView);
 
-			swipeItemView.Layout(new Rectangle(0, 0, swipeItemSize.Width, swipeItemSize.Height));
+			swipeItemView.Layout(new Rect(0, 0, swipeItemSize.Width, swipeItemSize.Height));
 		}
 
 		void UpdateIsSwipeEnabled()
@@ -879,9 +882,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		Color GetSwipeItemColor(Color backgroundColor)
 		{
-			var luminosity = 0.2126 * backgroundColor.R + 0.7152 * backgroundColor.G + 0.0722 * backgroundColor.B;
+			var luminosity = 0.2126f * backgroundColor.Red + 0.7152f * backgroundColor.Green + 0.0722f * backgroundColor.Blue;
 
-			return luminosity < 0.75 ? Color.White : Color.Black;
+			return luminosity < 0.75f ? Colors.White : Colors.Black;
 		}
 
 		void UnsubscribeSwipeItemEvents()

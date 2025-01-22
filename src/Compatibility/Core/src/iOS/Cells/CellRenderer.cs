@@ -1,12 +1,13 @@
-using System;
+﻿using System;
 using System.ComponentModel;
-using UIKit;
-using Microsoft.Maui.Controls.Compatibility.Internals;
 using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using ObjCRuntime;
+using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Platform.Compatibility.CellRenderer instead")]
 	public class CellRenderer : IRegisterable
 	{
 		static readonly BindableProperty RealCellProperty = BindableProperty.CreateAttached("RealCell", typeof(UITableViewCell), typeof(Cell), null);
@@ -30,37 +31,46 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			WireUpForceUpdateSizeRequested(item, tvc, tv);
 
+#pragma warning disable CA1416, CA1422 // TODO: 'UITableViewCell.TextLabel' is unsupported on: 'ios' 14.0 and later
 			tvc.TextLabel.Text = item.ToString();
+#pragma warning restore CA1416, CA1422
 
 			UpdateBackground(tvc, item);
 
-			SetAccessibility (tvc, item);
+			SetAccessibility(tvc, item);
 
 			Performance.Stop(reference);
 			return tvc;
 		}
 
-		public virtual void SetAccessibility (UITableViewCell tableViewCell, Cell cell)
+		public virtual void SetAccessibility(UITableViewCell tableViewCell, Cell cell)
 		{
-			if (cell.IsSet (AutomationProperties.IsInAccessibleTreeProperty))
-				tableViewCell.IsAccessibilityElement = cell.GetValue (AutomationProperties.IsInAccessibleTreeProperty).Equals (true);
+			if (cell.IsSet(AutomationProperties.IsInAccessibleTreeProperty))
+				tableViewCell.IsAccessibilityElement = cell.GetValue(AutomationProperties.IsInAccessibleTreeProperty).Equals(true);
 			else
 				tableViewCell.IsAccessibilityElement = false;
 
-			if (cell.IsSet (AutomationProperties.NameProperty))
-				tableViewCell.AccessibilityLabel = cell.GetValue (AutomationProperties.NameProperty).ToString ();
+			if (cell.IsSet(AutomationProperties.ExcludedWithChildrenProperty))
+				tableViewCell.AccessibilityElementsHidden = cell.GetValue(AutomationProperties.ExcludedWithChildrenProperty).Equals(true);
+			else
+				tableViewCell.AccessibilityElementsHidden = false;
+
+			if (cell.IsSet(AutomationProperties.NameProperty))
+				tableViewCell.AccessibilityLabel = cell.GetValue(AutomationProperties.NameProperty).ToString();
 			else
 				tableViewCell.AccessibilityLabel = null;
 
-			if (cell.IsSet (AutomationProperties.HelpTextProperty))
-				tableViewCell.AccessibilityHint = cell.GetValue (AutomationProperties.HelpTextProperty).ToString ();
+			if (cell.IsSet(AutomationProperties.HelpTextProperty))
+				tableViewCell.AccessibilityHint = cell.GetValue(AutomationProperties.HelpTextProperty).ToString();
 			else
 				tableViewCell.AccessibilityHint = null;
 		}
 
 		public virtual void SetBackgroundColor(UITableViewCell tableViewCell, Cell cell, UIColor color)
 		{
+#pragma warning disable CA1416, CA1422  // TODO: 'UITableViewCell.TextLabel' is unsupported on: 'ios' 14.0 and later
 			tableViewCell.TextLabel.BackgroundColor = color;
+#pragma warning restore CA1416, CA1422
 			tableViewCell.ContentView.BackgroundColor = color;
 			tableViewCell.BackgroundColor = color;
 		}
@@ -74,23 +84,20 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 #else
 			var defaultBgColor = cell.On<PlatformConfiguration.macOS>().DefaultBackgroundColor();
 #endif
-			if (defaultBgColor != Color.Default)
+			if (defaultBgColor != null)
 			{
-				uiBgColor = defaultBgColor.ToUIColor();
+				uiBgColor = defaultBgColor.ToPlatform();
 			}
 			else
 			{
 				if (cell.GetIsGroupHeader<ItemsView<Cell>, Cell>())
 				{
-					if (!UIDevice.CurrentDevice.CheckSystemVersion(7, 0))
-						return;
-
 					uiBgColor = ColorExtensions.GroupedBackground;
 				}
 				else
 				{
-					if (cell.RealParent is VisualElement element && element.BackgroundColor != Color.Default)
-						uiBgColor = element.BackgroundColor.ToUIColor();
+					if (cell.RealParent is VisualElement element && element.BackgroundColor != null)
+						uiBgColor = element.BackgroundColor.ToPlatform();
 				}
 			}
 
@@ -114,9 +121,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			_onPropertyChangedEventHandler = (sender, e) =>
 			{
-				if(e.PropertyName == "RealCell" && sender is BindableObject bo && GetRealCell(bo) == null)
+				if (e.PropertyName == "RealCell" && sender is BindableObject bo && GetRealCell(bo) == null)
 				{
-					if(sender is ICellController icc)
+					if (sender is ICellController icc)
 						icc.ForceUpdateSizeRequested -= _onForceUpdateSizeRequested;
 
 					if (sender is INotifyPropertyChanged notifyPropertyChanged)

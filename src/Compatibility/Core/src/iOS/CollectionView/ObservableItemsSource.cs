@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Specialized;
 using Foundation;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
@@ -19,7 +20,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			_collectionViewController = collectionViewController;
 			CollectionView = _collectionViewController.CollectionView;
-		
+
 			_section = group < 0 ? 0 : group;
 			_grouped = group >= 0;
 
@@ -99,20 +100,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		void CollectionChanged(object sender, NotifyCollectionChangedEventArgs args)
 		{
-			if (Device.IsInvokeRequired)
-			{
-				Device.BeginInvokeOnMainThread(() => CollectionChanged(args));
-			}
-			else
-			{
-				CollectionChanged(args);
-			}
+			CollectionView.BeginInvokeOnMainThread(() => CollectionChanged(args));
 		}
 
 		void CollectionChanged(NotifyCollectionChangedEventArgs args)
 		{
 			// Force UICollectionView to get the internal accounting straight 
-			CollectionView.NumberOfItemsInSection(_section);
+			if (!CollectionView.Hidden)
+				CollectionView.NumberOfItemsInSection(_section);
 
 			switch (args.Action)
 			{
@@ -159,7 +154,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			var count = args.NewItems.Count;
 			Count += count;
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(args.NewItems[0]);
+			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
 
 			// Queue up the updates to the UICollectionView
 			Update(() => CollectionView.InsertItems(CreateIndexesFrom(startIndex, count)), args);
@@ -178,7 +173,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 
 			// If we have a start index, we can be more clever about removing the item(s) (and get the nifty animations)
-			var count = args.OldItems.Count; 
+			var count = args.OldItems.Count;
 			Count -= count;
 
 			Update(() => CollectionView.DeleteItems(CreateIndexesFrom(startIndex, count)), args);
@@ -190,7 +185,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (newCount == args.OldItems.Count)
 			{
-				var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(args.NewItems[0]);
+				var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
 
 				// We are replacing one set of items with a set of equal size; we can do a simple item range update
 
@@ -250,22 +245,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			return -1;
 		}
 
-		internal int IndexOf(object item)
-		{
-			if (_itemsSource is IList list)
-				return list.IndexOf(item);
-
-			int count = 0;
-			foreach (var i in _itemsSource)
-			{
-				if (i == item)
-					return count;
-				count++;
-			}
-
-			return -1;
-		}
-
 		void Update(Action update, NotifyCollectionChangedEventArgs args)
 		{
 			if (CollectionView.Hidden)
@@ -273,19 +252,19 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 			}
 
-			OnCollectionViewUpdating(args); 
-			update(); 
-			OnCollectionViewUpdated(args); 
+			OnCollectionViewUpdating(args);
+			update();
+			OnCollectionViewUpdated(args);
 		}
 
-		void OnCollectionViewUpdating(NotifyCollectionChangedEventArgs args) 
+		void OnCollectionViewUpdating(NotifyCollectionChangedEventArgs args)
 		{
 			CollectionViewUpdating?.Invoke(this, args);
 		}
 
 		void OnCollectionViewUpdated(NotifyCollectionChangedEventArgs args)
 		{
-			Device.BeginInvokeOnMainThread(() =>
+			CollectionView.BeginInvokeOnMainThread(() =>
 			{
 				CollectionViewUpdated?.Invoke(this, args);
 			});

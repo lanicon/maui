@@ -1,5 +1,7 @@
-using System;
+﻿using System;
 using System.ComponentModel;
+using Microsoft.Maui.Controls.Platform;
+using ObjCRuntime;
 using NativeView = UIKit.UIView;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
@@ -39,6 +41,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 		}
 
+		[PortHandler]
 		public static void UpdateBorder(IVisualNativeElementRenderer renderer, IBorderElement backgroundView)
 		{
 			var control = renderer.Control;
@@ -49,7 +52,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 			}
 
-			if (ImageButton.BorderColor != Color.Default)
+			if (ImageButton.BorderColor != null)
 				control.Layer.BorderColor = ImageButton.BorderColor.ToCGColor();
 
 			control.Layer.BorderWidth = Math.Max(0f, (float)ImageButton.BorderWidth);

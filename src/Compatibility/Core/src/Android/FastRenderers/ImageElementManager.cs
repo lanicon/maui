@@ -2,7 +2,9 @@ using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using Android.Widget;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using ARect = Android.Graphics.Rect;
 using AScaleType = Android.Widget.ImageView.ScaleType;
 using AViewCompat = AndroidX.Core.View.ViewCompat;
@@ -23,7 +25,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 		static void OnLayoutChange(object sender, global::Android.Views.View.LayoutChangeEventArgs e)
 		{
 			if (sender is IVisualElementRenderer renderer && renderer.View is ImageView imageView)
+#pragma warning disable CS0618 // Obsolete
 				AViewCompat.SetClipBounds(imageView, imageView.GetScaleType() == AScaleType.CenterCrop ? new ARect(0, 0, e.Right - e.Left, e.Bottom - e.Top) : null);
+#pragma warning restore CS0618 // Obsolete
+
 		}
 
 		public static void Dispose(IVisualElementRenderer renderer)
@@ -141,7 +146,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 			}
 			catch (Exception ex)
 			{
-				Log.Warning(nameof(ImageElementManager), "Error loading image: {0}", ex);
+				Application.Current?.FindMauiContext()?.CreateLogger<IImageRendererController>()?.LogWarning(ex, "Error loading image");
 			}
 			finally
 			{

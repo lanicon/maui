@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
+	using AbsoluteLayout = Microsoft.Maui.Controls.Compatibility.AbsoluteLayout;
+
 	public partial class Gh11551 : ContentPage
 	{
 		public Gh11551() => InitializeComponent();
@@ -17,10 +20,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp] public void Setup() => Device.PlatformServices = new MockPlatformServices();
-
-			[TearDown] public void TearDown() => Device.PlatformServices = null;
-
 			[Test]
 			public void RectBoundsDoesntThrow([Values(false, true)] bool useCompiledXaml)
 			{

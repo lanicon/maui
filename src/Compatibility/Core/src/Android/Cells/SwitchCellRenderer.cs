@@ -1,14 +1,17 @@
+﻿using System;
 using System.ComponentModel;
 using Android.Content;
 using Android.Graphics;
 using Android.Graphics.Drawables;
 using Android.OS;
 using Android.Views;
+using Microsoft.Maui.Controls.Handlers.Compatibility;
 using ASwitch = Android.Widget.Switch;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.SwitchCellRenderer instead")]
 	public class SwitchCellRenderer : CellRenderer
 	{
 		SwitchCellView _view;
@@ -91,16 +94,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			{
 				if (switchCell.On)
 				{
-					if (switchCell.OnColor == Color.Default)
+					if (switchCell.OnColor == null)
 					{
 						aSwitch.TrackDrawable = _defaultTrackDrawable;
 					}
 					else
 					{
-						if (Forms.SdkInt >= BuildVersionCodes.JellyBean)
-						{
-							aSwitch.TrackDrawable.SetColorFilter(switchCell.OnColor, FilterMode.Multiply);
-						}
+						aSwitch.TrackDrawable.SetColorFilter(switchCell.OnColor, FilterMode.Multiply);
 					}
 				}
 				else

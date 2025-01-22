@@ -1,10 +1,12 @@
 using System.ComponentModel;
 using Android.Content;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.Shapes;
 using APath = Android.Graphics.Path;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class LineRenderer : ShapeRenderer<Line, LineView>
 	{
 		public LineRenderer(Context context) : base(context)

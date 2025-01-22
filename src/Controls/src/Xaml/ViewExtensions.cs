@@ -5,7 +5,7 @@
 //       Stephane Delcroix <stephane@mi8.be>
 //
 // Copyright (c) 2013 Mobile Inception
-// Copyright (c) 2013 Microsoft.Maui.Controls, Inc
+// Copyright (c) 2013 Xamarin, Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,10 +26,15 @@
 // THE SOFTWARE.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Microsoft.Maui.Controls.Xaml
 {
+	[RequiresUnreferencedCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#if !NETSTANDARD
+	[RequiresDynamicCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#endif
 	public static class Extensions
 	{
 		public static TXaml LoadFromXaml<TXaml>(this TXaml view, Type callingType)

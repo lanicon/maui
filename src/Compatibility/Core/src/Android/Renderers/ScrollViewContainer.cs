@@ -1,9 +1,11 @@
 using Android.Content;
 using Android.Views;
+using Microsoft.Maui.Controls.Platform;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete]
 	internal class ScrollViewContainer : ViewGroup
 	{
 		readonly ScrollView _parent;
@@ -31,8 +33,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					return;
 
 				IVisualElementRenderer renderer;
-				if ((renderer = AppCompat.Platform.GetRenderer(_childView)) == null)
-					AppCompat.Platform.SetRenderer(_childView, renderer = AppCompat.Platform.CreateRenderer(_childView, Context));
+				if ((renderer = Platform.GetRenderer(_childView)) == null)
+					Platform.SetRenderer(_childView, renderer = Platform.CreateRenderer(_childView, Context));
 
 				if (renderer.View.Parent != null)
 					renderer.View.RemoveFromParent();
@@ -66,13 +68,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (_childView == null)
 				return;
 
-			IVisualElementRenderer renderer = AppCompat.Platform.GetRenderer(_childView);
+			IVisualElementRenderer renderer = Platform.GetRenderer(_childView);
 			renderer.UpdateLayout();
 		}
 
 		protected override void OnMeasure(int widthMeasureSpec, int heightMeasureSpec)
 		{
-			// we need to make sure we are big enough to be laid out at 0,0
+			// we need to make sure we are big enough to be arranged at 0,0
 			if (_childView != null)
 			{
 				SetMeasuredDimension((int)Context.ToPixels(_childView.Bounds.Right + _parent.Padding.Right), (int)Context.ToPixels(_childView.Bounds.Bottom + _parent.Padding.Bottom));

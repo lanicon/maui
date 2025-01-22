@@ -3,6 +3,7 @@ using Foundation;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class CheckBoxRenderer : CheckBoxRendererBase<FormsCheckBox>
 	{
 		[Preserve(Conditional = true)]
@@ -11,10 +12,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		}
 
 
-        protected override FormsCheckBox CreateNativeControl()
-        {
-            return new FormsCheckBox();
-        }
+		protected override FormsCheckBox CreateNativeControl()
+		{
+			return new FormsCheckBox();
+		}
 
-    }
+	}
 }

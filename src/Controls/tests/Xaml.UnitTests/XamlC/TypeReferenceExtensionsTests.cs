@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls.Build.Tasks;
+using Microsoft.Maui.Graphics;
 using Mono.Cecil;
 using NUnit.Framework;
 
@@ -12,6 +13,10 @@ namespace Microsoft.Maui.Controls
 }
 namespace Microsoft.Maui.Controls.XamlcUnitTests
 {
+	using Constraint = Microsoft.Maui.Controls.Compatibility.Constraint;
+	using ConstraintExpression = Microsoft.Maui.Controls.Compatibility.ConstraintExpression;
+	using StackLayout = Microsoft.Maui.Controls.Compatibility.StackLayout;
+
 	[TestFixture]
 	public class TypeReferenceExtensionsTests
 	{
@@ -66,6 +71,10 @@ namespace Microsoft.Maui.Controls.XamlcUnitTests
 		{
 		}
 
+
+		class Zoo<T> : IGrault<T[]>
+		{ }
+
 		interface ICovariant<out T>
 		{
 		}
@@ -85,12 +94,13 @@ namespace Microsoft.Maui.Controls.XamlcUnitTests
 		public void OneTimeSetUp()
 		{
 			resolver = new XamlCAssemblyResolver();
-			resolver.AddAssembly(Uri.UnescapeDataString((new UriBuilder(typeof(TypeReferenceExtensionsTests).Assembly.CodeBase)).Path));
-			resolver.AddAssembly(Uri.UnescapeDataString((new UriBuilder(typeof(BindableObject).Assembly.CodeBase)).Path));
-			resolver.AddAssembly(Uri.UnescapeDataString((new UriBuilder(typeof(object).Assembly.CodeBase)).Path));
-			resolver.AddAssembly(Uri.UnescapeDataString((new UriBuilder(typeof(IList<>).Assembly.CodeBase)).Path));
-			resolver.AddAssembly(Uri.UnescapeDataString((new UriBuilder(typeof(Queue<>).Assembly.CodeBase)).Path));
-			resolver.AddAssembly(Uri.UnescapeDataString((new UriBuilder(typeof(IViewHandler).Assembly.CodeBase)).Path));
+			resolver.AddAssembly(typeof(TypeReferenceExtensionsTests).Assembly.Location);
+			resolver.AddAssembly(typeof(BindableObject).Assembly.Location);
+			resolver.AddAssembly(typeof(object).Assembly.Location);
+			resolver.AddAssembly(typeof(IList<>).Assembly.Location);
+			resolver.AddAssembly(typeof(Queue<>).Assembly.Location);
+			resolver.AddAssembly(typeof(IViewHandler).Assembly.Location);
+			resolver.AddAssembly(typeof(Color).Assembly.Location);
 
 			module = ModuleDefinition.CreateModule("foo", new ModuleParameters
 			{
@@ -152,7 +162,7 @@ namespace Microsoft.Maui.Controls.XamlcUnitTests
 		[TestCase(typeof(OnPlatform<string>), typeof(BindableObject), ExpectedResult = false)]
 		[TestCase(typeof(OnPlatform<string>), typeof(BindingBase), ExpectedResult = false)]
 		[TestCase(typeof(OnPlatform<FontAttributes>), typeof(BindableObject), ExpectedResult = false)]
-		[TestCase(typeof(StackLayout), typeof(Layout<View>), ExpectedResult = true)]
+		[TestCase(typeof(StackLayout), typeof(Controls.Compatibility.Layout<View>), ExpectedResult = true)]
 		[TestCase(typeof(StackLayout), typeof(View), ExpectedResult = true)]
 		[TestCase(typeof(Foo<string>), typeof(Foo), ExpectedResult = true)]
 		[TestCase(typeof(Bar<string>), typeof(Foo), ExpectedResult = true)]
@@ -169,7 +179,7 @@ namespace Microsoft.Maui.Controls.XamlcUnitTests
 		[TestCase(typeof(Covariant<string>), typeof(ICovariant<object>), ExpectedResult = true)]
 		public bool TestInheritsFromOrImplements(Type typeRef, Type baseClass)
 		{
-			return TypeReferenceExtensions.InheritsFromOrImplements(module.ImportReference(typeRef), module.ImportReference(baseClass));
+			return TypeReferenceExtensions.InheritsFromOrImplements(module.ImportReference(typeRef), new XamlCache(), module.ImportReference(baseClass));
 		}
 
 		[Test]
@@ -236,12 +246,28 @@ namespace Microsoft.Maui.Controls.XamlcUnitTests
 			IList<TypeReference> arguments;
 			var garply = module.ImportReference(typeof(Garply<System.Byte>));
 
-			Assert.That(garply.ImplementsGenericInterface("Microsoft.Maui.Controls.XamlcUnitTests.TypeReferenceExtensionsTests/IGrault`1<T>", out igrault, out arguments));
+			Assert.That(garply.ImplementsGenericInterface(new XamlCache(), "Microsoft.Maui.Controls.XamlcUnitTests.TypeReferenceExtensionsTests/IGrault`1", out igrault, out arguments));
 
 			Assert.AreEqual("System", igrault.GenericArguments[0].Namespace);
 			Assert.AreEqual("Byte", igrault.GenericArguments[0].Name);
 			Assert.AreEqual("System", arguments[0].Namespace);
 			Assert.AreEqual("Byte", arguments[0].Name);
+		}
+
+		[Test]
+		//https://github.com/dotnet/maui/issues/10583
+		public void TestImplementsGenericInterfaceWithArray()
+		{
+			GenericInstanceType igrault;
+			IList<TypeReference> arguments;
+			var garply = module.ImportReference(typeof(Zoo<System.Byte>));
+
+			Assert.That(garply.ImplementsGenericInterface(new XamlCache(), "Microsoft.Maui.Controls.XamlcUnitTests.TypeReferenceExtensionsTests/IGrault`1", out igrault, out arguments));
+
+			Assert.AreEqual("System", igrault.GenericArguments[0].Namespace);
+			Assert.AreEqual("Byte[]", igrault.GenericArguments[0].Name);
+			Assert.AreEqual("System", arguments[0].Namespace);
+			Assert.AreEqual("Byte[]", arguments[0].Name);
 		}
 	}
 }

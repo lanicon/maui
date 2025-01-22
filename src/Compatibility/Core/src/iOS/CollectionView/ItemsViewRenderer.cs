@@ -1,9 +1,12 @@
 using System.ComponentModel;
 using Foundation;
+using Microsoft.Maui.Controls.Platform;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public abstract class ItemsViewRenderer<TItemsView, TViewController> : ViewRenderer<TItemsView, UIView>
 		where TItemsView : ItemsView
 		where TViewController : ItemsViewController<TItemsView>
@@ -147,7 +150,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			Controller.UpdateItemsSource();
 		}
 
-		protected virtual void UpdateVisibility() 
+		protected virtual void UpdateVisibility()
 		{
 			Controller?.UpdateVisibility();
 		}

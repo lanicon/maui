@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Devices;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -7,16 +8,18 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 	[TestFixture]
 	public class Issue1594
 	{
+		MockDeviceInfo mockDeviceInfo;
+
 		[SetUp]
 		public void Setup()
 		{
-			Device.PlatformServices = new MockPlatformServices();
+			DeviceInfo.SetCurrent(mockDeviceInfo = new MockDeviceInfo());
 		}
 
 		[TearDown]
 		public void TearDown()
 		{
-			Device.PlatformServices = null;
+			DeviceInfo.SetCurrent(null);
 		}
 
 		[Test]
@@ -24,7 +27,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 				<Button 
-					xmlns=""http://xamarin.com/schemas/2014/forms"" 
+					xmlns=""http://schemas.microsoft.com/dotnet/2021/maui"" 
 					xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"" 
 					xmlns:sys=""clr-namespace:System;assembly=mscorlib""
 					x:Name=""activateButton"" Text=""ACTIVATE NOW"" TextColor=""White"" BackgroundColor=""#00A0FF"">
@@ -37,15 +40,15 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				         </Button.HeightRequest>
 				 </Button>";
 
-			((MockPlatformServices)Device.PlatformServices).RuntimePlatform = Device.iOS;
+			mockDeviceInfo.Platform = DevicePlatform.iOS;
 			var button = new Button().LoadFromXaml(xaml);
 			Assert.AreEqual(33, button.HeightRequest);
 
-			((MockPlatformServices)Device.PlatformServices).RuntimePlatform = Device.Android;
+			mockDeviceInfo.Platform = DevicePlatform.Android;
 			button = new Button().LoadFromXaml(xaml);
 			Assert.AreEqual(44, button.HeightRequest);
 
-			((MockPlatformServices)Device.PlatformServices).RuntimePlatform = Device.UWP;
+			mockDeviceInfo.Platform = DevicePlatform.UWP;
 			button = new Button().LoadFromXaml(xaml);
 			Assert.AreEqual(44, button.HeightRequest);
 		}

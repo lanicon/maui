@@ -7,12 +7,15 @@ using Android.Widget;
 using AndroidX.Core.Widget;
 using AndroidX.SwipeRefreshLayout.Widget;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
+using Microsoft.Maui.Graphics;
 using AListView = Android.Widget.ListView;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.ListViewRenderer instead")]
 	public class ListViewRenderer : ViewRenderer<ListView, AListView>, SwipeRefreshLayout.IOnRefreshListener
 	{
 		ListViewAdapter _adapter;
@@ -57,7 +60,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (_headerRenderer != null)
 				{
-					AppCompat.Platform.ClearRenderer(_headerRenderer.View);
+					Platform.ClearRenderer(_headerRenderer.View);
 					_headerRenderer.Dispose();
 					_headerRenderer = null;
 				}
@@ -67,7 +70,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (_footerRenderer != null)
 				{
-					AppCompat.Platform.ClearRenderer(_footerRenderer.View);
+					Platform.ClearRenderer(_footerRenderer.View);
 					_footerRenderer.Dispose();
 					_footerRenderer = null;
 				}
@@ -105,7 +108,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		{
 			base.OnAttachedToWindow();
 
-			if (Forms.IsLollipopOrNewer && Control != null)
+			if (Control != null)
 				Control.NestedScrollingEnabled = (Parent.GetParentOfType<NestedScrollView>() != null);
 
 			_isAttached = true;
@@ -200,7 +203,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			var position = Control.GetPositionForView(viewCell);
 			var id = Control.GetItemIdAtPosition(position);
 
+#pragma warning disable CA1416 // Introduced in API 23: https://developer.android.com/reference/android/view/HapticFeedbackConstants#CONTEXT_CLICK
 			viewCell.PerformHapticFeedback(FeedbackConstants.ContextClick);
+#pragma warning restore CA1416
 			_adapter.OnItemClick(Control, viewCell, position, id);
 		}
 
@@ -214,7 +219,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			var position = Control.GetPositionForView(viewCell);
 			var id = Control.GetItemIdAtPosition(position);
 
+#pragma warning disable CA1416 // Introduced in API 23: https://developer.android.com/reference/android/view/HapticFeedbackConstants#CONTEXT_CLICK
 			viewCell.PerformHapticFeedback(FeedbackConstants.ContextClick);
+#pragma warning restore CA1416
 			_adapter.OnItemLongClick(Control, viewCell, position, id);
 		}
 
@@ -350,7 +357,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				{
 					if (_footerView != null)
 						_footerView.Child = null;
-					AppCompat.Platform.ClearRenderer(_footerRenderer.View);
+					Platform.ClearRenderer(_footerRenderer.View);
 					_footerRenderer.Dispose();
 					_footerRenderer = null;
 				}
@@ -363,12 +370,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				_footerRenderer.SetElement(footer);
 			else
 			{
-				_footerRenderer = AppCompat.Platform.CreateRenderer(footer, Context);
+				_footerRenderer = Platform.CreateRenderer(footer, Context);
 				if (_footerView != null)
 					_footerView.Child = _footerRenderer;
 			}
 
-			AppCompat.Platform.SetRenderer(footer, _footerRenderer);
+			Platform.SetRenderer(footer, _footerRenderer);
 		}
 
 		void UpdateHeader()
@@ -382,7 +389,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				{
 					if (_headerView != null)
 						_headerView.Child = null;
-					AppCompat.Platform.ClearRenderer(_headerRenderer.View);
+					Platform.ClearRenderer(_headerRenderer.View);
 					_headerRenderer.Dispose();
 					_headerRenderer = null;
 				}
@@ -395,12 +402,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				_headerRenderer.SetElement(header);
 			else
 			{
-				_headerRenderer = AppCompat.Platform.CreateRenderer(header, Context);
+				_headerRenderer = Platform.CreateRenderer(header, Context);
 				if (_headerView != null)
 					_headerView.Child = _headerRenderer;
 			}
 
-			AppCompat.Platform.SetRenderer(header, _headerRenderer);
+			Platform.SetRenderer(header, _headerRenderer);
 		}
 
 		void UpdateIsRefreshing(bool isInitialValue = false)
@@ -456,7 +463,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void UpdateSpinnerColor()
 		{
-			if (_refresh != null)
+			if (_refresh != null && Element.RefreshControlColor != null)
 				_refresh.SetColorSchemeColors(Element.RefreshControlColor.ToAndroid());
 		}
 
@@ -540,7 +547,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				var width = (int)ctx.FromPixels(MeasureSpecFactory.GetSize(widthMeasureSpec));
 
 				SizeRequest request = element.Measure(width, double.PositiveInfinity, MeasureFlags.IncludeMargins);
-				Microsoft.Maui.Controls.Layout.LayoutChildIntoBoundingRegion(element, new Rectangle(0, 0, width, request.Request.Height));
+				Microsoft.Maui.Controls.Compatibility.Layout.LayoutChildIntoBoundingRegion(element, new Rect(0, 0, width, request.Request.Height));
 
 				int widthSpec = MeasureSpecFactory.MakeMeasureSpec((int)ctx.ToPixels(width), MeasureSpecMode.Exactly);
 				int heightSpec = MeasureSpecFactory.MakeMeasureSpec((int)ctx.ToPixels(request.Request.Height), MeasureSpecMode.Exactly);

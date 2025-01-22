@@ -5,27 +5,29 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Internals;
-using NUnit.Framework;
+using Microsoft.Maui.Devices;
+using Xunit;
+using Xunit.Sdk;
 
 namespace Microsoft.Maui.Controls.Core.UnitTests
 {
-	[TestFixture]
 	public class ShellTestBase : BaseTestFixture
 	{
-		[SetUp]
-		public override void Setup()
+		public ShellTestBase()
 		{
-			base.Setup();
-
+			AppInfo.SetCurrent(new MockAppInfo());
 		}
 
-		[TearDown]
-		public override void TearDown()
+		protected override void Dispose(bool disposing)
 		{
-			base.TearDown();
-			Routing.Clear();
+			if (disposing)
+			{
+				Routing.Clear();
+			}
 
+			base.Dispose(disposing);
 		}
 
 		protected T FindParentOfType<T>(Element element)
@@ -86,7 +88,8 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 		[QueryProperty("DoubleQueryParameter", "DoubleQueryParameter")]
 		[QueryProperty("SomeQueryParameter", "SomeQueryParameter")]
 		[QueryProperty("CancelNavigationOnBackButtonPressed", "CancelNavigationOnBackButtonPressed")]
-		public class ShellTestPage : ContentPage
+		[QueryProperty("ComplexObject", "ComplexObject")]
+		public class ShellTestPage : ContentPage, IQueryAttributable
 		{
 			public string CancelNavigationOnBackButtonPressed { get; set; }
 			public ShellTestPage()
@@ -100,6 +103,12 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			}
 
 			public double DoubleQueryParameter
+			{
+				get;
+				set;
+			}
+
+			public object ComplexObject
 			{
 				get;
 				set;
@@ -119,6 +128,15 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 					return false;
 
 				return base.OnBackButtonPressed();
+			}
+
+			public List<IDictionary<string, object>> AppliedQueryAttributes = new List<IDictionary<string, object>>();
+			public void ApplyQueryAttributes(IDictionary<string, object> query)
+			{
+				if (query is ShellNavigationQueryParameters param && param.IsReadOnly)
+					AppliedQueryAttributes.Add(query);
+				else
+					AppliedQueryAttributes.Add(new Dictionary<string, object>(query));
 			}
 		}
 
@@ -315,6 +333,7 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			public TestShell()
 			{
+				_ = new TestWindow() { Page = this };
 				Routing.RegisterRoute(nameof(TestPage1), typeof(TestPage1));
 				Routing.RegisterRoute(nameof(TestPage2), typeof(TestPage2));
 				Routing.RegisterRoute(nameof(TestPage3), typeof(TestPage3));
@@ -343,7 +362,7 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			public void AssertCurrentStateEquals(string expectedState)
 			{
-				Assert.AreEqual(expectedState, CurrentState.Location.ToString());
+				Assert.Equal(expectedState, CurrentState.Location.ToString());
 			}
 
 			public class ConcretePageFactory : RouteFactory
@@ -354,6 +373,8 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 				{
 					_contentPage = contentPage;
 				}
+
+				public override Element GetOrCreate(IServiceProvider services) => _contentPage;
 
 				public override Element GetOrCreate() => _contentPage;
 			}
@@ -374,36 +395,43 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 				OnNavigatingCount++;
 			}
 
-
-
-			public void TestNavigationArgs(ShellNavigationSource source, string from, string to)
+			public async Task TestNavigationArgs(ShellNavigationSource source, string from, string to)
 			{
-				TestNavigatingArgs(source, from, to);
-				TestNavigatedArgs(source, from, to);
+				await TestNavigatingArgs(source, from, to);
+				await TestNavigatedArgs(source, from, to);
 			}
 
-			public void TestNavigatedArgs(ShellNavigationSource source, string from, string to)
+			public async Task TestNavigatedArgs(ShellNavigationSource source, string from, string to)
 			{
-				Assert.AreEqual(source, this.LastShellNavigatedEventArgs.Source);
+				// Let shell tasks finish resolving
+				if (source != this.LastShellNavigatedEventArgs.Source)
+					await Task.Delay(10).ConfigureAwait(false);
+
+				Assert.Equal(source, this.LastShellNavigatedEventArgs.Source);
 
 				if (from == null)
-					Assert.AreEqual(LastShellNavigatedEventArgs.Previous, null);
+					Assert.Null(LastShellNavigatedEventArgs.Previous);
 				else
-					Assert.AreEqual(from, this.LastShellNavigatedEventArgs.Previous.Location.ToString());
+					Assert.Equal(from, this.LastShellNavigatedEventArgs.Previous.Location.ToString());
 
-				Assert.AreEqual(to, this.LastShellNavigatedEventArgs.Current.Location.ToString());
+				Assert.Equal(to, this.LastShellNavigatedEventArgs.Current.Location.ToString());
+				Assert.Equal(to, this.CurrentState.Location.ToString());
 			}
 
-			public void TestNavigatingArgs(ShellNavigationSource source, string from, string to)
+			public async Task TestNavigatingArgs(ShellNavigationSource source, string from, string to)
 			{
-				Assert.AreEqual(source, this.LastShellNavigatingEventArgs.Source);
+				// Let shell tasks finish resolving
+				if (source != this.LastShellNavigatingEventArgs.Source)
+					await Task.Delay(10).ConfigureAwait(false);
+
+				Assert.Equal(source, this.LastShellNavigatingEventArgs.Source);
 
 				if (from == null)
-					Assert.AreEqual(LastShellNavigatingEventArgs.Current, null);
+					Assert.Null(LastShellNavigatingEventArgs.Current);
 				else
-					Assert.AreEqual(from, this.LastShellNavigatingEventArgs.Current.Location.ToString());
+					Assert.Equal(from, this.LastShellNavigatingEventArgs.Current.Location.ToString());
 
-				Assert.AreEqual(to, this.LastShellNavigatingEventArgs.Target.Location.ToString());
+				Assert.Equal(to, this.LastShellNavigatingEventArgs.Target.Location.ToString());
 			}
 
 			public Func<bool> OnBackButtonPressedFunc;
@@ -430,10 +458,10 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			public void TestCount(int count, string message = null)
 			{
-				Assert.AreEqual(count, OnNavigatedCount, $"OnNavigatedCount: {message}");
-				Assert.AreEqual(count, NavigatingCount, $"NavigatingCount: {message}");
-				Assert.AreEqual(count, OnNavigatingCount, $"OnNavigatingCount: {message}");
-				Assert.AreEqual(count, NavigatedCount, $"NavigatedCount: {message}");
+				Assert.True(count == OnNavigatedCount, $"OnNavigatedCount: {message}");
+				Assert.True(count == NavigatingCount, $"NavigatingCount: {message}");
+				Assert.True(count == OnNavigatingCount, $"OnNavigatingCount: {message}");
+				Assert.True(count == NavigatedCount, $"NavigatedCount: {message}");
 			}
 
 
@@ -471,5 +499,59 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 		public class TestPage1 : ContentPage { }
 		public class TestPage2 : ContentPage { }
 		public class TestPage3 : ContentPage { }
+
+		public class PageWithDependency : ContentPage
+		{
+			public Dependency TestDependency { get; set; }
+
+			public PageWithDependency(Dependency dependency)
+			{
+				TestDependency = dependency;
+			}
+		}
+
+		public class PageWithDependencyAndMultipleConstructors : ContentPage
+		{
+			public Dependency TestDependency { get; set; }
+			public UnregisteredDependency OtherTestDependency { get; set; }
+
+			public PageWithDependencyAndMultipleConstructors(Dependency dependency)
+			{
+				TestDependency = dependency;
+			}
+
+			public PageWithDependencyAndMultipleConstructors(Dependency dependency, UnregisteredDependency unregisteredDependency)
+			{
+				OtherTestDependency = unregisteredDependency;
+			}
+
+			public PageWithDependencyAndMultipleConstructors()
+			{
+				// parameterless constructor
+			}
+		}
+
+		public class PageWithUnregisteredDependencyAndParameterlessConstructor : ContentPage
+		{
+			public PageWithUnregisteredDependencyAndParameterlessConstructor(UnregisteredDependency dependency)
+			{
+
+			}
+
+			public PageWithUnregisteredDependencyAndParameterlessConstructor()
+			{
+
+			}
+		}
+
+		public class Dependency
+		{
+			public int Test { get; set; }
+		}
+
+		public class UnregisteredDependency
+		{
+			public int Test { get; set; }
+		}
 	}
 }

@@ -1,25 +1,26 @@
-<Project Sdk="MSBuild.Sdk.Extras">
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <RootNamespace>Microsoft.Maui.Controls.Compatibility.Android</RootNamespace>
+    <TargetFramework>$(_MauiDotNetTfm)-android</TargetFramework>
     <AssemblyName>Microsoft.Maui.Controls.Compatibility.Maps.Android</AssemblyName>
-    <TargetFrameworks>$(AndroidTargetFrameworks)</TargetFrameworks>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <RootNamespace>Microsoft.Maui.Controls.Compatibility.Maps.Android</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);CS0672;CS0618</NoWarn>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)'=='Debug' ">
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
+
   <ItemGroup>
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" Version="2.8.5.1" />
+    <PackageReference Include="Xamarin.Google.Android.Material" Version="1.11.0.3" />
+    <PackageReference Include="Xamarin.GooglePlayServices.Maps" Version="119.0.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Graphics\src\Graphics\Graphics.csproj" />
     <ProjectReference Include="..\..\..\..\Controls\Maps\src\Controls.Maps.csproj" />
     <ProjectReference Include="..\..\..\..\Controls\src\Core\Controls.Core.csproj" />
     <ProjectReference Include="..\..\..\..\Core\src\Core.csproj" />
-    <ProjectReference Include="..\..\..\Core\src\Android.FormsViewGroup\Compatibility.Android.FormsViewGroup.csproj" />
-    <ProjectReference Include="..\..\..\Core\src\Android\Compatibility.Android.csproj" />
+    <ProjectReference Include="..\..\..\..\Compatibility\Core\src\Compatibility.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" />
-    <PackageReference Include="Xamarin.Google.Android.Material" />
-    <PackageReference Include="Xamarin.AndroidX.Legacy.Support.V4" />
-    <PackageReference Include="Xamarin.GooglePlayServices.Maps" Version="117.0.0" />
-  </ItemGroup>
+
 </Project>

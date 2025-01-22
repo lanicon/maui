@@ -1,47 +1,42 @@
-using NUnit.Framework;
+using Microsoft.Maui.Graphics;
+using Xunit;
 
 namespace Microsoft.Maui.Controls.Core.UnitTests
 {
 	public class RadialGradientBrushTests : BaseTestFixture
 	{
-		[SetUp]
-		public override void Setup()
-		{
-			base.Setup();
-		}
-
-		[Test]
+		[Fact]
 		public void TestConstructor()
 		{
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush();
 
 			int gradientStops = radialGradientBrush.GradientStops.Count;
 
-			Assert.AreEqual(0, gradientStops);
+			Assert.Equal(0, gradientStops);
 		}
 
-		[Test]
+		[Fact]
 		public void TestConstructorUsingGradientStopCollection()
 		{
 			var gradientStops = new GradientStopCollection
 			{
-				new GradientStop { Color = Color.Red, Offset = 0.1f },
-				new GradientStop { Color = Color.Orange, Offset = 0.8f }
+				new GradientStop { Color = Colors.Red, Offset = 0.1f },
+				new GradientStop { Color = Colors.Orange, Offset = 0.8f }
 			};
 
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush(gradientStops, new Point(0, 0), 10);
 
-			Assert.AreNotEqual(0, radialGradientBrush.GradientStops.Count, "GradientStops");
-			Assert.AreEqual(0, radialGradientBrush.Center.X, "Center.X");
-			Assert.AreEqual(0, radialGradientBrush.Center.Y, "Center.Y");
-			Assert.AreEqual(10, radialGradientBrush.Radius, "Radius");
+			Assert.NotEmpty(radialGradientBrush.GradientStops);
+			Assert.Equal(0, radialGradientBrush.Center.X);
+			Assert.Equal(0, radialGradientBrush.Center.Y);
+			Assert.Equal(10, radialGradientBrush.Radius);
 		}
 
-		[Test]
+		[Fact]
 		public void TestEmptyRadialGradientBrush()
 		{
 			RadialGradientBrush nullRadialGradientBrush = new RadialGradientBrush();
-			Assert.AreEqual(true, nullRadialGradientBrush.IsEmpty, "IsEmpty");
+			Assert.True(nullRadialGradientBrush.IsEmpty);
 
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush
 			{
@@ -49,22 +44,22 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 				Radius = 10,
 				GradientStops = new GradientStopCollection
 				{
-					new GradientStop { Color = Color.Orange, Offset = 0.1f },
-					new GradientStop { Color = Color.Red, Offset = 0.8f }
+					new GradientStop { Color = Colors.Orange, Offset = 0.1f },
+					new GradientStop { Color = Colors.Red, Offset = 0.8f }
 				}
 			};
 
-			Assert.AreEqual(false, radialGradientBrush.IsEmpty, "IsEmpty");
+			Assert.False(radialGradientBrush.IsEmpty);
 		}
 
-		[Test]
+		[Fact]
 		public void TestNullOrEmptyRadialGradientBrush()
 		{
 			RadialGradientBrush nullRadialGradientBrush = null;
-			Assert.AreEqual(true, Brush.IsNullOrEmpty(nullRadialGradientBrush), "IsNullOrEmpty");
+			Assert.True(Brush.IsNullOrEmpty(nullRadialGradientBrush));
 
 			RadialGradientBrush emptyRadialGradientBrush = new RadialGradientBrush();
-			Assert.AreEqual(true, Brush.IsNullOrEmpty(emptyRadialGradientBrush), "IsNullOrEmpty");
+			Assert.True(Brush.IsNullOrEmpty(emptyRadialGradientBrush));
 
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush
 			{
@@ -72,52 +67,52 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 				Radius = 10,
 				GradientStops = new GradientStopCollection
 				{
-					new GradientStop { Color = Color.Orange, Offset = 0.1f },
-					new GradientStop { Color = Color.Red, Offset = 0.8f }
+					new GradientStop { Color = Colors.Orange, Offset = 0.1f },
+					new GradientStop { Color = Colors.Red, Offset = 0.8f }
 				}
 			};
 
-			Assert.AreEqual(false, Brush.IsNullOrEmpty(radialGradientBrush), "IsNullOrEmpty");
+			Assert.False(Brush.IsNullOrEmpty(radialGradientBrush));
 		}
 
-		[Test]
+		[Fact]
 		public void TestRadialGradientBrushRadius()
 		{
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush();
 			radialGradientBrush.Radius = 20;
 
-			Assert.AreEqual(20, radialGradientBrush.Radius);
+			Assert.Equal(20, radialGradientBrush.Radius);
 		}
 
-		[Test]
+		[Fact]
 		public void TestRadialGradientBrushOnlyOneGradientStop()
 		{
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush
 			{
 				GradientStops = new GradientStopCollection
 				{
-					new GradientStop { Color = Color.Red, }
+					new GradientStop { Color = Colors.Red, }
 				},
 				Radius = 20
 			};
 
-			Assert.IsNotNull(radialGradientBrush);
+			Assert.NotNull(radialGradientBrush);
 		}
 
-		[Test]
+		[Fact]
 		public void TestRadialGradientBrushGradientStops()
 		{
 			RadialGradientBrush radialGradientBrush = new RadialGradientBrush
 			{
 				GradientStops = new GradientStopCollection
 				{
-					new GradientStop { Color = Color.Red, Offset = 0.1f },
-					new GradientStop { Color = Color.Blue, Offset = 1.0f }
+					new GradientStop { Color = Colors.Red, Offset = 0.1f },
+					new GradientStop { Color = Colors.Blue, Offset = 1.0f }
 				},
 				Radius = 20
 			};
 
-			Assert.AreEqual(2, radialGradientBrush.GradientStops.Count);
+			Assert.Equal(2, radialGradientBrush.GradientStops.Count);
 		}
 	}
 }

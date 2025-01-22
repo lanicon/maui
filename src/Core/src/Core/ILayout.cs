@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui
 {
@@ -6,28 +6,28 @@ namespace Microsoft.Maui
 	/// Provides the base properties and methods for all Layout elements.
 	/// Use Layout elements to position and size child elements in .NET MAUI applications.
 	/// </summary>
-	public interface ILayout : IView
+	public interface ILayout : IView, IContainer, ISafeAreaView, IPadding, ICrossPlatformLayout
 	{
 		/// <summary>
-		/// Gets the collection of children that the Layout contains.
+		/// Specifies whether the ILayout clips its content to its boundaries.
 		/// </summary>
-		IReadOnlyList<IView> Children { get; }
+		bool ClipsToBounds { get; }
 
 		/// <summary>
-		/// Gets the Layout Handler.
+		/// This interface method is provided for backward compatibility with previous versions. 
+		/// Implementing classes should implement the ICrossPlatformLayout interface rather than directly implementing this method.
 		/// </summary>
-		ILayoutHandler LayoutHandler { get; }
+		new Size CrossPlatformArrange(Rect bounds);
 
 		/// <summary>
-		/// Add a child View to the Layout.
+		/// This interface method is provided for backward compatibility with previous versions. 
+		/// Implementing classes should implement the ICrossPlatformLayout interface rather than directly implementing this method.
 		/// </summary>
-		/// <param name="child">The child View to add to the Layout.</param>
-		void Add(IView child);
+		new Size CrossPlatformMeasure(double widthConstraint, double heightConstraint);
 
-		/// <summary>
-		/// Remove a child View from the Layout.
-		/// </summary>
-		/// <param name="child">The child View to remove from the Layout.</param>
-		void Remove(IView child);
+#if !NETSTANDARD2_0
+		Size ICrossPlatformLayout.CrossPlatformArrange(Microsoft.Maui.Graphics.Rect bounds) => CrossPlatformArrange(bounds);
+		Size ICrossPlatformLayout.CrossPlatformMeasure(double widthConstraint, double heightConstraint) => CrossPlatformMeasure(widthConstraint, heightConstraint);
+#endif
 	}
 }

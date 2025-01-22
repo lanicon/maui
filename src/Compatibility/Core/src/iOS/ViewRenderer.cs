@@ -1,10 +1,13 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 
 using RectangleF = CoreGraphics.CGRect;
 using SizeF = CoreGraphics.CGSize;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls.Platform;
 
 #if __MOBILE__
+using ObjCRuntime;
 using UIKit;
 using NativeColor = UIKit.UIColor;
 using NativeControl = UIKit.UIControl;
@@ -24,15 +27,18 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 		NativeView TabStop { get; }
 	}
 
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.ViewRenderer instead")]
 	public abstract class ViewRenderer : ViewRenderer<View, NativeView>
 	{
 	}
 
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.ViewRenderer instead")]
 	public abstract class ViewRenderer<TView, TNativeView> : VisualElementRenderer<TView>, IVisualNativeElementRenderer, ITabStop where TView : View where TNativeView : NativeView
 	{
 		string _defaultAccessibilityLabel;
 		string _defaultAccessibilityHint;
 		bool? _defaultIsAccessibilityElement;
+		bool? _defaultAccessibilityElementsHidden;
 
 		NativeColor _defaultColor;
 
@@ -133,10 +139,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 
 			if (e.NewElement != null)
 			{
-				if (Control != null && e.OldElement != null && e.OldElement.BackgroundColor != e.NewElement.BackgroundColor || e.NewElement.BackgroundColor != Color.Default)
+				if (Control != null && e.OldElement != null && e.OldElement.BackgroundColor != e.NewElement.BackgroundColor || e.NewElement.BackgroundColor != null)
 					SetBackgroundColor(e.NewElement.BackgroundColor);
 
-				if(Control != null && e.OldElement != null && e.OldElement.Background != e.NewElement.Background)
+				if (Control != null && e.OldElement != null && e.OldElement.Background != e.NewElement.Background)
 					SetBackground(e.NewElement.Background);
 
 				e.NewElement.FocusChangeRequested += ViewOnFocusChangeRequested;
@@ -167,7 +173,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 		protected override void OnRegisterEffect(PlatformEffect effect)
 		{
 			base.OnRegisterEffect(effect);
-			effect.SetControl(Control);
+			effect.Control = Control;
 		}
 
 		protected override void SetAccessibilityHint()
@@ -183,6 +189,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 		protected override void SetIsAccessibilityElement()
 		{
 			_defaultIsAccessibilityElement = Control.SetIsAccessibilityElement(Element, _defaultIsAccessibilityElement);
+		}
+		protected override void SetAccessibilityElementsHidden()
+		{
+			_defaultAccessibilityElementsHidden = Control.SetAccessibilityElementsHidden(Element, _defaultAccessibilityElementsHidden);
 		}
 
 		protected override void SetAutomationId(string id)
@@ -201,12 +211,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 			if (IsElementOrControlEmpty)
 				return;
 #if __MOBILE__
-			if (color == Color.Default)
+			if (color == null)
 				Control.BackgroundColor = _defaultColor;
 			else
-				Control.BackgroundColor = color.ToUIColor();
+				Control.BackgroundColor = color.ToPlatform();
 #else
-			Control.Layer.BackgroundColor = color == Color.Default ? _defaultColor : color.ToCGColor();
+			Control.Layer.BackgroundColor = color == null ? _defaultColor : color.ToCGColor();
 #endif
 		}
 
@@ -245,8 +255,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 #if __MOBILE__
 		public override void TraitCollectionDidChange(UITraitCollection previousTraitCollection)
 		{
+#pragma warning disable CA1422 // Validate platform compatibility
 			base.TraitCollectionDidChange(previousTraitCollection);
-			// Make sure the control adheres to changes in UI theme
+#pragma warning restore CA1422 // Validate platform compatibility			// Make sure the control adheres to changes in UI theme
 			if (Forms.IsiOS13OrNewer && previousTraitCollection?.UserInterfaceStyle != TraitCollection.UserInterfaceStyle)
 				Control?.SetNeedsDisplay();
 		}
@@ -262,7 +273,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 			if (IsElementOrControlEmpty)
 				return;
 
-			if (Element.BackgroundColor != Color.Default)
+			if (Element.BackgroundColor != null)
 				SetBackgroundColor(Element.BackgroundColor);
 		}
 
@@ -288,6 +299,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 			uiControl.Enabled = Element.IsEnabled;
 		}
 
+		[PortHandler]
 		void UpdateFlowDirection()
 		{
 			if (IsElementOrControlEmpty)
@@ -296,11 +308,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.MacOS
 			Control.UpdateFlowDirection(Element);
 		}
 
+		[PortHandler]
 		void ViewOnFocusChangeRequested(object sender, VisualElement.FocusRequestArgs focusRequestArgs)
 		{
 			if (Control == null)
 				return;
-				
+
 #if __MOBILE__
 			focusRequestArgs.Result = focusRequestArgs.Focus ? Control.BecomeFirstResponder() : Control.ResignFirstResponder();
 #else

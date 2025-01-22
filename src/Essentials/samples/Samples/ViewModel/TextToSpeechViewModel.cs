@@ -3,8 +3,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Media;
 
 namespace Samples.ViewModel
 {
@@ -97,7 +97,7 @@ namespace Samples.ViewModel
 				.Select(i => string.IsNullOrEmpty(i.Country) ? i.Language : $"{i.Language} ({i.Country})")
 				.ToArray();
 
-			var result = await Application.Current.MainPage.DisplayActionSheet("Pick", "OK", null, languages);
+			var result = await Application.Current.Windows[0].Page.DisplayActionSheet("Pick", "OK", null, languages);
 
 			if (!string.IsNullOrEmpty(result) && Array.IndexOf(languages, result) is int idx && idx != -1)
 			{

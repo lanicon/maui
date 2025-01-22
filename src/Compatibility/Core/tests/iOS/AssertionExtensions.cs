@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using CoreGraphics;
 using NUnit.Framework;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
@@ -72,8 +73,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 			return pixel;
 		}
 
-		
-
 		public static UIImage AssertColorAtPoint(this UIImage bitmap, UIColor expectedColor, int x, int y)
 		{
 			try
@@ -90,7 +89,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 
 				return bitmap;
 			}
-			catch (Exception ex) 
+			catch (Exception ex)
 			{
 				System.Diagnostics.Debug.WriteLine(ex);
 			}
@@ -160,18 +159,18 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 			return bitmap.AssertColorAtTopRight(expectedColor);
 		}
 
-		public static UIImage AssertContainsColor(this UIView view, UIColor expectedColor)
+		public static UIImage AssertContainsColor(this UIView view, UIColor expectedColor, double? tolerance = null)
 		{
-			return view.ToBitmap().AssertContainsColor(expectedColor);
+			return view.ToBitmap().AssertContainsColor(expectedColor, tolerance: tolerance);
 		}
 
-		public static UIImage AssertContainsColor(this UIImage bitmap, UIColor expectedColor)
+		public static UIImage AssertContainsColor(this UIImage bitmap, UIColor expectedColor, double? tolerance = null)
 		{
 			for (int x = 0; x < bitmap.Size.Width; x++)
 			{
 				for (int y = 0; y < bitmap.Size.Height; y++)
 				{
-					if (ColorComparison.ARGBEquivalent(bitmap.ColorAtPoint(x, y), expectedColor))
+					if (ColorComparison.ARGBEquivalent(bitmap.ColorAtPoint(x, y), expectedColor, tolerance: tolerance))
 					{
 						return bitmap;
 					}
@@ -182,12 +181,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 			return bitmap;
 		}
 
-		public static async Task AssertEqualsAsync(this UIImage expectedBitmap, UIImage actualBitmap)
+		public static void AssertEquals(this UIImage expectedBitmap, UIImage actualBitmap)
 		{
-			if(!actualBitmap.AsPNG().IsEqual(expectedBitmap.AsPNG()))
+			if (!actualBitmap.AsPNG().IsEqual(expectedBitmap.AsPNG()))
 			{
 				string failureMessage = null;
-				await Device.InvokeOnMainThreadAsync(() =>
+				expectedBitmap.InvokeOnMainThread(() =>
 				{
 					var view = new UIView();
 					UIImageView actualView = new UIImageView() { Image = actualBitmap };

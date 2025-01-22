@@ -11,10 +11,14 @@ using Android.Views.InputMethods;
 using Android.Widget;
 using AndroidX.Core.Content;
 using Java.Lang;
+using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class EntryRenderer : EntryRendererBase<FormsEditText>
 	{
 		TextColorSwitcher _hintColorSwitcher;
@@ -38,6 +42,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			EditText.SetCursorVisible(isReadOnly);
 		}
 
+		[PortHandler]
 		protected override void UpdatePlaceholderColor()
 		{
 			_hintColorSwitcher = _hintColorSwitcher ?? new TextColorSwitcher(EditText.HintTextColors, Element.UseLegacyColorManagement());
@@ -57,6 +62,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 	}
 
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public abstract partial class EntryRendererBase<TControl> : ViewRenderer<Entry, TControl>, ITextWatcher, TextView.IOnEditorActionListener
 		where TControl : global::Android.Views.View
 	{
@@ -75,6 +81,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			AutoPackage = false;
 		}
 
+		[PortHandler("Still pending the code related to Keyboard.")]
 		bool TextView.IOnEditorActionListener.OnEditorAction(TextView v, ImeAction actionId, KeyEvent e)
 		{
 			// Fire Completed and dismiss keyboard for hardware / physical keyboards
@@ -91,13 +98,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					nextFocus.RequestFocus();
 					if (!nextFocus.OnCheckIsTextEditor())
 					{
-						v.HideKeyboard();
+						v.HideSoftInput();
 					}
 				}
 				else
 				{
 					EditText.ClearFocus();
-					v.HideKeyboard();
+					v.HideSoftInput();
 				}
 
 				((IEntryController)Element).SendCompleted();
@@ -125,7 +132,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		{
 			if (!e.Focus)
 			{
-				EditText.HideKeyboard();
+				EditText.HideSoftInput();
 			}
 
 			base.OnFocusChangeRequested(sender, e);
@@ -135,7 +142,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				// Post this to the main looper queue so it doesn't happen until the other focus stuff has resolved
 				// Otherwise, ShowKeyboard will be called before this control is truly focused, and we will potentially
 				// be displaying the wrong keyboard
-				EditText?.PostShowKeyboard();
+				EditText?.PostShowSoftInput();
 			}
 		}
 
@@ -222,7 +229,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			EditText.Hint = Element.Placeholder;
 			if (EditText.IsFocused)
 			{
-				EditText.ShowKeyboard();
+				EditText.ShowSoftInput();
 			}
 		}
 
@@ -289,6 +296,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			return LocalizedDigitsKeyListener.Create(inputTypes);
 		}
 
+		[PortHandler]
 		protected virtual void UpdateImeOptions()
 		{
 			if (Element == null || Control == null)
@@ -304,6 +312,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			EditText.UpdateTextAlignment(Element.HorizontalTextAlignment, Element.VerticalTextAlignment);
 		}
 
+		[PortHandler]
 		void UpdateVerticalTextAlignment()
 		{
 			EditText.UpdateTextAlignment(Element.HorizontalTextAlignment, Element.VerticalTextAlignment);
@@ -319,7 +328,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			EditText.SetTextSize(ComplexUnitType.Sp, (float)Element.FontSize);
 		}
 
-		[PortHandler("Partially ported")]
+		[PortHandler("IsSpellCheckEnabled is missing.")]
+		[PortHandler("No override for GetDigitsKeyListener")]
 		void UpdateInputType()
 		{
 			Entry model = Element;
@@ -366,9 +376,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			Control?.ClearFocus();
 		}
 
+		[PortHandler]
 		void UpdateMaxLength()
 		{
-			var currentFilters = new List<IInputFilter>(EditText?.GetFilters() ?? new IInputFilter[0]);
+			var currentFilters = new List<IInputFilter>(EditText?.GetFilters() ?? Array.Empty<IInputFilter>());
 
 			for (var i = 0; i < currentFilters.Count; i++)
 			{
@@ -389,12 +400,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				EditText.Text = currentControlText.Substring(0, Element.MaxLength);
 		}
 
+		[PortHandler]
 		void UpdateCharacterSpacing()
 		{
-			if (Forms.IsLollipopOrNewer)
-			{
-				EditText.LetterSpacing = Element.CharacterSpacing.ToEm();
-			}
+			EditText.LetterSpacing = Element.CharacterSpacing.ToEm();
 		}
 
 		[PortHandler]
@@ -449,7 +458,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				}
 				catch (System.Exception ex)
 				{
-					Internals.Log.Warning("Entry", $"Failed to set Control.Selection from CursorPosition/SelectionLength: {ex}");
+					Application.Current?.FindMauiContext()?.CreateLogger<EntryRenderer>()?.LogWarning(ex, "Failed to set Control.Selection from CursorPosition/SelectionLength");
 				}
 				finally
 				{
@@ -496,7 +505,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			}
 			catch (System.Exception ex)
 			{
-				Internals.Log.Warning("Entry", $"Failed to set CursorPosition from renderer: {ex}");
+				Application.Current?.FindMauiContext()?.CreateLogger<EntryRenderer>()?.LogWarning(ex, "Failed to set CursorPosition from renderer");
 			}
 			finally
 			{
@@ -513,7 +522,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			}
 			catch (System.Exception ex)
 			{
-				Internals.Log.Warning("Entry", $"Failed to set SelectionLength from renderer: {ex}");
+				Application.Current?.FindMauiContext()?.CreateLogger<EntryRenderer>()?.LogWarning(ex, "Failed to set SelectionLength from renderer");
 			}
 			finally
 			{
@@ -542,12 +551,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (EditText.IsFocused)
 			{
 				EditText.SetSelection(text.Length);
-				EditText.ShowKeyboard();
+				EditText.ShowSoftInput();
 			}
 		}
 	}
 
 	// Entry clear button management
+	[PortHandler("Focus management part might need to be reworked after IsFocused implementation.")]
 	public abstract partial class EntryRendererBase<TControl>
 	{
 		Drawable _clearBtn;

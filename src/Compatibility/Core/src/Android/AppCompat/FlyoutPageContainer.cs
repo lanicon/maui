@@ -1,10 +1,13 @@
-using Android.App;
+﻿using Android.App;
 using Android.Content;
 using Android.Content.Res;
 using Android.Views;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat;
 using Microsoft.Maui.Controls.Internals;
-using APlatform = Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat.Platform;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Graphics;
+using APlatform = Microsoft.Maui.Controls.Compatibility.Platform.Android.Platform;
 using Fragment = AndroidX.Fragment.App.Fragment;
 using FragmentContainer = Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat.FragmentContainer;
 using FragmentManager = AndroidX.Fragment.App.FragmentManager;
@@ -12,6 +15,7 @@ using FragmentTransaction = AndroidX.Fragment.App.FragmentTransaction;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete]
 	internal class FlyoutPageContainer : ViewGroup, IManageFragments
 	{
 		const int DefaultFlyoutSize = 320;
@@ -42,7 +46,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (_childView == null)
 				return;
 
-			Rectangle bounds = GetBounds(_isFlyout, l, t, r, b);
+			var bounds = GetBounds(_isFlyout, l, t, r, b);
 			if (_isFlyout)
 				FlyoutPageController.FlyoutBounds = bounds;
 			else
@@ -52,16 +56,16 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			renderer?.UpdateLayout();
 
 			// If we're using a PageContainer (i.e., we've wrapped our contents in a Fragment),
-			// Make sure that it gets laid out
+			// Make sure that it gets arranged
 			if (_pageContainer != null)
 			{
 				if (_isFlyout)
 				{
 					var controller = (IFlyoutPageController)_parent;
 					var width = (int)Context.ToPixels(controller.FlyoutBounds.Width);
-					// When the base class computes the size of the Flyout container, it starts at the top of the 
+					// When the base carrangedss computes the size of the Flyout container, it starts at the top of the 
 					// screen and adds padding (_parent.FlyoutBounds.Top) to leave room for the status bar
-					// When this container is laid out, it's already starting from the adjusted y value of the parent,
+					// When this container is arranged, it's already starting from the adjusted y value of the parent,
 					// so we subtract _parent.FlyoutBounds.Top from our starting point (to get 0) and add it to the 
 					// bottom (so the flyout page stretches to the bottom of the screen)
 					var height = (int)Context.ToPixels(controller.FlyoutBounds.Height + controller.FlyoutBounds.Top);
@@ -218,7 +222,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			if (disposing)
 			{
-				if (_currentFragment != null && !FragmentManager.IsDestroyed)
+				if (_currentFragment != null && !FragmentManager.IsDestroyed(Context))
 				{
 					FragmentTransaction transaction = FragmentManager.BeginTransactionEx();
 					transaction.RemoveEx(_currentFragment);
@@ -263,7 +267,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			_childView?.ClearValue(APlatform.RendererProperty);
 		}
 
-		Rectangle GetBounds(bool isFlyoutPage, int left, int top, int right, int bottom)
+		Rect GetBounds(bool isFlyoutPage, int left, int top, int right, int bottom)
 		{
 			double width = Context.FromPixels(right - left);
 			double height = Context.FromPixels(bottom - top);
@@ -283,16 +287,16 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				//if we are showing the normal popover master doesn't have padding
 				supressPadding = isFlyoutPage;
 				//popover make the master smaller
-				width = isFlyoutPage && (Device.Info.CurrentOrientation.IsLandscape() || Device.Idiom == TargetIdiom.Tablet) ? DefaultWidthFlyout : width;
+				width = isFlyoutPage && (DeviceDisplay.MainDisplayInfo.Orientation.IsLandscape() || DeviceInfo.Idiom == DeviceIdiom.Tablet) ? DefaultWidthFlyout : width;
 			}
 
 			double padding = supressPadding ? 0 : Context.FromPixels(TopPadding);
-			return new Rectangle(xPos, padding, width, height - padding);
+			return new Rect(xPos, padding, width, height - padding);
 		}
 
 		protected void SetDefaultBackgroundColor(IVisualElementRenderer renderer)
 		{
-			if (ChildView.BackgroundColor == Color.Default)
+			if (ChildView.BackgroundColor == null)
 			{
 				TypedArray colors = Context.Theme.ObtainStyledAttributes(new[] { global::Android.Resource.Attribute.ColorBackground });
 				renderer.View.SetBackgroundColor(new global::Android.Graphics.Color(colors.GetColor(0, 0)));

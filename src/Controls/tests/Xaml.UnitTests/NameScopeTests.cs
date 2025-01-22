@@ -1,4 +1,6 @@
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.UnitTests;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -12,7 +14,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 				<View 
-				xmlns=""http://xamarin.com/schemas/2014/forms""
+				xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 				xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"" />";
 
 			var view = new CustomView().LoadFromXaml(xaml);
@@ -26,13 +28,13 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 				<StackLayout 
-				xmlns=""http://xamarin.com/schemas/2014/forms""
+				xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 				xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml"" >
 					<Label />
 					<Label />
 				</StackLayout>";
 
-			var layout = new StackLayout().LoadFromXaml(xaml);
+			var layout = new Controls.Compatibility.StackLayout().LoadFromXaml(xaml);
 
 			Assert.IsNotNull(Maui.Controls.Internals.NameScope.GetNameScope(layout));
 			Assert.That(Maui.Controls.Internals.NameScope.GetNameScope(layout), Is.TypeOf<Maui.Controls.Internals.NameScope>());
@@ -47,9 +49,11 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[Test]
 		public void DataTemplateChildrenDoesNotParticipateToParentNameScope()
 		{
+			DispatcherProvider.SetCurrent(new DispatcherProviderStub());
+
 			var xaml = @"
 				<ListView
-				xmlns=""http://xamarin.com/schemas/2014/forms""
+				xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 				xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml""
 				x:Name=""listview"">
 					<ListView.ItemTemplate>
@@ -69,9 +73,11 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[Test]
 		public void ElementsCreatedFromDataTemplateHaveTheirOwnNameScope()
 		{
+			DispatcherProvider.SetCurrent(new DispatcherProviderStub());
+
 			var xaml = @"
 				<ListView
-				xmlns=""http://xamarin.com/schemas/2014/forms""
+				xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 				xmlns:x=""http://schemas.microsoft.com/winfx/2006/xaml""
 				x:Name=""listview"">
 					<ListView.ItemTemplate>

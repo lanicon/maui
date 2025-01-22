@@ -1,10 +1,13 @@
 using System.ComponentModel;
 using Android.Content;
 using Android.Views;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AProgressBar = Android.Widget.ProgressBar;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class ActivityIndicatorRenderer : ViewRenderer<ActivityIndicator, AProgressBar>
 	{
 		public ActivityIndicatorRenderer(Context context) : base(context)
@@ -51,7 +54,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			Color color = Element.Color;
 
-			if (!color.IsDefault)
+			if (color != null)
 				Control.IndeterminateDrawable?.SetColorFilter(color.ToAndroid(), FilterMode.SrcIn);
 			else
 				Control.IndeterminateDrawable?.ClearColorFilter();

@@ -1,9 +1,12 @@
 using System;
 using CoreGraphics;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[Obsolete]
 	public class UIContainerView : UIView
 	{
 		readonly View _view;
@@ -45,7 +48,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		internal bool MeasureIfNeeded()
 		{
-			if (View == null)
+			if (View is null)
 				return false;
 
 			if (double.IsNaN(MeasuredHeight) || Frame.Width != View.Width)
@@ -53,7 +56,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				ReMeasure();
 				return true;
 			}
-			
+
 			return false;
 		}
 
@@ -64,7 +67,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		void ReMeasure()
 		{
-			if(Height != null && MatchHeight)
+			if (Height is not null && MatchHeight)
 			{
 				MeasuredHeight = Height.Value;
 			}
@@ -91,7 +94,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public override void LayoutSubviews()
 		{
-			_view.Layout(new Rectangle(0, Margin.Top, Width ?? Frame.Width, Height ?? MeasuredHeight));
+			_view.Layout(new Rect(0, Margin.Top, Width ?? Frame.Width, Height ?? MeasuredHeight));
 		}
 
 		protected override void Dispose(bool disposing)
@@ -101,7 +104,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (disposing)
 			{
-				if (_view != null)
+				if (_view is not null)
 					_view.MeasureInvalidated -= OnMeasureInvalidated;
 
 				_renderer?.Dispose();

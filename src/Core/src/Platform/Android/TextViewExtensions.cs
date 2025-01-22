@@ -1,51 +1,59 @@
+using System;
+using System.Net;
 using Android.Graphics;
 using Android.Text;
-using Android.Util;
 using Android.Widget;
+using static Android.Widget.TextView;
+using ALayoutDirection = Android.Views.LayoutDirection;
+using ATextDirection = Android.Views.TextDirection;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class TextViewExtensions
 	{
-		public static void UpdateText(this TextView textView, ILabel label)
+		public static void UpdateTextPlainText(this TextView textView, IText label)
 		{
 			textView.Text = label.Text;
 		}
 
-		public static void UpdateTextColor(this TextView textView, ILabel label, Color defaultColor)
+		public static void UpdateTextHtml(this TextView textView, ILabel label)
 		{
-			Color textColor = label.TextColor;
+			var text = label.Text ?? string.Empty;
+			var htmlText = WebUtility.HtmlDecode(text);
 
-			if (textColor.IsDefault)
-			{
-				textView.SetTextColor(defaultColor.ToNative());
-			}
+			if (OperatingSystem.IsAndroidVersionAtLeast(24))
+				textView.SetText(Html.FromHtml(htmlText, FromHtmlOptions.ModeCompact), BufferType.Spannable);
 			else
-			{
-				textView.SetTextColor(textColor.ToNative());
-			}
+#pragma warning disable CS0618 // Type or member is obsolete
+				textView.SetText(Html.FromHtml(htmlText), BufferType.Spannable);
+#pragma warning restore CS0618 // Type or member is obsolete
 		}
 
-		public static void UpdateCharacterSpacing(this TextView textView, ILabel label) =>
-			textView.LetterSpacing = label.CharacterSpacing.ToEm();
-
-		public static void UpdateCharacterSpacing(this TextView textView, ISearchBar searchBar) =>
-			textView.LetterSpacing = searchBar.CharacterSpacing.ToEm();
-
-		public static void UpdateFont(this TextView textView, ILabel label, IFontManager fontManager)
+		public static void UpdateTextColor(this TextView textView, ITextStyle textStyle)
 		{
-			var font = label.Font;
+			var textColor = textStyle.TextColor;
+
+			if (textColor != null)
+				textView.SetTextColor(textColor.ToPlatform());
+		}
+
+		public static void UpdateFont(this TextView textView, ITextStyle textStyle, IFontManager fontManager)
+		{
+			var font = textStyle.Font;
 
 			var tf = fontManager.GetTypeface(font);
 			textView.Typeface = tf;
 
-			var sp = fontManager.GetScaledPixel(font);
-			textView.SetTextSize(ComplexUnitType.Sp, sp);
+			var fontSize = fontManager.GetFontSize(font);
+			textView.SetTextSize(fontSize.Unit, fontSize.Value);
 		}
+
+		public static void UpdateCharacterSpacing(this TextView textView, ITextStyle textStyle) =>
+			textView.LetterSpacing = textStyle.CharacterSpacing.ToEm();
 
 		public static void UpdateHorizontalTextAlignment(this TextView textView, ITextAlignment text)
 		{
-			if (textView.Context!.HasRtlSupport())
+			if (Rtl.IsSupported)
 			{
 				// We want to use TextAlignment where possible because it doesn't conflict with the
 				// overall gravity of the underlying control
@@ -55,36 +63,29 @@ namespace Microsoft.Maui
 			{
 				// But if RTL support is not available for some reason, we have to resort
 				// to gravity, because Android will simply ignore text alignment
-				textView.Gravity = text.HorizontalTextAlignment.ToHorizontalGravityFlags();
+				textView.Gravity = Android.Views.GravityFlags.Top | text.HorizontalTextAlignment.ToHorizontalGravityFlags();
+			}
+
+			if (OperatingSystem.IsAndroidVersionAtLeast(26))
+			{
+				textView.JustificationMode = text.HorizontalTextAlignment == TextAlignment.Justify
+					? Android.Text.JustificationMode.InterWord
+					: Android.Text.JustificationMode.None;
 			}
 		}
 
-		public static void UpdateLineBreakMode(this TextView textView, ILabel label)
+		public static void UpdateVerticalTextAlignment(this TextView textView, ITextAlignment textAlignment)
 		{
-			textView.SetLineBreakMode(label);
-		}
-
-		public static void UpdateMaxLines(this TextView textView, ILabel label)
-		{
-			int maxLinex = label.MaxLines;
-
-			textView.SetMaxLines(maxLinex);
+			textView.UpdateVerticalAlignment(textAlignment.VerticalTextAlignment);
 		}
 
 		public static void UpdatePadding(this TextView textView, ILabel label)
 		{
-			var context = textView.Context;
-
-			if (context == null)
-			{
-				return;
-			}
-
 			textView.SetPadding(
-				(int)context.ToPixels(label.Padding.Left),
-				(int)context.ToPixels(label.Padding.Top),
-				(int)context.ToPixels(label.Padding.Right),
-				(int)context.ToPixels(label.Padding.Bottom));
+				(int)textView.ToPixels(label.Padding.Left),
+				(int)textView.ToPixels(label.Padding.Top),
+				(int)textView.ToPixels(label.Padding.Right),
+				(int)textView.ToPixels(label.Padding.Bottom));
 		}
 
 		public static void UpdateTextDecorations(this TextView textView, ILabel label)
@@ -102,54 +103,45 @@ namespace Microsoft.Maui
 				textView.PaintFlags |= PaintFlags.UnderlineText;
 		}
 
-		internal static void SetLineBreakMode(this TextView textView, ILabel label)
+		public static void UpdateFlowDirection(this TextView platformView, IView view)
 		{
-			var lineBreakMode = label.LineBreakMode;
-
-			int maxLines = label.MaxLines;
-			if (maxLines <= 0)
-				maxLines = int.MaxValue;
-
-			bool singleLine = false;
-
-			switch (lineBreakMode)
+			switch (view.FlowDirection)
 			{
-				case LineBreakMode.NoWrap:
-					maxLines = 1;
-					textView.Ellipsize = null;
+				case FlowDirection.MatchParent:
+					platformView.LayoutDirection = ALayoutDirection.Inherit;
+					platformView.TextDirection = ATextDirection.Inherit;
 					break;
-				case LineBreakMode.WordWrap:
-					textView.Ellipsize = null;
+				case FlowDirection.RightToLeft:
+					platformView.LayoutDirection = ALayoutDirection.Rtl;
+#pragma warning disable CA1416 // Introduced in API 23: https://developer.android.com/reference/android/view/View#TEXT_DIRECTION_FIRST_STRONG_RTL
+					platformView.TextDirection = ATextDirection.FirstStrongRtl;
+#pragma warning restore CA1416
 					break;
-				case LineBreakMode.CharacterWrap:
-					textView.Ellipsize = null;
-					break;
-				case LineBreakMode.HeadTruncation:
-					maxLines = 1;
-					singleLine = true; // Workaround for bug in older Android API versions (https://bugzilla.xamarin.com/show_bug.cgi?id=49069)
-					textView.Ellipsize = TextUtils.TruncateAt.Start;
-					break;
-				case LineBreakMode.TailTruncation:
-					maxLines = 1;
-					textView.Ellipsize = TextUtils.TruncateAt.End;
-					break;
-				case LineBreakMode.MiddleTruncation:
-					maxLines = 1;
-					singleLine = true; // Workaround for bug in older Android API versions (https://bugzilla.xamarin.com/show_bug.cgi?id=49069)
-					textView.Ellipsize = TextUtils.TruncateAt.Middle;
+				case FlowDirection.LeftToRight:
+					platformView.LayoutDirection = ALayoutDirection.Ltr;
+#pragma warning disable CA1416 // Introduced in API 23: https://developer.android.com/reference/android/view/View#TEXT_DIRECTION_FIRST_STRONG_LTR
+					platformView.TextDirection = ATextDirection.FirstStrongLtr;
+#pragma warning restore CA1416
 					break;
 			}
-
-			textView.SetSingleLine(singleLine);
-			textView.SetMaxLines(maxLines);
 		}
 
-		internal static void UpdateLineHeight(this TextView textView, ILabel label, float lineSpacingAddDefault, float lineSpacingMultDefault)
+		public static void UpdateLineHeight(this TextView textView, ILabel label)
 		{
-			if (label.LineHeight == - 1)
-				textView.SetLineSpacing(lineSpacingAddDefault, lineSpacingMultDefault);
-			else if (label.LineHeight >= 0)
+			if (label.LineHeight >= 0)
 				textView.SetLineSpacing(0, (float)label.LineHeight);
+		}
+
+		internal static void Focus(this TextView textView, FocusRequest request)
+		{
+			if (textView is null)
+				return;
+
+			textView.Focus(request, () =>
+			{
+				if (textView.ShowSoftInputOnFocus)
+					ViewExtensions.PostShowSoftInput(textView);
+			});
 		}
 	}
 }

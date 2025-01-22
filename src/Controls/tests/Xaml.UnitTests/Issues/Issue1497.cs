@@ -7,24 +7,12 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 	[TestFixture]
 	public class Issue1497
 	{
-		[SetUp]
-		public void Setup()
-		{
-			Device.PlatformServices = new MockPlatformServices();
-		}
-
-		[TearDown]
-		public void TearDown()
-		{
-			Device.PlatformServices = null;
-		}
-
 		[Test]
 		public void BPCollectionsWithSingleElement()
 		{
 			var xaml = @"<?xml version=""1.0"" encoding=""utf-8"" ?>
 						<Grid
-							xmlns=""http://xamarin.com/schemas/2014/forms"" 
+							xmlns=""http://schemas.microsoft.com/dotnet/2021/maui"" 
 							xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"">	 
 							<Grid.ColumnDefinitions>
 								<ColumnDefinition Width=""*""/>

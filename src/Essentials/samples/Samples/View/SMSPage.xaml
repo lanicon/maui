@@ -1,4 +1,4 @@
-<views:BasePage xmlns="http://xamarin.com/schemas/2014/forms"
+<views:BasePage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                 xmlns:views="clr-namespace:Samples.View"
                 xmlns:viewmodels="clr-namespace:Samples.ViewModel"
@@ -8,10 +8,10 @@
         <viewmodels:SmsViewModel />
     </views:BasePage.BindingContext>
 
-    <StackLayout>
+    <Grid RowDefinitions="Auto,*">
         <Label Text="Easily send SMS messages." FontAttributes="Bold" Margin="12" />
 
-        <ScrollView>
+        <ScrollView Grid.Row="1">
             <StackLayout Padding="12,0,12,12" Spacing="6">
                 <Label Text="Recipents (optional, separate multiple with ',' or '*'):" />
                 <Entry Text="{Binding Recipient}" Keyboard="Telephone" />
@@ -24,6 +24,6 @@
                 <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" />
             </StackLayout>
         </ScrollView>
-    </StackLayout>
+    </Grid>
 
 </views:BasePage>

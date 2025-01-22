@@ -2,47 +2,20 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Microsoft.Maui.Controls.Internals
+namespace Microsoft.Maui.Controls
 {
-	[EditorBrowsable(EditorBrowsableState.Never)]
-	public static class NumericExtensions
+	static class NumericExtensions
 	{
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double Clamp(this double self, double min, double max)
+		const double Tolerance = 0.001;
+
+		public static bool IsCloseTo(this double sizeA, double sizeB)
 		{
-			if (max < min)
+			if (Math.Abs(sizeA - sizeB) > Tolerance)
 			{
-				return max;
-			}
-			else if (self < min)
-			{
-				return min;
-			}
-			else if (self > max)
-			{
-				return max;
+				return false;
 			}
 
-			return self;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int Clamp(this int self, int min, int max)
-		{
-			if (max < min)
-			{
-				return max;
-			}
-			else if (self < min)
-			{
-				return min;
-			}
-			else if (self > max)
-			{
-				return max;
-			}
-
-			return self;
+			return true;
 		}
 	}
 }

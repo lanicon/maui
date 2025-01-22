@@ -2,27 +2,15 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Controls;
-using NUnit.Framework;
+using Xunit;
 
 namespace Microsoft.Maui.Controls.Core.UnitTests
 {
-	[TestFixture]
+	using StackLayout = Microsoft.Maui.Controls.Compatibility.StackLayout;
+
+
 	public class ControlTemplateTests : BaseTestFixture
 	{
-		[SetUp]
-		public override void Setup()
-		{
-			base.Setup();
-			Device.PlatformServices = new MockPlatformServices();
-		}
-
-		[TearDown]
-		public override void TearDown()
-		{
-			base.TearDown();
-			Device.PlatformServices = null;
-		}
-
 		public class ContentControl : StackLayout
 		{
 			public ContentControl()
@@ -60,7 +48,7 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			}
 		}
 
-		[Test]
+		[Fact]
 		public void ResettingControlTemplateNullsPresenterContent()
 		{
 			var testView = new TestView
@@ -76,14 +64,14 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			var originalPresenter = (ContentPresenter)child2;
 
-			Assert.AreEqual(label, originalPresenter.Content);
+			Assert.Equal(label, originalPresenter.Content);
 
 			testView.ControlTemplate = new ControlTemplate(typeof(PresenterWrapper));
 
-			Assert.IsNull(originalPresenter.Content);
+			Assert.Null(originalPresenter.Content);
 		}
 
-		[Test]
+		[Fact]
 		public void NestedTemplateBindings()
 		{
 			var testView = new TestView();
@@ -93,13 +81,13 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			var label = (Label)child2;
 
-			Assert.IsNull(label.Text);
+			Assert.Null(label.Text);
 
 			testView.Name = "Bar";
-			Assert.AreEqual("Bar", label.Text);
+			Assert.Equal("Bar", label.Text);
 		}
 
-		[Test]
+		[Fact]
 		public void ParentControlTemplateDoesNotClearChildTemplate()
 		{
 			var parentView = new TestView();
@@ -114,10 +102,10 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			var childPresenter = (ContentPresenter)child2;
 
 			parentView.ControlTemplate = new ControlTemplate(typeof(ContentControl));
-			Assert.IsNotNull(childPresenter.Content);
+			Assert.NotNull(childPresenter.Content);
 		}
 
-		[Test]
+		[Fact]
 		public void NullConstructor()
 		{
 			Func<object> func = null;
@@ -169,7 +157,7 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			}
 		}
 
-		[Test]
+		[Fact]
 		public void DoubleTwoWayBindingWorks()
 		{
 			var page = new TestPage();
@@ -186,7 +174,8 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			((IElementController)entry).SetValueFromRenderer(Entry.TextProperty, "Bar");
 			viewModel.Name = "Raz";
 
-			Assert.AreEqual("Raz", entry.Text);
+			Assert.Equal("Raz", page.Name);
+			Assert.Equal("Raz", entry.Text);
 		}
 	}
 }

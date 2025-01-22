@@ -1,7 +1,3 @@
-using System.Threading.Tasks;
-using Samples.ViewModel;
-using Xamarin.Forms;
-
 namespace Samples.View
 {
 	public partial class AllSensorsPage : BasePage
@@ -31,6 +27,7 @@ namespace Samples.View
 			TearDownBinding(GridMagnetometer.BindingContext);
 			TearDownBinding(GridOrientation.BindingContext);
 			TearDownBinding(GridBarometer.BindingContext);
+
 			base.OnDisappearing();
 		}
 	}

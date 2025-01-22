@@ -1,5 +1,5 @@
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
 
 namespace Samples.ViewModel
 {

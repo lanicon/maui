@@ -8,11 +8,12 @@ namespace Microsoft.Maui.Controls.Xaml
 {
 	[ContentProperty(nameof(Style))]
 	[ProvideCompiled("Microsoft.Maui.Controls.XamlC.StyleSheetProvider")]
+	[RequireService([typeof(IXmlLineInfoProvider), typeof(IRootObjectProvider)])]
 	public sealed class StyleSheetExtension : IValueProvider
 	{
 		public string Style { get; set; }
 
-		[TypeConverter(typeof(UriTypeConverter))]
+		[System.ComponentModel.TypeConverter(typeof(UriTypeConverter))]
 		public Uri Source { get; set; }
 
 		object IValueProvider.ProvideValue(IServiceProvider serviceProvider)
@@ -20,7 +21,7 @@ namespace Microsoft.Maui.Controls.Xaml
 			IXmlLineInfo lineInfo;
 
 			if (!string.IsNullOrEmpty(Style) && Source != null)
-				throw new XamlParseException($"StyleSheet can not have both a Source and a content", serviceProvider);
+				throw new XamlParseException($"StyleSheet cannot have both a Source and a content", serviceProvider);
 
 			if (Source != null)
 			{
@@ -33,7 +34,7 @@ namespace Microsoft.Maui.Controls.Xaml
 					return null;
 				var rootTargetPath = XamlResourceIdAttribute.GetPathForType(rootObjectType);
 				var resourcePath = ResourceDictionary.RDSourceTypeConverter.GetResourcePath(Source, rootTargetPath);
-				var assembly = rootObjectType.GetTypeInfo().Assembly;
+				var assembly = rootObjectType.Assembly;
 
 				return StyleSheet.FromResource(resourcePath, assembly, lineInfo);
 			}

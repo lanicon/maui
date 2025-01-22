@@ -1,11 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Android.Text;
 using Android.Text.Style;
 using Android.Views;
 using Android.Widget;
+using Microsoft.Maui.Graphics;
 using AView = Android.Views.View;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	internal static class PickerManager
 	{
@@ -23,7 +25,7 @@ namespace Microsoft.Maui
 		}
 
 		public static void OnTouchEvent(EditText sender, MotionEvent? e)
-		{ 
+		{
 			if (e != null && e.Action == MotionEventActions.Up && !sender.IsFocused)
 			{
 				sender.RequestFocus();
@@ -55,11 +57,13 @@ namespace Microsoft.Maui
 
 		public static Java.Lang.ICharSequence GetTitle(Color titleColor, string title)
 		{
-			if (titleColor == Color.Default)
+			if (titleColor == null)
 				return new Java.Lang.String(title);
 
 			var spannableTitle = new SpannableString(title ?? string.Empty);
-			spannableTitle.SetSpan(new ForegroundColorSpan(titleColor.ToNative()), 0, spannableTitle.Length(), SpanTypes.ExclusiveExclusive);
+#pragma warning disable CA1416 // https://github.com/xamarin/xamarin-android/issues/6962
+			spannableTitle.SetSpan(new ForegroundColorSpan(titleColor.ToPlatform()), 0, spannableTitle.Length(), SpanTypes.ExclusiveExclusive);
+#pragma warning restore CA1416
 			return spannableTitle;
 		}
 	}

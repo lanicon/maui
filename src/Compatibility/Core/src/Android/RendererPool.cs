@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using Android.Views;
+using Microsoft.Maui.Controls.Platform;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete]
 	public sealed class RendererPool
 	{
 		readonly Dictionary<Type, Stack<IVisualElementRenderer>> _freeRenderers = new Dictionary<Type, Stack<IVisualElementRenderer>>();
@@ -58,12 +60,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (child != null)
 				{
-					IVisualElementRenderer renderer = AppCompat.Platform.GetRenderer(child);
+					IVisualElementRenderer renderer = Platform.GetRenderer(child);
 
 					if (renderer == null)
 						continue;
 
-					if (renderer.View.IsDisposed())
+					if (!renderer.View.IsAlive())
 						continue;
 
 					if (renderer.View.Parent != _parent.View)
@@ -71,7 +73,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 					renderer.View.RemoveFromParent();
 
-					AppCompat.Platform.SetRenderer(child, null);
+					Platform.SetRenderer(child, null);
 
 					PushRenderer(renderer);
 				}

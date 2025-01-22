@@ -6,8 +6,10 @@ using Android.Graphics.Drawables;
 using Android.OS;
 using Android.Util;
 using Android.Views;
+using Microsoft.Maui.Controls.Platform;
 using AColor = Android.Graphics.Color;
 using AProgressBar = Android.Widget.ProgressBar;
+using Color = Microsoft.Maui.Graphics.Color;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
@@ -41,16 +43,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		public void SetColor(Color color)
 		{
-			var progress = color.IsDefault ? DefaultColor : color.ToAndroid();
-
-			if (Forms.IsLollipopOrNewer)
-			{
-				IndeterminateTintList = ColorStateList.ValueOf(progress);
-			}
-			else
-			{
-				(Indeterminate ? IndeterminateDrawable : ProgressDrawable).SetColorFilter(color.ToAndroid(), FilterMode.SrcIn);
-			}
+			var progress = color?.ToAndroid() ?? DefaultColor;
+			IndeterminateTintList = ColorStateList.ValueOf(progress);
 		}
 
 		public void SetBackground(Color color, Brush brush)
@@ -63,7 +57,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					backgroundDrawable.UpdateBackground(brush, Height, Width);
 				else
 				{
-					_backgroudColor = color.IsDefault ? AColor.Transparent : color.ToAndroid();
+					_backgroudColor = color?.ToAndroid() ?? AColor.Transparent;
 					backgroundDrawable.SetColor(_backgroudColor);
 				}
 
@@ -99,7 +93,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			l += (width - squareSize) / 2;
 			t += (height - squareSize) / 2;
 			int strokeWidth;
-			if (Forms.SdkInt < BuildVersionCodes.N)
+			if (!OperatingSystem.IsAndroidVersionAtLeast(24))
 				strokeWidth = squareSize / _paddingRatio23;
 			else
 				strokeWidth = squareSize / _paddingRatio;

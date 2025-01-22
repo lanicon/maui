@@ -7,10 +7,12 @@ using Android.Content;
 using Android.Text;
 using Android.Text.Style;
 using Android.Util;
-using Android.Widget;
+using AndroidX.AppCompat.Widget;
+using Microsoft.Maui.Controls.Platform;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public abstract class PickerRendererBase<TControl> : ViewRenderer<Picker, TControl>, IPickerRenderer
 		where TControl : global::Android.Views.View
 	{
@@ -23,7 +25,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			AutoPackage = false;
 		}
 
-		protected abstract EditText EditText { get; }
+		protected abstract AppCompatEditText EditText { get; }
 
 		protected override void Dispose(bool disposing)
 		{
@@ -109,7 +111,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			}
 		}
 
-		[PortHandler("Partially ported, still missing code related to TitleColor, etc.")]
+		[PortHandler("Partially ported, still missing code related to Focus, etc.")]
 		void IPickerRenderer.OnClick()
 		{
 			Picker model = Element;
@@ -124,7 +126,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 					else
 					{
 						var title = new SpannableString(model.Title ?? "");
+#pragma warning disable CA1416 // https://github.com/xamarin/xamarin-android/issues/6962
 						title.SetSpan(new ForegroundColorSpan(model.TitleColor.ToAndroid()), 0, title.Length(), SpanTypes.ExclusiveExclusive);
+#pragma warning restore CA1416
 
 						builder.SetTitle(title);
 					}
@@ -155,18 +159,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			UpdatePicker();
 		}
 
+		[PortHandler]
 		void UpdateFont()
 		{
 			EditText.Typeface = Element.ToTypeface();
 			EditText.SetTextSize(ComplexUnitType.Sp, (float)Element.FontSize);
 		}
 
+		[PortHandler]
 		protected void UpdateCharacterSpacing()
 		{
-			if (Forms.IsLollipopOrNewer)
-			{
-				EditText.LetterSpacing = Element.CharacterSpacing.ToEm();
-			}
+			EditText.LetterSpacing = Element.CharacterSpacing.ToEm();
 		}
 
 		[PortHandler("Partially ported, still missing code related to TitleColor, etc.")]
@@ -189,7 +192,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 		abstract protected void UpdateGravity();
 	}
 
-	public class PickerRenderer : PickerRendererBase<EditText>
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
+	public class PickerRenderer : PickerRendererBase<AppCompatEditText>
 	{
 		TextColorSwitcher _textColorSwitcher;
 		TextColorSwitcher _hintColorSwitcher;
@@ -198,19 +202,21 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 		{
 		}
 
-		protected override EditText CreateNativeControl()
+		protected override AppCompatEditText CreateNativeControl()
 		{
 			return new PickerEditText(Context);
 		}
 
-		protected override EditText EditText => Control;
+		protected override AppCompatEditText EditText => Control;
 
+		[PortHandler]
 		protected override void UpdateTitleColor()
 		{
 			_hintColorSwitcher = _hintColorSwitcher ?? new TextColorSwitcher(EditText.HintTextColors, Element.UseLegacyColorManagement());
 			_hintColorSwitcher.UpdateTextColor(EditText, Element.TitleColor, EditText.SetHintTextColor);
 		}
 
+		[PortHandler]
 		protected override void UpdateTextColor()
 		{
 			_textColorSwitcher = _textColorSwitcher ?? new TextColorSwitcher(EditText.TextColors, Element.UseLegacyColorManagement());
@@ -221,6 +227,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			EditText.Hint = Element.Title;
 		}
 
+		[PortHandler("Partially ported, still missing VerticalTextAligment.")]
 		protected override void UpdateGravity()
 		{
 			EditText.Gravity = Element.HorizontalTextAlignment.ToHorizontalGravityFlags() | Element.VerticalTextAlignment.ToVerticalGravityFlags();

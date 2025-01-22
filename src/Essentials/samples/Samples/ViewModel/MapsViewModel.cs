@@ -1,14 +1,22 @@
 using System;
-using System.Collections.Generic;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices.Sensors;
 
 namespace Samples.ViewModel
 {
 	public class MapsViewModel : BaseViewModel
 	{
 		string name = "Microsoft Building 25";
+		string longitude = (-122.130603).ToString();
+		string latitude = 47.645160.ToString();
+		string locality = "Redmond";
+		string adminArea = "WA";
+		string thoroughfare = "Microsoft Building 25";
+		string country = "United States";
+		string zipCode = "98052";
+		int navigationMode;
 
 		public string Name
 		{
@@ -16,15 +24,11 @@ namespace Samples.ViewModel
 			set => SetProperty(ref name, value);
 		}
 
-		string longitude = (-122.130603).ToString();
-
 		public string Longitude
 		{
 			get => longitude;
 			set => SetProperty(ref longitude, value);
 		}
-
-		string latitude = 47.645160.ToString();
 
 		public string Latitude
 		{
@@ -32,15 +36,11 @@ namespace Samples.ViewModel
 			set => SetProperty(ref latitude, value);
 		}
 
-		string locality = "Redmond";
-
 		public string Locality
 		{
 			get => locality;
 			set => SetProperty(ref locality, value);
 		}
-
-		string adminArea = "WA";
 
 		public string AdminArea
 		{
@@ -48,23 +48,17 @@ namespace Samples.ViewModel
 			set => SetProperty(ref adminArea, value);
 		}
 
-		string thoroughfare = "Microsoft Building 25";
-
 		public string Thoroughfare
 		{
 			get => thoroughfare;
 			set => SetProperty(ref thoroughfare, value);
 		}
 
-		string country = "United States";
-
 		public string Country
 		{
 			get => country;
 			set => SetProperty(ref country, value);
 		}
-
-		string zipCode = "98052";
 
 		public string ZipCode
 		{
@@ -73,9 +67,7 @@ namespace Samples.ViewModel
 		}
 
 		public string[] NavigationModes { get; } =
-		   Enum.GetNames(typeof(NavigationMode));
-
-		int navigationMode;
+			Enum.GetNames(typeof(NavigationMode));
 
 		public int NavigationMode
 		{
@@ -95,11 +87,19 @@ namespace Samples.ViewModel
 
 		async void OpenLocation()
 		{
-			await Map.OpenAsync(double.Parse(Latitude), double.Parse(Longitude), new MapLaunchOptions
+			var canOpen = await Map.TryOpenAsync(
+				double.Parse(Latitude),
+				double.Parse(Longitude),
+				new MapLaunchOptions
+				{
+					Name = Name,
+					NavigationMode = (NavigationMode)NavigationMode
+				});
+
+			if (!canOpen)
 			{
-				Name = Name,
-				NavigationMode = (NavigationMode)NavigationMode
-			});
+				await DisplayAlertAsync("Unable to open map, possibly due to the fact that there is no default maps app installed.");
+			}
 		}
 
 		async void OpenPlacemark()
@@ -112,11 +112,17 @@ namespace Samples.ViewModel
 				Thoroughfare = Thoroughfare,
 				PostalCode = ZipCode
 			};
-			await Map.OpenAsync(placemark, new MapLaunchOptions
+
+			var canOpen = await Map.TryOpenAsync(placemark, new MapLaunchOptions
 			{
 				Name = Name,
 				NavigationMode = (NavigationMode)NavigationMode
 			});
+
+			if (!canOpen)
+			{
+				await DisplayAlertAsync("Unable to open map, possibly due to the fact that there is no default maps app installed.");
+			}
 		}
 	}
 }

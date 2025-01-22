@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
-using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.UnitTests;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -12,7 +14,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
 		{
 			count++;
-			return Color.Blue;
+			return Colors.Blue;
 		}
 
 		public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
@@ -61,21 +63,17 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			SeverityColorConverter.count = 0;
 			InvertBoolenConverter.count = 0;
-			Device.PlatformServices = new MockPlatformServices();
+			DispatcherProvider.SetCurrent(new DispatcherProviderStub());
 		}
 
-		[TearDown]
-		public void TearDown()
-		{
-			Device.PlatformServices = null;
-		}
+		[TearDown] public void TearDown() => DispatcherProvider.SetCurrent(null);
 
 		[Test]
 		public void ConverterIsInvoked()
 		{
 			var xaml = @"
 <ContentPage 							
-xmlns=""http://xamarin.com/schemas/2014/forms"" 
+xmlns=""http://schemas.microsoft.com/dotnet/2021/maui"" 
 							xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 							xmlns:local=""clr-namespace:Microsoft.Maui.Controls.Xaml.UnitTests;assembly=Microsoft.Maui.Controls.Xaml.UnitTests"">
 
@@ -95,7 +93,7 @@ xmlns=""http://xamarin.com/schemas/2014/forms""
 			var layout = new ContentPage().LoadFromXaml(xaml);
 			layout.BindingContext = new { Value = "Foo", Severity = "Bar" };
 			var label = layout.FindByName<Label>("label");
-			Assert.AreEqual(Color.Blue, label.BackgroundColor);
+			Assert.AreEqual(Colors.Blue, label.BackgroundColor);
 			Assert.AreEqual(1, SeverityColorConverter.count);
 		}
 
@@ -104,7 +102,7 @@ xmlns=""http://xamarin.com/schemas/2014/forms""
 		{
 			var xaml = @"
 <ContentPage 							
-xmlns=""http://xamarin.com/schemas/2014/forms"" 
+xmlns=""http://schemas.microsoft.com/dotnet/2021/maui"" 
 							xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 							xmlns:local=""clr-namespace:Microsoft.Maui.Controls.Xaml.UnitTests;assembly=Microsoft.Maui.Controls.Xaml.UnitTests"">
 
@@ -124,7 +122,7 @@ xmlns=""http://xamarin.com/schemas/2014/forms""
 			var layout = new ContentPage().LoadFromXaml(xaml);
 			layout.BindingContext = new { Value = "Foo", Severity = "Bar" };
 			var label = layout.FindByName<Label>("label");
-			Assert.AreEqual(Color.Blue, label.BackgroundColor);
+			Assert.AreEqual(Colors.Blue, label.BackgroundColor);
 			Assert.AreEqual(1, SeverityColorConverter.count);
 		}
 
@@ -132,8 +130,9 @@ xmlns=""http://xamarin.com/schemas/2014/forms""
 		public void ResourcesInNonXFBaseClassesAreFound()
 		{
 			var xaml = @"<local:BaseView 
-	xmlns=""http://xamarin.com/schemas/2014/forms"" 
+	xmlns=""http://schemas.microsoft.com/dotnet/2021/maui"" 
 	xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"" 
+	xmlns:cmp=""clr-namespace:Microsoft.Maui.Controls.Compatibility;assembly=Microsoft.Maui.Controls""
   	xmlns:local=""clr-namespace:Microsoft.Maui.Controls.Xaml.UnitTests;assembly=Microsoft.Maui.Controls.Xaml.UnitTests""
 	Padding=""0,40,0,0"">
     <local:BaseView.Resources>
@@ -152,10 +151,10 @@ xmlns=""http://xamarin.com/schemas/2014/forms""
 			<DataTemplate> 
 				<ViewCell >
 				<ViewCell.View>
-					<Grid  VerticalOptions=""FillAndExpand"" HorizontalOptions=""FillAndExpand""  >			
+					<cmp:Grid  VerticalOptions=""FillAndExpand"" HorizontalOptions=""FillAndExpand""  >			
 					<Label  IsVisible=""{Binding IsLocked}""  Text=""Show Is Locked""  />
 					<Label  IsVisible=""{Binding IsLocked, Converter={StaticResource cnvInvert}}"" Text=""Show Is Not locked"" />
-				</Grid>
+				</cmp:Grid>
 				</ViewCell.View>
 				</ViewCell>
 			</DataTemplate>
@@ -181,8 +180,8 @@ xmlns=""http://xamarin.com/schemas/2014/forms""
 			var cell2 = (ViewCell)lst.TemplatedItems.GetOrCreateContent(2, items[2]);
 			var cell3 = (ViewCell)lst.TemplatedItems.GetOrCreateContent(3, items[3]);
 
-			var label00 = (cell0.View as Grid).Children[0] as Label;
-			var label01 = (cell0.View as Grid).Children[1] as Label;
+			var label00 = (cell0.View as Compatibility.Grid).Children[0] as Label;
+			var label01 = (cell0.View as Compatibility.Grid).Children[1] as Label;
 
 			Assert.AreEqual("Show Is Locked", label00.Text);
 			Assert.AreEqual("Show Is Not locked", label01.Text);

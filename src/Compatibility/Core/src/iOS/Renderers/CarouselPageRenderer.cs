@@ -2,21 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Runtime.Versioning;
+using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
-using Microsoft.Maui.Controls.Compatibility.Internals;
 using PointF = CoreGraphics.CGPoint;
 using RectangleF = CoreGraphics.CGRect;
 using SizeF = CoreGraphics.CGSize;
-using Microsoft.Maui.Controls.Internals;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
-	public class CarouselPageRenderer : UIViewController, IVisualElementRenderer
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
+	internal class CarouselPageRenderer : UIViewController, IVisualElementRenderer
 	{
 		bool _appeared;
 		Dictionary<Page, UIView> _containerMap;
 		bool _disposed;
-		EventTracker _events;
 		bool _ignoreNativeScrolling;
 		UIScrollView _scrollView;
 		VisualElementTracker _tracker;
@@ -73,7 +76,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public void SetElementSize(Size size)
 		{
-			Element.Layout(new Rectangle(Element.X, Element.Y, size.Width, size.Height));
+			Element.Layout(new Rect(Element.X, Element.Y, size.Width, size.Height));
 		}
 
 		public UIViewController ViewController
@@ -125,8 +128,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			base.ViewDidLoad();
 
 			_tracker = new VisualElementTracker(this);
-			_events = new EventTracker(this);
-			_events.LoadEvents(View);
 
 			_scrollView = new UIScrollView { ShowsHorizontalScrollIndicator = false };
 
@@ -150,6 +151,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			Carousel.PagesChanged += OnPagesChanged;
 		}
 
+		[UnsupportedOSPlatform("tvos")]
+		[UnsupportedOSPlatform("ios6.0")]
 		public override void ViewDidUnload()
 		{
 			base.ViewDidUnload();
@@ -199,12 +202,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				{
 					_appeared = false;
 					PageController?.SendDisappearing();
-				}
-
-				if (_events != null)
-				{
-					_events.Dispose();
-					_events = null;
 				}
 
 				if (_tracker != null)
@@ -270,7 +267,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			if (_ignoreNativeScrolling || SelectedIndex >= ElementController.LogicalChildren.Count)
 				return;
-						
+
 			var currentPage = (ContentPage)ElementController.LogicalChildren[SelectedIndex];
 			if (_previousPage != currentPage)
 			{
@@ -367,14 +364,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			{
 				if (bgImage != null)
 					View.BackgroundColor = UIColor.FromPatternImage(bgImage);
-				else if (Element.BackgroundColor.IsDefault)
+				else if (Element.BackgroundColor == null)
 					View.BackgroundColor = ColorExtensions.BackgroundColor;
 				else
 				{
-					if (Element.BackgroundColor.IsDefault)
+					if (Element.BackgroundColor == null)
 						View.BackgroundColor = UIColor.White;
 					else
-						View.BackgroundColor = Element.BackgroundColor.ToUIColor();
+						View.BackgroundColor = Element.BackgroundColor.ToPlatform();
 
 					Brush background = Element.Background;
 					View.UpdateBackground(background);

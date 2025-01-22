@@ -1,38 +1,37 @@
 using System;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.System;
 using WinLauncher = Windows.System.Launcher;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.ApplicationModel
 {
-    public static partial class Launcher
-    {
-        static async Task<bool> PlatformCanOpenAsync(Uri uri)
-        {
-            var supported = await WinLauncher.QueryUriSupportAsync(uri, LaunchQuerySupportType.Uri);
-            return supported == LaunchQuerySupportStatus.Available;
-        }
+	partial class LauncherImplementation
+	{
+		async Task<bool> PlatformCanOpenAsync(Uri uri)
+		{
+			var supported = await WinLauncher.QueryUriSupportAsync(uri, LaunchQuerySupportType.Uri);
+			return supported == LaunchQuerySupportStatus.Available;
+		}
 
-        static Task PlatformOpenAsync(Uri uri) =>
-            WinLauncher.LaunchUriAsync(uri).AsTask();
+		Task<bool> PlatformOpenAsync(Uri uri) =>
+			WinLauncher.LaunchUriAsync(uri).AsTask();
 
-        static async Task PlatformOpenAsync(OpenFileRequest request)
-        {
-            var storageFile = request.File.File ?? await StorageFile.GetFileFromPathAsync(request.File.FullPath);
+		async Task<bool> PlatformOpenAsync(OpenFileRequest request)
+		{
+			var storageFile = request.File.File ?? await StorageFile.GetFileFromPathAsync(request.File.FullPath);
 
-            await WinLauncher.LaunchFileAsync(storageFile).AsTask();
-        }
+			return await WinLauncher.LaunchFileAsync(storageFile).AsTask();
+		}
 
-        static async Task<bool> PlatformTryOpenAsync(Uri uri)
-        {
-            var canOpen = await PlatformCanOpenAsync(uri);
+		async Task<bool> PlatformTryOpenAsync(Uri uri)
+		{
+			var canOpen = await PlatformCanOpenAsync(uri);
 
-            if (canOpen)
-                return await WinLauncher.LaunchUriAsync(uri).AsTask();
+			if (canOpen)
+				return await WinLauncher.LaunchUriAsync(uri).AsTask();
 
-            return canOpen;
-        }
-    }
+			return canOpen;
+		}
+	}
 }

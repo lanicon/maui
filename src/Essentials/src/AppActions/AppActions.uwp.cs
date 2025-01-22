@@ -3,101 +3,116 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Windows.ApplicationModel.Activation;
+using Microsoft.UI.Xaml;
 using Windows.UI.StartScreen;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.ApplicationModel
 {
-    public static partial class AppActions
-    {
-        const string appActionPrefix = "XE_APP_ACTIONS-";
+	class AppActionsImplementation : IAppActions, IPlatformAppActions
+	{
+		public bool IsSupported => true;
 
-        public static string IconDirectory { get; set; } = "Assets";
+		public async Task<IEnumerable<AppAction>> GetAsync()
+		{
+			// Load existing items
+			var jumpList = await JumpList.LoadCurrentAsync();
 
-        public static string IconExtension { get; set; } = "png";
+			var actions = new List<AppAction>();
+			foreach (var item in jumpList.Items)
+				actions.Add(item.ToAction());
 
-        internal static bool PlatformIsSupported
-           => true;
+			return actions;
+		}
 
-        internal static async Task OnLaunched(LaunchActivatedEventArgs e)
-        {
-            if (e?.Arguments?.StartsWith(appActionPrefix) ?? false)
-            {
-                var id = ArgumentsToId(e.Arguments);
+		public async Task SetAsync(IEnumerable<AppAction> actions)
+		{
+			// Load existing items
+			var jumpList = await JumpList.LoadCurrentAsync();
 
-                if (!string.IsNullOrEmpty(id))
-                {
-                    var actions = await PlatformGetAsync();
-                    var appAction = actions.FirstOrDefault(a => a.Id == id);
+			// Set as custom, not system or frequent
+			jumpList.SystemGroupKind = JumpListSystemGroupKind.None;
 
-                    if (appAction != null)
-                        AppActions.InvokeOnAppAction(null, appAction);
-                }
-            }
-        }
+			// Clear the existing items
+			jumpList.Items.Clear();
 
-        static async Task<IEnumerable<AppAction>> PlatformGetAsync()
-        {
-            // Load existing items
-            var jumpList = await JumpList.LoadCurrentAsync();
+			// Add each action
+			foreach (var a in actions)
+				jumpList.Items.Add(a.ToJumpListItem());
 
-            var actions = new List<AppAction>();
-            foreach (var item in jumpList.Items)
-                actions.Add(item.ToAction());
+			// Save the changes
+			await jumpList.SaveAsync();
+		}
 
-            return actions;
-        }
+		public event EventHandler<AppActionEventArgs> AppActionActivated;
 
-        static async Task PlatformSetAsync(IEnumerable<AppAction> actions)
-        {
-            // Load existing items
-            var jumpList = await JumpList.LoadCurrentAsync();
+		public async Task OnLaunched(LaunchActivatedEventArgs e)
+		{
+			var args = e?.Arguments;
+#if !WINDOWS_UWP
+			if (string.IsNullOrEmpty(args))
+			{
+				var cliArgs = Environment.GetCommandLineArgs();
+				if (cliArgs?.Length > 1)
+					args = cliArgs[1];
+			}
+#endif
 
-            // Set as custom, not system or frequent
-            jumpList.SystemGroupKind = JumpListSystemGroupKind.None;
+			if (args?.StartsWith(AppActionsExtensions.AppActionPrefix) ?? false)
+			{
+				var id = AppActionsExtensions.ArgumentsToId(args);
 
-            // Clear the existing items
-            jumpList.Items.Clear();
+				if (!string.IsNullOrEmpty(id))
+				{
+					var actions = await GetAsync();
+					var appAction = actions.FirstOrDefault(a => a.Id == id);
 
-            // Add each action
-            foreach (var a in actions)
-                jumpList.Items.Add(a.ToJumpListItem());
+					if (appAction != null)
+						AppActionActivated?.Invoke(null, new AppActionEventArgs(appAction));
+				}
+			}
+		}
+	}
 
-            // Save the changes
-            await jumpList.SaveAsync();
-        }
+	static partial class AppActionsExtensions
+	{
+		internal const string AppActionPrefix = "XE_APP_ACTIONS-";
 
-        static AppAction ToAction(this JumpListItem item)
-            => new AppAction(ArgumentsToId(item.Arguments), item.DisplayName, item.Description);
+		internal const string iconDirectory = "";
+		internal const string iconExtension = ".png";
 
-        static string ArgumentsToId(string arguments)
-        {
-            if (arguments?.StartsWith(appActionPrefix) ?? false)
-                return Encoding.Default.GetString(Convert.FromBase64String(arguments.Substring(appActionPrefix.Length)));
+		internal static string ArgumentsToId(this string arguments)
+		{
+			if (arguments?.StartsWith(AppActionPrefix) ?? false)
+				return Encoding.Default.GetString(Convert.FromBase64String(arguments.Substring(AppActionPrefix.Length)));
 
-            return default;
-        }
+			return default;
+		}
 
-        static JumpListItem ToJumpListItem(this AppAction action)
-        {
-            var id = appActionPrefix + Convert.ToBase64String(Encoding.Default.GetBytes(action.Id));
-            var item = JumpListItem.CreateWithArguments(id, action.Title);
+		internal static AppAction ToAction(this JumpListItem item)
+			=> new AppAction(ArgumentsToId(item.Arguments), item.DisplayName, item.Description);
 
-            if (!string.IsNullOrEmpty(action.Subtitle))
-                item.Description = action.Subtitle;
+		internal static JumpListItem ToJumpListItem(this AppAction action)
+		{
+			var id = AppActionPrefix + Convert.ToBase64String(Encoding.Default.GetBytes(action.Id));
+			var item = JumpListItem.CreateWithArguments(id, action.Title);
 
-            if (!string.IsNullOrEmpty(action.Icon))
-            {
-                var dir = IconDirectory.Trim('/', '\\').Replace('\\', '/');
+			if (!string.IsNullOrEmpty(action.Subtitle))
+				item.Description = action.Subtitle;
 
-                var ext = IconExtension;
-                if (!string.IsNullOrEmpty(ext) && !ext.StartsWith("."))
-                    ext = "." + ext;
+			if (!string.IsNullOrEmpty(action.Icon))
+			{
+				var dir = iconDirectory?.Trim('/', '\\').Replace('\\', '/');
+				if (!string.IsNullOrEmpty(dir))
+					dir += "/";
 
-                item.Logo = new Uri($"ms-appx:///{dir}/{action.Icon}{ext}");
-            }
+				var ext = iconExtension;
+				if (!string.IsNullOrEmpty(ext) && !ext.StartsWith("."))
+					ext = "." + ext;
 
-            return item;
-        }
-    }
+				item.Logo = new Uri($"ms-appx:///{dir}{action.Icon}{ext}");
+			}
+
+			return item;
+		}
+	}
 }

@@ -1,8 +1,9 @@
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices.Sensors;
 
 namespace Samples.ViewModel
 {
@@ -56,7 +57,7 @@ namespace Samples.ViewModel
 		}
 
 		public string[] Speeds { get; } =
-		   Enum.GetNames(typeof(SensorSpeed));
+			Enum.GetNames(typeof(SensorSpeed));
 
 		public int Speed
 		{
@@ -67,12 +68,14 @@ namespace Samples.ViewModel
 		public override void OnAppearing()
 		{
 			OrientationSensor.ReadingChanged += OnReadingChanged;
+
 			base.OnAppearing();
 		}
 
 		public override void OnDisappearing()
 		{
 			OnStop();
+
 			OrientationSensor.ReadingChanged -= OnReadingChanged;
 
 			base.OnDisappearing();
@@ -93,8 +96,15 @@ namespace Samples.ViewModel
 
 		void OnStop()
 		{
-			IsActive = false;
-			OrientationSensor.Stop();
+			try
+			{
+				OrientationSensor.Stop();
+				IsActive = false;
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine("Unable to stop orientation sensor: {0}", ex);
+			}
 		}
 
 		void OnReadingChanged(object sender, OrientationSensorChangedEventArgs e)

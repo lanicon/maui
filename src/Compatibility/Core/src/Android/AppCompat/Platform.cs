@@ -1,18 +1,24 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Android.Content;
 using Android.OS;
 using Android.Views;
 using Android.Views.Animations;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AView = Android.Views.View;
 
-namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
+namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
-	internal class Platform : BindableObject, IPlatformLayout, INavigation, IDisposable
+	[Obsolete]
+	[TypeConverter(typeof(PlatformTypeConverter))]
+	public class Platform : BindableObject, IPlatformLayout, INavigation
 	{
 		readonly Context _context;
 		readonly PlatformRenderer _renderer;
@@ -33,13 +39,20 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 				var view = bindable as VisualElement;
 				if (view != null)
 					view.IsPlatformEnabled = newvalue != null;
+
+				if (bindable is IView mauiView)
+				{
+					if (mauiView.Handler == null && newvalue is IVisualElementRenderer ver)
+						mauiView.Handler = new RendererToHandlerShim(ver);
+				}
+
 			});
 
-		public Platform(Context context) : this(context, false)
+		internal Platform(Context context) : this(context, false)
 		{
 		}
 
-		public Platform(Context context, bool embedded)
+		internal Platform(Context context, bool embedded)
 		{
 			_embedded = embedded;
 			_context = context;
@@ -80,7 +93,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 
 		IPageController CurrentPageController => _navModel.CurrentPage;
 
-		public void Dispose()
+		internal void Dispose()
 		{
 			if (_disposed)
 				return;
@@ -207,7 +220,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			throw new InvalidOperationException("RemovePage is not supported globally on Android, please use a NavigationPage.");
 		}
 
-		internal static SizeRequest GetNativeSize(
+		public static SizeRequest GetNativeSize(
 			IVisualElementRenderer visualElementRenderer,
 			double widthConstraint,
 			double heightConstraint)
@@ -245,7 +258,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			return result;
 		}
 
-		public static SizeRequest GetNativeSize(VisualElement view, double widthConstraint, double heightConstraint)
+		internal static SizeRequest GetNativeSize(VisualElement view, double widthConstraint, double heightConstraint)
 		{
 			Performance.Start(out string reference);
 
@@ -256,8 +269,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			{
 				returnValue = new SizeRequest(Size.Zero, Size.Zero);
 			}
-			else if (visualElementRenderer == null && view is IView iView)
+			else if ((visualElementRenderer == null || visualElementRenderer is HandlerToRendererShim) && view is IView iView)
 			{
+				Application.Current?.FindMauiContext()?.CreateLogger<Platform>()?.LogWarning(
+					"Someone called Platform.GetNativeSize instead of going through the Handler.");
+
 				returnValue = iView.Handler.GetDesiredSize(widthConstraint, heightConstraint);
 			}
 			else if (visualElementRenderer != null)
@@ -291,7 +307,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			layout = null;
 		}
 
-		internal static IVisualElementRenderer CreateRenderer(VisualElement element, Context context)
+		internal static IVisualElementRenderer CreateRenderer(
+			VisualElement element,
+			Context context,
+			AndroidX.Fragment.App.FragmentManager fragmentManager = null,
+			global::Android.Views.LayoutInflater layoutInflater = null)
 		{
 			IVisualElementRenderer renderer = null;
 
@@ -310,12 +330,27 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 				IViewHandler handler = null;
 
 				//TODO: Handle this with AppBuilderHost
+
+				if (Forms.MauiContext?.Handlers == null)
+				{
+					throw new InvalidOperationException("Forms.MauiContext.Handlers cannot be null here");
+				}
+
 				try
 				{
-					handler = Forms.MauiContext.Handlers.GetHandler(element.GetType());
+					var mauiContext = Forms.MauiContext;
+
+					if (fragmentManager != null || layoutInflater != null)
+						mauiContext = mauiContext.MakeScoped(layoutInflater, fragmentManager);
+
+					handler = mauiContext.Handlers.GetHandler(element.GetType()) as IViewHandler;
+					handler.SetMauiContext(mauiContext);
 				}
-				catch
+				catch (Exception e)
 				{
+					Microsoft.Extensions.Logging.LoggerExtensions
+						.LogWarning(Forms.MauiContext.CreateLogger<Platform>(), $"{e}");
+
 					// TODO define better catch response or define if this is needed?
 				}
 
@@ -339,25 +374,21 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 				}
 				else if (handler is IVisualElementRenderer ver)
 					renderer = ver;
-				else if (handler is IAndroidViewHandler vh)
+				else if (handler is IPlatformViewHandler vh)
 				{
-					vh.SetContext(context);
 					renderer = new HandlerToRendererShim(vh);
+					element.Handler = handler;
+					SetRenderer(element, renderer);
 				}
 			}
 
 			renderer.SetElement(element);
-			return renderer;
-		}
 
-		internal static IVisualElementRenderer CreateRenderer(VisualElement element, AndroidX.Fragment.App.FragmentManager fragmentManager, Context context)
-		{
-			IVisualElementRenderer renderer = Registrar.Registered.GetHandlerForObject<IVisualElementRenderer>(element, context) ?? new DefaultRenderer(context);
-
-			var managesFragments = renderer as IManageFragments;
-			managesFragments?.SetFragmentManager(fragmentManager);
-
-			renderer.SetElement(element);
+			if (fragmentManager != null)
+			{
+				var managesFragments = renderer as IManageFragments;
+				managesFragments?.SetFragmentManager(fragmentManager);
+			}
 
 			return renderer;
 		}
@@ -564,7 +595,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 
 		void LayoutRootPage(Page page, int width, int height)
 		{
-			page.Layout(new Rectangle(0, 0, _context.FromPixels(width), _context.FromPixels(height)));
+			page.Layout(new Rect(0, 0, _context.FromPixels(width), _context.FromPixels(height)));
 		}
 
 		Task PresentModal(Page modal, bool animated)
@@ -657,7 +688,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			{
 				if (changed)
 				{
-					_modal.Layout(new Rectangle(0, 0, Context.FromPixels(r - l), Context.FromPixels(b - t)));
+					_modal.Layout(new Rect(0, 0, Context.FromPixels(r - l), Context.FromPixels(b - t)));
 					_backgroundView.Layout(0, 0, r - l, b - t);
 				}
 
@@ -673,30 +704,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 			void UpdateBackgroundColor()
 			{
 				Color modalBkgndColor = _modal.BackgroundColor;
-				if (modalBkgndColor.IsDefault)
+				if (modalBkgndColor == null)
 					_backgroundView.SetWindowBackground();
 				else
 					_backgroundView.SetBackgroundColor(modalBkgndColor.ToAndroid());
 			}
 		}
 
-		internal static int GenerateViewId()
-		{
-			// getting unique Id's is an art, and I consider myself the Jackson Pollock of the field
-			if ((int)Forms.SdkInt >= 17)
-				return global::Android.Views.View.GenerateViewId();
-
-			// Numbers higher than this range reserved for xml
-			// If we roll over, it can be exceptionally problematic for the user if they are still retaining things, android's internal implementation is
-			// basically identical to this except they do a lot of locking we don't have to because we know we only do this
-			// from the UI thread
-			if (s_id >= 0x00ffffff)
-				s_id = 0x00000400;
-
-			return s_id++;
-		}
-
-		static int s_id = 0x00000400;
+		internal static int GenerateViewId() => global::Android.Views.View.GenerateViewId();
 
 		#region Statics
 
@@ -707,33 +722,23 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.AppCompat
 
 		#endregion
 
-		#region Previewer Stuff
-
-		internal static readonly BindableProperty PageContextProperty =
-			BindableProperty.CreateAttached("PageContext", typeof(Context), typeof(Platform), null);
-
-		internal static void SetPageContext(BindableObject bindable, Context context)
+		private sealed class PlatformTypeConverter : TypeConverter
 		{
-			// Set a context for this page and its child controls
-			bindable.SetValue(PageContextProperty, context);
+			public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType) => destinationType == typeof(ViewGroup);
+			public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+				=> value switch
+				{
+					Platform platformValue when destinationType == typeof(ViewGroup) => (ViewGroup)platformValue,
+					_ => throw new NotSupportedException(),
+				};
+
+			public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => false;
+			public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value) => throw new NotSupportedException();
 		}
 
-		static Context GetPreviewerContext(Element element)
-		{
-			// Walk up the tree and find the Page this element is hosted in
-			Element parent = element;
-			while (!Application.IsApplicationOrNull(parent.RealParent))
-			{
-				parent = parent.RealParent;
-			}
-
-			// If a page is found, return the PageContext set by the previewer for that page (if any)
-			return (parent as Page)?.GetValue(PageContextProperty) as Context;
-		}
-
-		#endregion
-
+#pragma warning disable CS0618 // Type or member is obsolete
 		internal class DefaultRenderer : VisualElementRenderer<View>, ILayoutChanges
+#pragma warning restore CS0618 // Type or member is obsolete
 		{
 			public bool NotReallyHandled { get; private set; }
 

@@ -9,6 +9,7 @@ using NUnit.Framework;
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
 	[ContentProperty(nameof(Text))]
+	[AcceptEmptyServiceProvider]
 	public class Gh9212MarkupExtension : IMarkupExtension
 	{
 		public string Text { get; set; }
@@ -26,9 +27,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp] public void Setup() => Device.PlatformServices = new MockPlatformServices();
-			[TearDown] public void TearDown() => Device.PlatformServices = null;
-
 			[Test]
 			public void SingleQuoteAndTrailingSpaceInMarkupValue([Values(false, true)] bool useCompiledXaml)
 			{

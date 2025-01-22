@@ -1,32 +1,41 @@
 ﻿using System;
 using System.Globalization;
-using System.Linq;
 using Foundation;
 using UIKit;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class TimePickerExtensions
 	{
-		public static void UpdateFormat(this MauiTimePicker nativeView, ITimePicker view)
+		public static void UpdateFormat(this MauiTimePicker mauiTimePicker, ITimePicker timePicker)
 		{
-			nativeView.UpdateTime(view, null);
+			mauiTimePicker.UpdateTime(timePicker, null);
 		}
 
-		public static void UpdateFormat(this MauiTimePicker nativeView, ITimePicker view, UIDatePicker? picker)
+		public static void UpdateFormat(this UIDatePicker picker, ITimePicker timePicker)
 		{
-			nativeView.UpdateTime(view, picker);
+			picker.UpdateTime(timePicker);
 		}
 
-		public static void UpdateTime(this MauiTimePicker nativeView, ITimePicker view)
+		public static void UpdateFormat(this MauiTimePicker mauiTimePicker, ITimePicker timePicker, UIDatePicker? picker)
 		{
-			nativeView.UpdateTime(view, null);
+			mauiTimePicker.UpdateTime(timePicker, picker);
 		}
 
-		public static void UpdateTime(this MauiTimePicker nativeTimePicker, ITimePicker timePicker, UIDatePicker? picker)
+		public static void UpdateTime(this MauiTimePicker mauiTimePicker, ITimePicker timePicker)
+		{
+			mauiTimePicker.UpdateTime(timePicker, null);
+		}
+
+		public static void UpdateTime(this UIDatePicker picker, ITimePicker timePicker)
 		{
 			if (picker != null)
 				picker.Date = new DateTime(1, 1, 1).Add(timePicker.Time).ToNSDate();
+		}
+
+		public static void UpdateTime(this MauiTimePicker mauiTimePicker, ITimePicker timePicker, UIDatePicker? picker)
+		{
+			picker?.UpdateTime(timePicker);
 
 			var cultureInfo = Culture.CurrentCulture;
 
@@ -41,24 +50,34 @@ namespace Microsoft.Maui
 			var time = timePicker.Time;
 			var format = timePicker.Format;
 
-			nativeTimePicker.Text = time.ToFormattedString(format, cultureInfo);
+			mauiTimePicker.Text = time.ToFormattedString(format, cultureInfo);
 
-			if (timePicker.Format?.Contains('H') == true)
+			if (format != null)
 			{
-				var ci = new CultureInfo("de-DE");
-				NSLocale locale = new NSLocale(ci.TwoLetterISOLanguageName);
+				if (format.Contains('H', StringComparison.Ordinal))
+				{
+					var ci = new CultureInfo("de-DE");
+					NSLocale locale = new NSLocale(ci.TwoLetterISOLanguageName);
 
-				if (picker != null)
-					picker.Locale = locale;
-			}
-			else if (timePicker.Format?.Contains('h') == true)
-			{
-				var ci = new CultureInfo("en-US");
-				NSLocale locale = new NSLocale(ci.TwoLetterISOLanguageName);
+					if (picker != null)
+						picker.Locale = locale;
+				}
+				else if (format.Contains('h', StringComparison.Ordinal))
+				{
+					var ci = new CultureInfo("en-US");
+					NSLocale locale = new NSLocale(ci.TwoLetterISOLanguageName);
 
-				if (picker != null)
-					picker.Locale = locale;
+					if (picker != null)
+						picker.Locale = locale;
+				}
 			}
+
+			mauiTimePicker.UpdateCharacterSpacing(timePicker);
+		}
+
+		public static void UpdateTextAlignment(this MauiTimePicker textField, ITimePicker timePicker)
+		{
+			// TODO: Update TextAlignment based on the EffectiveFlowDirection property.
 		}
 	}
 }

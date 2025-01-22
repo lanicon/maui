@@ -2,6 +2,9 @@ trigger:
   branches:
     include:
     - main
+    - release/*
+    - net9.0
+    - net8.0
   tags:
     include:
     - '*'
@@ -16,13 +19,16 @@ trigger:
     - LICENSE.TXT
     - PATENTS.TXT
     - README.md
-    - SECURITY.md
     - THIRD-PARTY-NOTICES.TXT
 
 pr:
   branches:
     include:
     - main
+    - release/*
+    - net9.0
+    - net8.0
+    - net9.0
   paths:
     include:
     - '*'
@@ -34,292 +40,328 @@ pr:
     - LICENSE.TXT
     - PATENTS.TXT
     - README.md
-    - SECURITY.md
     - THIRD-PARTY-NOTICES.TXT
-
-schedules:
-- cron: "0 0 * * *"
-  displayName: Daily midnight build
-  branches:
-    include:
-    - main
 
 variables:
   - template: /eng/pipelines/common/variables.yml
-  - template: /eng/pipelines/common/variables-net6.yml
-  - name: LogDirectory
-    value: $(Build.ArtifactStagingDirectory)/logs
-  - name: provisionator.xcode
-    value: '$(System.DefaultWorkingDirectory)/eng/provisioning/xcode.csx'
-  - name: provisionator.path
-    value: '$(System.DefaultWorkingDirectory)/eng/provisioning/provisioning.csx'
-  - name: provisionator.extraArguments
-    value: '--v'
+  - template: templates/common/vs-release-vars.yml@sdk-insertions
 
 parameters:
+
+  - name: UseProvisionator
+    type: boolean
+    default: false
+
+  - name: provisionatorChannel
+    displayName: 'Provisionator channel'
+    type: string
+    default: 'latest'           # Support for launching a build against a Provisionator PR (e.g., pr/[github-account-name]/[pr-number]) as a means to test in-progress Provisionator changes
+
   - name: BuildEverything
     type: boolean
     default: false
+
   - name: BuildConfigurations
     type: object
     default:
       - Debug
       - Release
+
   - name: BuildPlatforms
     type: object
     default:
-      - name: windows
-        poolName: 'Azure Pipelines'
-        vmImage: windows-latest
-        bootsAndroid: $(Android.Msi)
-        bootsiOS: $(iOS.Msi)
-        artifact: net6-windows
-      - name: macos
-        poolName: $(macOSXNet6VmPool)
-        vmImage: $(macOSXNet6VmImage)
-        bootsAndroid: $(Android.Pkg)
-        bootsiOS: $(iOS.Pkg)
-        bootsMacCatalyst: $(MacCatalyst.Pkg)
-        artifact: net6-macos
+      - name: Windows
+        poolName: $(windowsVmPool)
+        vmImage: $(windowsVmImage)
+        demands:
+           - Agent.OS -equals Windows_NT        
+        artifact: build-windows
+      - name: macOS
+        poolName: $(macOSXVmPool)
+        vmImage: $(macOSXVmImage)
+        demands:
+          - macOS.Name -equals Sonoma
+          - macOS.Architecture -equals x64
+        artifact: build-macos
+ 
   - name: PackPlatforms
     type: object
     default:
-      - name: windows
-        poolName: 'Azure Pipelines'
-        vmImage: windows-latest
-        bootsAndroid: $(Android.Msi)
-        bootsiOS: $(iOS.Msi)
-        artifact: nuget-windows
-      - name: macos
-        poolName: 'Azure Pipelines'
-        vmImage: macos-latest
-        bootsAndroid: $(Android.Pkg)
-        bootsiOS: $(iOS.Pkg)
-        bootsMacCatalyst: $(MacCatalyst.Pkg)
+      - name: Windows
+        poolName: $(windowsVmPool)
+        vmImage: $(windowsVmImage)
+        demands: 
+          - Agent.OS -equals Windows_NT
         artifact: nuget
+      - name: macOS
+        poolName: $(macOSXVmPool)
+        vmImage: $(macOSXVmImage)
+        demands:
+          - macOS.Name -equals Sonoma
+          - macOS.Architecture -equals arm64
+        artifact: nuget-macos
+
+  - name: BuildTemplatePlatforms
+    type: object
+    default:
+      - name: Windows
+        poolName: $(windowsVmPool)
+        vmImage: $(windowsVmImage)
+        demands: 
+          - Agent.OS -equals Windows_NT
+        artifact: build-windows
+      - name: macOS
+        poolName: $(macOSXVmPool)
+        vmImage: $(macOSXVmImage)
+        demands:
+          - macOS.Name -equals Sonoma
+          - macOS.Architecture -equals x64
+        artifact: build-macos
+
+  - name: RunTemplatePlatforms
+    type: object
+    default:
+    - name: $(androidTestsVmPool)
+      vmImage: $(androidTestsVmImage)
+      demands:
+        - macOS.Name -equals Sonoma
+        - macOS.Architecture -equals x64
+      testName: RunOnAndroid
+      artifact: templates-run-android
+    - name: $(iosTestsVmPool)
+      vmImage: $(iosTestsVmImage)
+      demands:
+        - macOS.Name -equals Sonoma
+        - macOS.Architecture -equals x64
+      testName: RunOniOS
+      artifact: templates-run-ios
+
+  - name: MacTemplatePool
+    type: object
+    default:
+      name: $(androidTestsVmPool)
+      vmImage: $(androidTestsVmImage)
+      demands:
+        - macOS.Name -equals Sonoma
+        - macOS.Architecture -equals arm64
+
+  - name: TestTargetFrameworks
+    type: object
+    default:
+      - name: default
+        tfm: default
+      - name: net9
+        tfm: net9.0
 
 resources:
   repositories:
-    - repository: xamarin-templates
+    - repository: yaml-templates
       type: github
       name: xamarin/yaml-templates
       endpoint: xamarin
-      ref: refs/heads/main # still defaults to master even though main is the main branch
+      ref: refs/heads/main
+    - repository: sdk-insertions
+      type: github
+      name: xamarin/sdk-insertions
+      ref: refs/heads/main
+      endpoint: xamarin
 
 stages:
 
-  - stage: windows
-    displayName: Build Windows
+  - stage: build_net
+    displayName: Build .NET MAUI
+    dependsOn: []
     jobs:
-      - ${{ each BuildCondition in parameters.BuildConfigurations }}:
-        - job: win_hosted_${{ BuildCondition }}
+      - ${{ each BuildPlatform in parameters.BuildPlatforms }}:
+        - ${{ each BuildConfiguration in parameters.BuildConfigurations }}:
+          - job: build_net_${{ BuildPlatform.name }}_${{ BuildConfiguration }}
+            workspace:
+              clean: all
+            displayName: ${{ BuildPlatform.name }} (${{ BuildConfiguration }})
+            timeoutInMinutes: 240
+            condition: or(
+              ${{ parameters.BuildEverything }},
+              ne(variables['Build.Reason'], 'PullRequest'),
+              eq('${{ BuildConfiguration }}', 'Release'))
+            pool:
+              name: ${{ BuildPlatform.poolName }}
+              vmImage: ${{ BuildPlatform.vmImage }}
+              demands: ${{ BuildPlatform.demands }}
+            steps:
+              - template: common/provision.yml
+                parameters:
+                  poolName: ${{ BuildPlatform.poolName }}
+                  skipAndroidSdks: true
+                  skipAndroidImages: true
+                  installDefaultAndroidApi: false
+                  skipXcode: ${{ ne(BuildPlatform.name , 'macOS') }}
+                  ${{ if or(eq(parameters.UseProvisionator, true), eq(variables['internalProvisioning'],'True') ) }}:
+                    skipProvisionator: false
+                    gitHubToken: $(github--pat--vs-mobiletools-engineering-service2)
+                  ${{ else }}:
+                    skipProvisionator: true
+            
+              - pwsh: ./build.ps1 --target=dotnet --configuration="${{ BuildConfiguration }}" --verbosity=diagnostic
+                displayName: 'Install .NET'
+                retryCountOnTaskFailure: 3
+                env:
+                  DOTNET_TOKEN: $(dotnetbuilds-internal-container-read-token)
+                  PRIVATE_BUILD: $(PrivateBuild)
+              - pwsh: ./build.ps1 --target=dotnet-build --configuration="${{ BuildConfiguration }}" --verbosity=diagnostic
+                displayName: 'Build .NET Maui'
+              - pwsh: ./build.ps1 --target=dotnet-test --configuration="${{ BuildConfiguration }}" --verbosity=diagnostic
+                displayName: 'Run Unit Tests'
+              - task: PublishTestResults@2
+                condition: always()
+                inputs:
+                  testRunner: VSTest
+                  testResultsFiles: '$(build.artifactstagingdirectory)/**/*.trx'
+              - task: PublishBuildArtifacts@1
+                condition: always()
+                displayName: Publish Artifacts (${{ BuildPlatform.artifact }})
+                inputs:
+                  ArtifactName: ${{ BuildPlatform.artifact }}
+
+  - stage: pack_net
+    displayName: Pack .NET MAUI
+    dependsOn: []
+    jobs:
+      - ${{ each PackPlatform in parameters.PackPlatforms }}:
+        - job: pack_net_${{ PackPlatform.name }}
           workspace:
             clean: all
-          displayName: Build Windows Phase (${{ BuildCondition }})
-          condition: or(
-            ${{ parameters.BuildEverything }},
-            ne(variables['Build.Reason'], 'PullRequest'),
-            eq('${{ BuildCondition }}', 'Release'))
-          timeoutInMinutes: 60
+          displayName: ${{ PackPlatform.name }}
+          timeoutInMinutes: 240
           pool:
-            name: $(vs2019VmPool)
-            vmImage: $(vs2019VmImage)
-            demands: [ msbuild ]
+            name: ${{ PackPlatform.poolName }}
+            vmImage: ${{ PackPlatform.vmImage }}
+            demands: ${{ PackPlatform.demands }}
+          variables:
+            - name: _buildScript
+              value: $(Build.SourcesDirectory)/build.cmd -ci
+            - name: _BuildConfig
+              value: Release
+            - name: _BuildOfficalId
+              value: $[ format('{0}.{1}', format('{0:yyyyMMdd}', pipeline.startTime), counter(format('{0:yyyyMMdd}', pipeline.startTime), 1) )]
+
           steps:
-            - template: common/build-windows.yml
-
-  - stage: build_osx
-    displayName: iOS
-    dependsOn: []
+            - template: common/pack.yml
+              parameters:
+                platform: ${{ PackPlatform.name }}
+                provisionatorChannel: ${{ parameters.provisionatorChannel }}
+                artifact:  ${{ PackPlatform.artifact }}
+                artifactsPath: $(Build.ArtifactStagingDirectory)
+                artifactBinaries: 'pack-binaries'
+                buildConfiguration: $(_BuildConfig)
+                dotnetScript: $(Build.SourcesDirectory)/dotnet.cmd
+                buildScript: $(_buildScript)
+                repoArtifactsPath: $(Build.Arcade.ArtifactsPath)
+                repoLogPath: $(Build.Arcade.LogsPath)
+                repoTestResultsPath: $(Build.Arcade.TestResultsPath)
+                gitHubToken: $(github--pat--vs-mobiletools-engineering-service2)
+                officialBuildId: $(_BuildOfficalId)
+                prepareSteps:
+                  - template: common/provision.yml
+                    parameters:
+                      checkoutDirectory: '$(System.DefaultWorkingDirectory)'
+                      provisionatorChannel: ${{ parameters.provisionatorChannel }}
+                      skipAndroidSdks: true
+                      skipAndroidImages: true
+                      installDefaultAndroidApi: true
+                      skipXcode: ${{ ne(PackPlatform.name , 'macOS') }}
+                      ${{ if or(eq(parameters.UseProvisionator, 'True'), eq(variables['internalProvisioning'],'True') )}}:
+                        skipProvisionator: false
+                        gitHubToken: $(github--pat--vs-mobiletools-engineering-service2)
+                      ${{ else }}:  
+                        skipProvisionator: true
+                      
+  - stage: samples_net
+    displayName: Test .NET MAUI Samples
+    dependsOn: pack_net
     jobs:
-      - job: ios
-        workspace:
-          clean: all
-        displayName: Build ControlGallery iOS
-        timeoutInMinutes: 120
-        pool:
-          name:  $(macOSXVmPool)
-          vmImage: $(macOSXVmImage)
-          demands:
-            - sh
-            - Xamarin.iOS
-        variables:
-          provisionator.xcode : '$(System.DefaultWorkingDirectory)/eng/provisioning/xcode.csx'
-          provisionator.path : '$(System.DefaultWorkingDirectory)/eng/provisioning/provisioning.csx'
-          provisionator.extraArguments : '--v'
-        steps:
-          - template: common/controlgallery-ios.yml
-
-  - stage: build_android
-    displayName: Android
-    dependsOn: []
-    jobs:
-      - job: android
-        workspace:
-          clean: all
-        displayName: Build ControlGallery Android
-        timeoutInMinutes: 120
-        pool:
-          name:  $(macOSXVmPool)
-          vmImage: $(macOSXVmImage)
-        variables:
-          renderers: 'FAST'
-          outputfolder: 'newRenderers'
-          provisionator.xcode : '$(System.DefaultWorkingDirectory)/eng/provisioning/xcode.csx'
-          provisionator.path : '$(System.DefaultWorkingDirectory)/eng/provisioning/provisioning.csx'
-          provisionator.extraArguments : '--v'
-        steps:
-          - template: common/controlgallery-android.yml
-
-  - stage: pack_net6
-    displayName: Pack .NET 6
-    dependsOn: []
-    jobs:
-      - ${{ each BuildPlatform in parameters.PackPlatforms }}:
-        - job: pack_net6_${{ BuildPlatform.name }}
+      - ${{ each BuildPlatform in parameters.BuildPlatforms }}:
+        - job: build_net_${{ BuildPlatform.name }}_samples
           workspace:
             clean: all
-          displayName: Pack .NET 6 (${{ BuildPlatform.name }})
+          displayName: ${{ BuildPlatform.name }}
           timeoutInMinutes: 120
-          condition: or(
-            ${{ parameters.BuildEverything }},
-            ne(variables['Build.Reason'], 'PullRequest'),
-            eq('${{ BuildPlatform.name }}', 'macos'))
           pool:
             name: ${{ BuildPlatform.poolName }}
             vmImage: ${{ BuildPlatform.vmImage }}
-          ${{ if eq(BuildPlatform.name, 'macos') }}:
-            variables:
-              DotNet.Root: /usr/local/share/dotnet/
-              DotNet.Tools: ~/.dotnet/tools
+            demands: ${{ BuildPlatform.demands }}
           steps:
-            - ${{ if eq(BuildPlatform.name, 'macos') }}:
-              - task: UseDotNet@2
-                displayName: install .NET Core 3.1
-                inputs:
-                  version: 3.1.x
-                  installationPath: $(DotNet.Root)
-            - template: common/dotnet-install.yml
-            - pwsh: |
-                dotnet tool install --global boots
-                boots ${{ BuildPlatform.bootsAndroid }}
-                boots ${{ BuildPlatform.bootsiOS }}
-                if ('${{ BuildPlatform.bootsMacCatalyst }}' -ne '') {
-                  boots ${{ BuildPlatform.bootsMacCatalyst }}
-                }
-              displayName: install .NET workloads
-              errorActionPreference: stop
-            - ${{ if eq(BuildPlatform.name, 'macos') }}:
-              - bash: |
-                  set -x
-                  mkdir -p ~/Library/Preferences/Xamarin
-                  rm -f ~/Library/Preferences/Xamarin/Settings.plist
-                  /usr/libexec/PlistBuddy -c "add :AppleSdkRoot string $(dirname $(dirname $(xcode-select -p)))" ~/Library/Preferences/Xamarin/Settings.plist || true
-                  cat ~/Library/Preferences/Xamarin/Settings.plist || true
-                displayName: configure vsmac xcode
-            - pwsh: ./.nuspec/package.ps1 -configuration Release
-              displayName: pack nugets
-              errorActionPreference: stop
-            - task: CopyFiles@2
-              displayName: 'Copy SignList.xml Files'
+            - template: common/provision.yml
+              parameters:
+                poolName: ${{ BuildPlatform.poolName }}
+                skipAndroidSdks: true
+                skipAndroidImages: true
+                installDefaultAndroidApi: true
+                skipXcode: ${{ ne(BuildPlatform.name , 'macOS') }}
+                ${{ if or(eq(parameters.UseProvisionator, true), eq(variables['internalProvisioning'],'True') ) }}:
+                  skipProvisionator: false
+                  gitHubToken: $(github--pat--vs-mobiletools-engineering-service2)
+                ${{ else }}:  
+                  skipProvisionator: true
+            - task: DownloadBuildArtifacts@0
+              displayName: 'Download Packages'
               inputs:
-                Contents: |
-                  **/*.nupkg
-                  **/*.snupkg
-                  **/SignList.xml
-                TargetFolder: $(build.artifactstagingdirectory)
-                flattenFolders: true
+                artifactName: nuget
+                itemPattern: '**/*.nupkg'
+                downloadPath: $(System.DefaultWorkingDirectory)/artifacts
+            - pwsh: Move-Item -Path artifacts\nuget\*.nupkg -Destination artifacts -Force
+              displayName: Move the downloaded artifacts
+            - pwsh: ./build.ps1 --target=dotnet-local-workloads --verbosity=diagnostic
+              displayName: 'Install .NET (Local Workloads)'
+              retryCountOnTaskFailure: 3
+              env:
+                DOTNET_TOKEN: $(dotnetbuilds-internal-container-read-token)
+                PRIVATE_BUILD: $(PrivateBuild)
+            - pwsh: ./build.ps1 --target=dotnet-integration-build --verbosity=diagnostic
+              displayName: Build Microsoft.Maui.IntegrationTests
+            - pwsh: ./build.ps1 --target=dotnet-integration-test --filter="Category=Samples" --resultsfilename="integration-samples" --verbosity=diagnostic
+              displayName: Run ${{ BuildPlatform.name }} sample build tests
+            - task: PublishTestResults@2
+              displayName: Publish the ${{ BuildPlatform.name }} sample build tests
+              condition: always()
+              inputs:
+                testRunner: VSTest
+                testResultsFiles: '$(build.artifactstagingdirectory)/**/*.trx'
+                testRunTitle: ${{ BuildPlatform.name }} sample build tests
             - task: PublishBuildArtifacts@1
               condition: always()
               displayName: publish artifacts
               inputs:
-                ArtifactName: ${{ BuildPlatform.artifact }}
+                ArtifactName: build_net_${{ BuildPlatform.name }}_samples
 
-  - stage: build_net6
-    displayName: Build .NET 6
-    dependsOn: []
+  - stage: templates_net
+    displayName: Test Templates
+    dependsOn: pack_net
     jobs:
-      - ${{ each BuildPlatform in parameters.BuildPlatforms }}:
-        - ${{ each BuildCondition in parameters.BuildConfigurations }}:
-          - job: build_net6_${{ BuildPlatform.name }}_${{ BuildCondition }}
-            workspace:
-              clean: all
-            displayName: Build .NET 6 (${{ BuildPlatform.name }} | ${{ BuildCondition }})
-            timeoutInMinutes: 120
-            condition: or(
+    - template: common/maui-templates.yml
+      parameters:
+        RunPlatforms: ${{ parameters.RunTemplatePlatforms }}
+        BuildPlatforms: ${{ parameters.BuildTemplatePlatforms }}
+        MacBuildPool: ${{ parameters.MacTemplatePool }}
+        conditionMacTemplates: or(
               ${{ parameters.BuildEverything }},
               ne(variables['Build.Reason'], 'PullRequest'),
-              and(eq('${{ BuildPlatform.name }}', 'macos'), eq('${{ BuildCondition }}', 'Release')))
-            pool:
-              name: ${{ BuildPlatform.poolName }}
-              vmImage: ${{ BuildPlatform.vmImage }}
-            ${{ if eq(BuildPlatform.name, 'macos') }}:
-              variables:
-                DotNet.Root: /usr/local/share/dotnet/
-                DotNet.Tools: ~/.dotnet/tools
-            steps:
-              - ${{ if eq(BuildPlatform.name, 'macos') }}:
-                - task: UseDotNet@2
-                  displayName: install .NET Core 3.1
-                  inputs:
-                    version: 3.1.x
-                    installationPath: $(DotNet.Root)
-              - template: common/dotnet-install.yml
-              - pwsh: |
-                  dotnet tool install --global boots
-                  boots ${{ BuildPlatform.bootsAndroid }}
-                  boots ${{ BuildPlatform.bootsiOS }}
-                  if ('${{ BuildPlatform.bootsMacCatalyst }}' -ne '') {
-                    boots ${{ BuildPlatform.bootsMacCatalyst }}
-                  }
-                displayName: install .NET workloads
-                errorActionPreference: stop
-              - ${{ if eq(BuildPlatform.name, 'macos') }}:
-                - bash: |
-                    set -x
-                    mkdir -p ~/Library/Preferences/Xamarin
-                    rm -f ~/Library/Preferences/Xamarin/Settings.plist
-                    /usr/libexec/PlistBuddy -c "add :AppleSdkRoot string $(dirname $(dirname $(xcode-select -p)))" ~/Library/Preferences/Xamarin/Settings.plist || true
-                    cat ~/Library/Preferences/Xamarin/Settings.plist || true
-                  displayName: configure vsmac xcode
-              - pwsh: |
-                  dotnet build Microsoft.Maui.BuildTasks-net6.sln -c $(BuildConfiguration) -bl:$(LogDirectory)/$(BuildConfiguration)-buildtasks.binlog
-                  dotnet build Microsoft.Maui-net6.sln -c $(BuildConfiguration) -bl:$(LogDirectory)/$(BuildConfiguration).binlog
-                displayName: build samples
-                errorActionPreference: stop
-              - task: PublishBuildArtifacts@1
-                condition: always()
-                displayName: publish artifacts
-                inputs:
-                  ArtifactName: ${{ BuildPlatform.artifact }}
-
-  - template: common/device-tests.yml
-    parameters:
-      ${{ if or(parameters.BuildEverything, ne(variables['Build.Reason'], 'PullRequest')) }}:
-        androidApiLevels: [ 30, 29, 21 ]
-        iosVersions: [ 'latest' ]
-      projects:
-        - name: essentials
-          desc: Essentials
-          android: $(System.DefaultWorkingDirectory)/src/Essentials/test/DeviceTests.Android/Essentials.DeviceTests.Android.csproj
-          ios: $(System.DefaultWorkingDirectory)/src/Essentials/test/DeviceTests.iOS/Essentials.DeviceTests.iOS.csproj
-        - name: core
-          desc: Core
-          android: $(System.DefaultWorkingDirectory)/src/Core/tests/DeviceTests.Android/Core.DeviceTests.Android.csproj
-          ios: $(System.DefaultWorkingDirectory)/src/Core/tests/DeviceTests.iOS/Core.DeviceTests.iOS.csproj
-
-  # only sign using the private server
+              eq(variables['System.TeamProject'], 'devdiv'))
+        prepareSteps:
+          - template: common/provision.yml
+            parameters:
+              checkoutDirectory: '$(System.DefaultWorkingDirectory)'
+              provisionatorChannel: ${{ parameters.provisionatorChannel }}
+              skipAndroidSdks: true
+              skipAndroidImages: true
+              installDefaultAndroidApi: true
+              skipXcode: false
+              ${{ if or(eq(parameters.UseProvisionator, 'True'), eq(variables['internalProvisioning'],'True') )}}:
+                skipProvisionator: false
+                gitHubToken: $(github--pat--vs-mobiletools-engineering-service2)
+              ${{ else }}:  
+                skipProvisionator: true
+          
+        
   - ${{ if eq(variables['System.TeamProject'], 'devdiv') }}:
-    - stage: nuget_signing
-      dependsOn: pack_net6
-      displayName: Sign Nuget
-      jobs:
-        - template: sign-artifacts/jobs/v2.yml@xamarin-templates
-          parameters:
-            teamName: Maui
-            usePipelineArtifactTasks: false
-            targetFolder: $(Build.ArtifactStagingDirectory)/nuget/signed
-            signedArtifactName: nuget
-            signedArtifactPath: signed
-            displayName: Sign Phase
-            condition: and(succeeded(), ne(variables['signVmImage'], ''), or(eq(variables['Sign'], 'true'), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), startsWith(variables['Build.SourceBranch'],'refs/tags/'))))
+    - template: common/localization-handoff.yml                     # Process outgoing strings [Localization Handoff]
+    - template: common/localization-handback.yml                    # Process incoming translations and Create PR to main [Localization Handback]

@@ -1,10 +1,13 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using UIKit;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
+using UIKit;
 using static Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific.Page;
 using PageUIStatusBarAnimation = Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific.UIStatusBarAnimation;
 using TabbedPageConfiguration = Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific.TabbedPage;
@@ -12,6 +15,7 @@ using TranslucencyMode = Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecif
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.TabbedRenderer instead")]
 	public class TabbedRenderer : UITabBarController, IVisualElementRenderer, IEffectControlProvider
 	{
 		bool _barBackgroundColorWasSet;
@@ -92,7 +96,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		public void SetElementSize(Size size)
 		{
 			if (_loaded)
-				Element.Layout(new Rectangle(Element.X, Element.Y, size.Width, size.Height));
+				Element.Layout(new Rect(Element.X, Element.Y, size.Width, size.Height));
 			else
 				_queuedSize = size;
 		}
@@ -102,6 +106,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			get { return this; }
 		}
 
+		[System.Runtime.Versioning.UnsupportedOSPlatform("ios8.0")]
+		[System.Runtime.Versioning.UnsupportedOSPlatform("tvos")]
 		public override void DidRotate(UIInterfaceOrientation fromInterfaceOrientation)
 		{
 			base.DidRotate(fromInterfaceOrientation);
@@ -133,16 +139,16 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (!Element.Bounds.IsEmpty)
 			{
-				View.Frame = new System.Drawing.RectangleF((float)Element.X, (float)Element.Y, (float)Element.Width, (float)Element.Height);
+				View.Frame = new CoreGraphics.CGRect((float)Element.X, (float)Element.Y, (float)Element.Width, (float)Element.Height);
 			}
 
 			var frame = View.Frame;
 			var tabBarFrame = TabBar.Frame;
-			Page.ContainerArea = new Rectangle(0, 0, frame.Width, frame.Height - tabBarFrame.Height);
+			Page.ContainerArea = new Rect(0, 0, frame.Width, frame.Height - tabBarFrame.Height);
 
 			if (!_queuedSize.IsZero)
 			{
-				Element.Layout(new Rectangle(Element.X, Element.Y, _queuedSize.Width, _queuedSize.Height));
+				Element.Layout(new Rect(Element.X, Element.Y, _queuedSize.Width, _queuedSize.Height));
 				_queuedSize = Size.Zero;
 			}
 
@@ -188,17 +194,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			// Setting TabBarItem.Title in iOS 10 causes rendering bugs
 			// Work around this by creating a new UITabBarItem on each change
-			if (e.PropertyName == Page.TitleProperty.PropertyName && !Forms.IsiOS10OrNewer)
-			{
-				var page = (Page)sender;
-				var renderer = Platform.GetRenderer(page);
-				if (renderer == null)
-					return;
-
-				if (renderer.ViewController.TabBarItem != null)
-					renderer.ViewController.TabBarItem.Title = page.Title;
-			}
-			else if (e.PropertyName == Page.IconImageSourceProperty.PropertyName || e.PropertyName == Page.TitleProperty.PropertyName && Forms.IsiOS10OrNewer)
+			if (e.PropertyName == Page.IconImageSourceProperty.PropertyName || e.PropertyName == Page.TitleProperty.PropertyName)
 			{
 				var page = (Page)sender;
 
@@ -315,9 +311,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		void SetControllers()
 		{
 			var list = new List<UIViewController>();
-			for (var i = 0; i < Element.LogicalChildren.Count; i++)
+			var logicalChildren = ((IElementController)Element).LogicalChildren;
+			for (var i = 0; i < logicalChildren.Count; i++)
 			{
-				var child = Element.LogicalChildren[i];
+				var child = logicalChildren[i];
 				var v = child as VisualElement;
 				if (v == null)
 					continue;
@@ -354,7 +351,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			var barBackgroundColor = Tabbed.BarBackgroundColor;
-			var isDefaultColor = barBackgroundColor.IsDefault;
+			var isDefaultColor = barBackgroundColor == null;
 
 			if (isDefaultColor && !_barBackgroundColorWasSet)
 				return;
@@ -368,8 +365,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (!isDefaultColor)
 				_barBackgroundColorWasSet = true;
-			
-			TabBar.BarTintColor = isDefaultColor ? _defaultBarColor : barBackgroundColor.ToUIColor();
+
+			TabBar.BarTintColor = isDefaultColor ? _defaultBarColor : barBackgroundColor.ToPlatform();
 		}
 
 		void UpdateBarBackground()
@@ -388,7 +385,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			var barTextColor = Tabbed.BarTextColor;
-			var isDefaultColor = barTextColor.IsDefault;
+			var isDefaultColor = barTextColor == null;
 
 			if (isDefaultColor && !_barTextColorWasSet)
 				return;
@@ -406,15 +403,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (isDefaultColor)
 				tabBarTextColor = _defaultBarTextColor;
 			else
-				tabBarTextColor = barTextColor.ToUIColor();
+				tabBarTextColor = barTextColor.ToPlatform();
 
-#if MACCATALYST
 			var attributes = new UIStringAttributes();
 			attributes.ForegroundColor = tabBarTextColor;
-#else
-			var attributes = new UITextAttributes();
-			attributes.TextColor = tabBarTextColor;
-#endif
 
 			foreach (UITabBarItem item in TabBar.Items)
 			{
@@ -423,7 +415,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			// set TintColor for selected icon
 			// setting the unselected icon tint is not supported by iOS
-			TabBar.TintColor = isDefaultColor ? _defaultBarTextColor : barTextColor.ToUIColor();
+			TabBar.TintColor = isDefaultColor ? _defaultBarTextColor : barTextColor.ToPlatform();
 		}
 
 		void UpdateBarTranslucent()
@@ -474,7 +466,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		async void SetTabBarItem(IVisualElementRenderer renderer)
 		{
 			var page = renderer.Element as Page;
-			if(page == null)
+			if (page == null)
 				throw new InvalidCastException($"{nameof(renderer)} must be a {nameof(Page)} renderer.");
 
 			var icons = await GetIcon(page);
@@ -492,27 +484,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (Tabbed == null || TabBar == null || TabBar.Items == null)
 				return;
 
-			if (Tabbed.IsSet(TabbedPage.SelectedTabColorProperty) && Tabbed.SelectedTabColor != Color.Default)
+			if (Tabbed.IsSet(TabbedPage.SelectedTabColorProperty) && Tabbed.SelectedTabColor != null)
 			{
-				if (Forms.IsiOS10OrNewer)
-					TabBar.TintColor = Tabbed.SelectedTabColor.ToUIColor();
-				else
-					TabBar.SelectedImageTintColor = Tabbed.SelectedTabColor.ToUIColor();
-
+				TabBar.TintColor = Tabbed.SelectedTabColor.ToPlatform();
 			}
 			else
 			{
-				if (Forms.IsiOS10OrNewer)
-					TabBar.TintColor = UITabBar.Appearance.TintColor;
-				else
-					TabBar.SelectedImageTintColor = UITabBar.Appearance.SelectedImageTintColor;
+				TabBar.TintColor = UITabBar.Appearance.TintColor;
 			}
 
-			if (!Forms.IsiOS10OrNewer)
-				return;
-
-			if (Tabbed.IsSet(TabbedPage.UnselectedTabColorProperty) && Tabbed.UnselectedTabColor != Color.Default)
-				TabBar.UnselectedItemTintColor = Tabbed.UnselectedTabColor.ToUIColor();
+			if (Tabbed.IsSet(TabbedPage.UnselectedTabColorProperty) && Tabbed.UnselectedTabColor != null)
+				TabBar.UnselectedItemTintColor = Tabbed.UnselectedTabColor.ToPlatform();
 			else
 				TabBar.UnselectedItemTintColor = UITabBar.Appearance.TintColor;
 		}

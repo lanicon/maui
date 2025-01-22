@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Devices.Sensors
 {
 	class LowPassFilter
 	{
@@ -13,9 +13,9 @@ namespace Microsoft.Maui.Essentials
 
 		internal void Add(float radians)
 		{
-			sin += (float)Math.Sin(radians);
+			sin += MathF.Sin(radians);
 
-			cos += (float)Math.Cos(radians);
+			cos += MathF.Cos(radians);
 
 			history.Enqueue(radians);
 
@@ -23,9 +23,9 @@ namespace Microsoft.Maui.Essentials
 			{
 				var old = history.Dequeue();
 
-				sin -= (float)Math.Sin(old);
+				sin -= MathF.Sin(old);
 
-				cos -= (float)Math.Cos(old);
+				cos -= MathF.Cos(old);
 			}
 		}
 
@@ -33,7 +33,7 @@ namespace Microsoft.Maui.Essentials
 		{
 			var size = history.Count;
 
-			return (float)Math.Atan2(sin / size, cos / size);
+			return MathF.Atan2(sin / size, cos / size);
 		}
 	}
 }

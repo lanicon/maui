@@ -3,6 +3,10 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 using CoreGraphics;
 using Foundation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Platform;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
@@ -10,6 +14,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 	// TODO: The entire layout system. iOS buttons were not designed for
 	//       anything but image left, text right, single line layouts.
 
+	[Obsolete]
 	public class ButtonLayoutManager : IDisposable
 	{
 		bool _disposed;
@@ -100,6 +105,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			UpdateLineBreakMode();
 		}
 
+		[PortHandler]
 		void UpdateLineBreakMode()
 		{
 			var control = Control;
@@ -107,7 +113,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (_disposed || _renderer == null || _element == null || control == null)
 				return;
 
-			control.TitleLabel.LineBreakMode = _element.LineBreakMode switch {
+			control.TitleLabel.LineBreakMode = _element.LineBreakMode switch
+			{
 				LineBreakMode.NoWrap => UILineBreakMode.Clip,
 				LineBreakMode.WordWrap => UILineBreakMode.WordWrap,
 				LineBreakMode.CharacterWrap => UILineBreakMode.CharacterWrap,
@@ -209,17 +216,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			var normal =
 				control
 					.GetAttributedTitle(UIControlState.Normal)
-					.AddCharacterSpacing(text, _element.CharacterSpacing);
+					.WithCharacterSpacing(_element.CharacterSpacing);
 
 			var highlighted =
 				control
 					.GetAttributedTitle(UIControlState.Highlighted)
-					.AddCharacterSpacing(text, _element.CharacterSpacing);
+					.WithCharacterSpacing(_element.CharacterSpacing);
 
 			var disabled =
 				control
 					.GetAttributedTitle(UIControlState.Disabled)
-					.AddCharacterSpacing(text, _element.CharacterSpacing);
+					.WithCharacterSpacing(_element.CharacterSpacing);
 
 			normal.AddAttribute(
 				UIStringAttributeKey.ForegroundColor,
@@ -258,10 +265,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 			catch (Exception ex)
 			{
-				Controls.Internals.Log.Warning(nameof(ImageRenderer), "Error loading image: {0}", ex);
+				Forms.MauiContext?.CreateLogger<ButtonLayoutManager>()?.LogWarning(ex, "Error loading image");
 			}
 		}
 
+#pragma warning disable CA1416, CA1422  // TOD0: UIButton.ContentEdgeInsets, UIButton.ImageEdgeInsets is unsupported on: 'ios' 15.0 and later
 		[PortHandler]
 		void UpdatePadding()
 		{
@@ -435,5 +443,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			control.ImageEdgeInsets = imageInsets;
 			control.TitleEdgeInsets = titleInsets;
 		}
+#pragma warning restore CA1416, CA1422  // UIButton.ContentEdgeInsets, UIButton.ImageEdgeInsets is unsupported on: 'ios' 15.0 and later
 	}
 }

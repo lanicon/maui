@@ -1,6 +1,8 @@
 using System.Threading.Tasks;
-using NUnit.Framework;
 using Microsoft.Maui.Controls.Compatibility.Platform.iOS;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform;
+using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 {
@@ -15,7 +17,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 				HeightRequest = 100,
 				WidthRequest = 200,
 				CornerRadius = 15,
-				BackgroundColor = Color.CadetBlue
+				BackgroundColor = Colors.CadetBlue
 			};
 
 			await CheckCornerRadius(boxView);
@@ -24,7 +26,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Test, Category("CornerRadius"), Category("Button")]
 		public async Task ButtonCornerRadius()
 		{
-			var backgroundColor = Color.CadetBlue;
+			var backgroundColor = Colors.CadetBlue;
 
 			var button = new Button
 			{
@@ -40,7 +42,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Test, Category("CornerRadius"), Category("Frame")]
 		public async Task FrameCornerRadius()
 		{
-			var backgroundColor = Color.CadetBlue;
+			var backgroundColor = Colors.CadetBlue;
 
 			var frame = new Frame
 			{
@@ -48,7 +50,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 				WidthRequest = 200,
 				CornerRadius = 40,
 				BackgroundColor = backgroundColor,
-				BorderColor = Color.Brown,
+				BorderColor = Colors.Brown,
 				Content = new Label { Text = "Hey" }
 			};
 
@@ -58,7 +60,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Test, Category("CornerRadius"), Category("ImageButton")]
 		public async Task ImageButtonCornerRadius()
 		{
-			var backgroundColor = Color.CadetBlue;
+			var backgroundColor = Colors.CadetBlue;
 
 			var button = new ImageButton
 			{
@@ -74,7 +76,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		async Task CheckCornerRadius(View view)
 		{
 			var page = new ContentPage() { Content = view };
-			var centerColor = view.BackgroundColor.ToUIColor();
+			var centerColor = view.BackgroundColor.ToPlatform();
 
 			var screenshot = await GetRendererProperty(view, (ver) => ver.NativeView.ToBitmap(), requiresLayout: true);
 			screenshot.AssertColorAtCenter(centerColor)

@@ -1,14 +1,32 @@
-﻿using System.Collections;
+﻿#nullable enable
 using System.Collections.Generic;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui
 {
-	public interface IPicker : IView
+	/// <summary>
+	/// Represents a View for selecting a text item from a list of data.
+	/// </summary>
+	public interface IPicker : IView, ITextStyle, ITextAlignment, IItemDelegate<string>
 	{
-		string Title { get; }
+		/// <summary>
+		/// Gets the list of choices.
+		/// </summary>
 		IList<string> Items { get; }
-		IList ItemsSource { get; }
+
+		/// <summary>
+		/// Gets the title for the Picker.
+		/// </summary>
+		string Title { get; }
+
+		/// <summary>
+		/// Gets the color for the Picker title.
+		/// </summary>
+		Color TitleColor { get; }
+
+		/// <summary>
+		/// Gets the index of the selected item of the picker.
+		/// </summary>
 		int SelectedIndex { get; set; }
-		object? SelectedItem { get; set; }
 	}
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Storage;
 
 namespace Samples.ViewModel
 {

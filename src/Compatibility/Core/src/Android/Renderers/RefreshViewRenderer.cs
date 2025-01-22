@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using Android.Content;
 using Android.OS;
@@ -9,11 +9,14 @@ using AndroidX.Core.Widget;
 using AndroidX.RecyclerView.Widget;
 using AndroidX.SwipeRefreshLayout.Widget;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AView = Android.Views.View;
 using AWebView = Android.Webkit.WebView;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class RefreshViewRenderer : SwipeRefreshLayout, IVisualElementRenderer, IEffectControlProvider, SwipeRefreshLayout.IOnRefreshListener
 	{
 		bool _isDisposed;
@@ -32,8 +35,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 
 		public VisualElementTracker Tracker { get; private set; }
-
-		public ViewGroup ViewGroup => this;
 
 		public AView View => this;
 
@@ -71,7 +72,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (refreshViewContent == null)
 				return;
 
-			IVisualElementRenderer renderer = AppCompat.Platform.GetRenderer(refreshViewContent);
+			IVisualElementRenderer renderer = Platform.GetRenderer(refreshViewContent);
 			renderer?.UpdateLayout();
 		}
 
@@ -116,9 +117,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			if (RefreshView.Content != null)
 			{
-				_renderer = AppCompat.Platform.CreateRenderer(RefreshView.Content, Context);
+				_renderer = Platform.CreateRenderer(RefreshView.Content, Context);
 
-				AppCompat.Platform.SetRenderer(RefreshView.Content, _renderer);
+				Platform.SetRenderer(RefreshView.Content, _renderer);
 
 				if (_renderer.View.Parent != null)
 					_renderer.View.RemoveFromParent();
@@ -133,9 +134,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (RefreshView == null)
 				return;
 
-			if (RefreshView.RefreshColor != Color.Default)
+			if (RefreshView.RefreshColor != null)
 				SetColorSchemeColors(RefreshView.RefreshColor.ToAndroid());
-			if (RefreshView.BackgroundColor != Color.Default)
+			if (RefreshView.BackgroundColor != null)
 				SetProgressBackgroundColorSchemeColor(RefreshView.BackgroundColor.ToAndroid());
 		}
 
@@ -146,9 +147,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		bool CanScrollUp(AView view)
 		{
 			if (!(view is ViewGroup viewGroup))
-				return base.CanChildScrollUp();
-
-			if (Forms.SdkInt < BuildVersionCodes.JellyBean && viewGroup.IsScrollContainer)
 				return base.CanChildScrollUp();
 
 			if (!CanScrollUpViewByType(view))
@@ -272,8 +270,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void OnRegisterEffect(PlatformEffect effect)
 		{
-			effect.SetContainer(this);
-			effect.SetControl(this);
+			effect.Container = this;
+			effect.Control = this;
 		}
 	}
 }

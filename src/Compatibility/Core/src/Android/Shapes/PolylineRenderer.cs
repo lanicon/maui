@@ -1,12 +1,14 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Android.Content;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.Shapes;
 using static Android.Graphics.Path;
 using APath = Android.Graphics.Path;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class PolylineRenderer : ShapeRenderer<Polyline, PolylineView>
 	{
 		PointCollection _points;

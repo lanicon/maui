@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using Android.Content;
 using Android.Graphics;
+using Microsoft.Maui.Controls.Platform;
 using APath = Android.Graphics.Path;
 using FormsRectangle = Microsoft.Maui.Controls.Shapes.Rectangle;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class RectangleRenderer : ShapeRenderer<FormsRectangle, RectView>
 	{
 		public RectangleRenderer(Context context) : base(context)

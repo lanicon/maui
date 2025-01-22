@@ -1,31 +1,18 @@
-using NUnit.Framework;
+using Microsoft.Maui.Graphics;
+using Xunit;
 
 namespace Microsoft.Maui.Controls.Core.UnitTests
 {
-	[TestFixture]
+
 	public class SpanTests : BaseTestFixture
 	{
-		[SetUp]
-		public override void Setup()
-		{
-			base.Setup();
-			Device.PlatformServices = new MockPlatformServices();
-		}
-
-		[TearDown]
-		public override void TearDown()
-		{
-			base.TearDown();
-			Device.PlatformServices = null;
-		}
-
-		[Test]
+		[Fact]
 		public void StyleApplied()
 		{
 			var pinkStyle = new Style(typeof(Span))
 			{
 				Setters = {
-					new Setter { Property = Span.TextColorProperty, Value = Color.Pink },
+					new Setter { Property = Span.TextColorProperty, Value = Colors.Pink },
 				},
 				Class = "pink",
 				ApplyToDerivedTypes = true,
@@ -50,10 +37,10 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 				Content = label
 			};
 
-			Assert.AreEqual(Color.Pink, span.TextColor);
+			Assert.Equal(Colors.Pink, span.TextColor);
 		}
 
-		[Test]
+		[Fact]
 		public void BindingApplied()
 		{
 			var vm = new ViewModel()
@@ -75,7 +62,7 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			label.BindingContext = vm;
 
-			Assert.AreEqual(vm.Text, span.Text);
+			Assert.Equal(vm.Text, span.Text);
 		}
 
 		class ViewModel

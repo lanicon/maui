@@ -1,14 +1,18 @@
 using System;
 using System.ComponentModel;
 using Foundation;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform;
+using ObjCRuntime;
 using UIKit;
 using RectangleF = CoreGraphics.CGRect;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Platform.Compatibility.EntryCellRenderer instead")]
 	public class EntryCellRenderer : CellRenderer
 	{
-		static readonly Color DefaultTextColor = ColorExtensions.LabelColor.ToColor();
+		static readonly Color DefaultTextColor = Maui.Platform.ColorExtensions.LabelColor.ToColor();
 
 		[Preserve(Conditional = true)]
 		public EntryCellRenderer()
@@ -86,15 +90,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			var cell = (EntryCellTableViewCell)sender;
 			var model = (EntryCell)cell.Cell;
 
-			model.Text = cell.TextField.Text;
+			model
+				.SetValue(EntryCell.TextProperty, cell.TextField.Text, specificity: SetterSpecificity.FromHandler);
 		}
 
 		static void UpdateHorizontalTextAlignment(EntryCellTableViewCell cell, EntryCell entryCell)
 		{
 			IViewController viewController = entryCell.Parent as View;
-			cell.TextField.TextAlignment = entryCell.HorizontalTextAlignment.ToNativeTextAlignment(viewController?.EffectiveFlowDirection ?? default(EffectiveFlowDirection));
+			cell.TextField.TextAlignment = entryCell.HorizontalTextAlignment.ToPlatformTextAlignment(viewController?.EffectiveFlowDirection ?? default(EffectiveFlowDirection));
 		}
 
+#pragma warning disable CA1416, CA1422  // TODO: 'UITableViewCell.TextLabel' is unsupported on: 'ios' 14.0 and later
 		static void UpdateIsEnabled(EntryCellTableViewCell cell, EntryCell entryCell)
 		{
 			cell.UserInteractionEnabled = entryCell.IsEnabled;
@@ -115,7 +121,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		static void UpdateLabelColor(EntryCellTableViewCell cell, EntryCell entryCell)
 		{
-			cell.TextLabel.TextColor = entryCell.LabelColor.ToUIColor(DefaultTextColor);
+			cell.TextLabel.TextColor = entryCell.LabelColor.ToPlatform(DefaultTextColor);
 		}
 
 		static void UpdatePlaceholder(EntryCellTableViewCell cell, EntryCell entryCell)
@@ -157,38 +163,39 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				// Centers TextField Content  (iOS6)
 				TextField.VerticalAlignment = UIControlContentVerticalAlignment.Center;
 			}
+#pragma warning restore CA1416, CA1422
 
 			public event EventHandler TextFieldTextChanged;
 
 			static bool OnShouldReturn(UITextField view)
 			{
-                var realCell = GetRealCell<EntryCellTableViewCell>(view);
-                var handler = realCell?.KeyboardDoneButtonPressed;
-                if (handler != null)
-                    handler(realCell, EventArgs.Empty);
+				var realCell = GetRealCell<EntryCellTableViewCell>(view);
+				var handler = realCell?.KeyboardDoneButtonPressed;
+				if (handler != null)
+					handler(realCell, EventArgs.Empty);
 
-                view.ResignFirstResponder();
+				view.ResignFirstResponder();
 				return true;
 			}
 
-            static void TextFieldOnEditingChanged(object sender, EventArgs eventArgs)
+			static void TextFieldOnEditingChanged(object sender, EventArgs eventArgs)
 			{
-                var realCell = GetRealCell<EntryCellTableViewCell>(sender as UIView);
-                var handler = realCell?.TextFieldTextChanged;
-                if (handler != null)
-                    handler(realCell, EventArgs.Empty);
-            }
+				var realCell = GetRealCell<EntryCellTableViewCell>(sender as UIView);
+				var handler = realCell?.TextFieldTextChanged;
+				if (handler != null)
+					handler(realCell, EventArgs.Empty);
+			}
 
-            static T GetRealCell<T>(UIView view) where T : UIView
-            {
-                T realCell = null;
-                while (view.Superview != null && realCell == null)
-                {
-                    view = view.Superview;
-                    realCell = view as T;
-                }
-                return realCell;
-            }
+			static T GetRealCell<T>(UIView view) where T : UIView
+			{
+				T realCell = null;
+				while (view.Superview != null && realCell == null)
+				{
+					view = view.Superview;
+					realCell = view as T;
+				}
+				return realCell;
+			}
 		}
 	}
 }

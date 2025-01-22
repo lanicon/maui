@@ -1,7 +1,11 @@
+#nullable enable
+
 namespace Microsoft.Maui
 {
-	public class EmbeddedFontLoader : IEmbeddedFontLoader
+	/// <inheritdoc/>
+	public partial class EmbeddedFontLoader
 	{
-		public (bool success, string? filePath) LoadFont(EmbeddedFont font) => (false, null);
+		/// <inheritdoc/>
+		public string? LoadFont(EmbeddedFont font) => null;
 	}
 }

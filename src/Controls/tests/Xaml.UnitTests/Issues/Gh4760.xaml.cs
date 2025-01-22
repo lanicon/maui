@@ -12,6 +12,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		  ProvideValue(serviceProvider);
 	}
 
+	[AcceptEmptyServiceProvider]
 	public class Gh4760MultiplyExtension : Gh4760Base<double>
 	{
 		public double Base { get; set; }
@@ -31,9 +32,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp] public void Setup() => Device.PlatformServices = new MockPlatformServices();
-			[TearDown] public void TearDown() => Device.PlatformServices = null;
-
 			[Test]
 			public void GenericBaseClassForMarkups([Values(false, true)] bool useCompiledXaml)
 			{

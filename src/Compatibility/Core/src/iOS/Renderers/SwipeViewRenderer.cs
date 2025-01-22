@@ -1,16 +1,21 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using CoreGraphics;
 using Foundation;
-using UIKit;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
+using UIKit;
 using Specifics = Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific.SwipeView;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class SwipeViewRenderer : ViewRenderer<SwipeView, UIView>
 	{
 		const float MinimumOpenSwipeThresholdPercentage = 0.15f; // 15%
@@ -160,8 +165,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		protected override void SetBackgroundColor(Color color)
 		{
-			if (Element.BackgroundColor != Color.Default)
-				BackgroundColor = Element.BackgroundColor.ToUIColor();
+			if (Element.BackgroundColor != null)
+				BackgroundColor = Element.BackgroundColor.ToPlatform();
 			else
 				BackgroundColor = ColorExtensions.BackgroundColor;
 		}
@@ -408,7 +413,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			var emptyContentView = new UIView
 			{
-				BackgroundColor = Color.Default.ToUIColor()
+				BackgroundColor = Colors.Transparent.ToPlatform()
 			};
 
 			return emptyContentView;
@@ -592,7 +597,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			var swipeItem = new UIButton(UIButtonType.Custom)
 			{
 				RestorationIdentifier = formsSwipeItem.Text,
-				BackgroundColor = formsSwipeItem.BackgroundColor.ToUIColor()
+				BackgroundColor = formsSwipeItem.BackgroundColor.ToPlatform()
 			};
 
 			if (!string.IsNullOrEmpty(formsSwipeItem.Text))
@@ -604,7 +609,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			swipeItem.SetTitle(formsSwipeItem.Text, UIControlState.Normal);
 
 			var textColor = GetSwipeItemColor(formsSwipeItem.BackgroundColor);
-			swipeItem.SetTitleColor(textColor.ToUIColor(), UIControlState.Normal);
+			swipeItem.SetTitleColor(textColor.ToPlatform(), UIControlState.Normal);
 			swipeItem.UserInteractionEnabled = false;
 			swipeItem.Hidden = !formsSwipeItem.IsVisible;
 
@@ -632,7 +637,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			var swipeItemSize = GetSwipeItemSize(swipeItemView);
 
-			swipeItemView.Layout(new Rectangle(0, 0, swipeItemSize.Width, swipeItemSize.Height));
+			swipeItemView.Layout(new Rect(0, 0, swipeItemSize.Width, swipeItemSize.Height));
 		}
 
 		void UpdateSwipeTransitionMode()
@@ -654,19 +659,24 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			var imageSize = button.ImageView.Image.Size;
 
 			var titleEdgeInsets = new UIEdgeInsets(spacing, -imageSize.Width, -imageSize.Height, 0.0f);
+#pragma warning disable CA1416, CA1422 // TODO: TitleEdgeInsets, StringSize(...), ImageEdgeInsets unsupported on: 'ios' 15.0 and later
 			button.TitleEdgeInsets = titleEdgeInsets;
 
 			var labelString = button.TitleLabel.Text ?? string.Empty;
+
+#pragma warning disable BI1234 // Type or member is obsolete
 			var titleSize = !string.IsNullOrEmpty(labelString) ? labelString.StringSize(button.TitleLabel.Font) : CGSize.Empty;
+#pragma warning restore BI1234 // Type or member is obsolete
 			var imageEdgeInsets = new UIEdgeInsets(-(titleSize.Height + spacing), 0.0f, 0.0f, -titleSize.Width);
 			button.ImageEdgeInsets = imageEdgeInsets;
+#pragma warning restore CA1416, CA1422
 		}
 
 		Color GetSwipeItemColor(Color backgroundColor)
 		{
-			var luminosity = 0.2126 * backgroundColor.R + 0.7152 * backgroundColor.G + 0.0722 * backgroundColor.B;
+			var luminosity = 0.2126 * backgroundColor.Red + 0.7152 * backgroundColor.Green + 0.0722 * backgroundColor.Blue;
 
-			return luminosity < 0.75 ? Color.White : Color.Black;
+			return luminosity < 0.75 ? Colors.White : Colors.Black;
 		}
 
 		async void UpdateSwipeItemIconImage(UIButton swipeButton, SwipeItem swipeItem)
@@ -691,12 +701,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				{
 					swipeButton.SetImage(resizedImage.ImageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate), UIControlState.Normal);
 					var tintColor = GetSwipeItemColor(swipeItem.BackgroundColor);
-					swipeButton.TintColor = tintColor.ToUIColor();
+					swipeButton.TintColor = tintColor.ToPlatform();
 				}
 				catch (Exception)
 				{
 					// UIImage ctor throws on file not found if MonoTouch.ObjCRuntime.Class.ThrowOnInitFailure is true;
-					Log.Warning("SwipeView", "Can not load SwipeItem Icon.");
+					Forms.MauiContext?.CreateLogger<SwipeViewRenderer>()?.LogWarning("Cannot load SwipeItem Icon");
 				}
 			}
 		}

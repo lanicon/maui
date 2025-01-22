@@ -5,14 +5,18 @@ using Android.Graphics;
 using Android.Graphics.Drawables;
 using Android.Views;
 using AndroidX.AppCompat.Widget;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
+using Microsoft.Maui.Graphics;
 using AColor = Android.Graphics.Color;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class ImageButtonRenderer :
 		AppCompatImageButton,
 		IVisualElementRenderer,
@@ -41,7 +45,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		void IVisualElementRenderer.UpdateLayout() => _tracker?.UpdateLayout();
 		VisualElement IVisualElementRenderer.Element => Element;
 		AView IVisualElementRenderer.View => this;
-		ViewGroup IVisualElementRenderer.ViewGroup => null;
 		VisualElementTracker IVisualElementRenderer.Tracker => _tracker;
 		bool IDisposedState.IsDisposed => ((IImageRendererController)this).IsDisposed;
 
@@ -108,9 +111,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (Element != null)
 				{
-					if (AppCompat.Platform.GetRenderer(Element) == this)
+					if (Platform.GetRenderer(Element) == this)
 					{
-						Element.ClearValue(AppCompat.Platform.RendererProperty);
+						Element.ClearValue(Platform.RendererProperty);
 					}
 
 					Element = null;
@@ -206,11 +209,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			canvas.ClipShape(Context, Element);
 
 			var backgroundDrawable = _backgroundTracker?.BackgroundDrawable;
-			RectF drawableBounds = null;
+			global::Android.Graphics.RectF drawableBounds = null;
 
 			if (Drawable != null)
 			{
-				if ((int)Forms.SdkInt >= 18 && backgroundDrawable != null)
+				if (backgroundDrawable != null)
 				{
 					var outlineBounds = backgroundDrawable.GetPaddingBounds(canvas.Width, canvas.Height);
 					var width = (float)canvas.Width;
@@ -219,7 +222,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					var heightRatio = 1f;
 
 					if (Element.Aspect == Aspect.AspectFill && OnThisPlatform().GetIsShadowEnabled())
-						Internals.Log.Warning(nameof(ImageButtonRenderer), "AspectFill isn't fully supported when using shadows. Image may be clipped incorrectly to Border");
+						Application.Current?.FindMauiContext()?.CreateLogger<ImageButtonRenderer>()?.LogWarning("AspectFill isn't fully supported when using shadows. Image may be clipped incorrectly to Border");
 
 					switch (Element.Aspect)
 					{
@@ -232,7 +235,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 							break;
 					}
 
-					drawableBounds = new RectF(outlineBounds.Left * widthRatio, outlineBounds.Top * heightRatio, outlineBounds.Right * widthRatio, outlineBounds.Bottom * heightRatio);
+					drawableBounds = new global::Android.Graphics.RectF(outlineBounds.Left * widthRatio, outlineBounds.Top * heightRatio, outlineBounds.Right * widthRatio, outlineBounds.Bottom * heightRatio);
 				}
 
 				if (drawableBounds != null)
@@ -266,7 +269,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			return base.OnTouchEvent(e);
 		}
 
-
+		[PortHandler]
 		void UpdatePadding()
 		{
 			SetPadding(
@@ -302,6 +305,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			ElementPropertyChanged?.Invoke(this, e);
 		}
 
+		[PortHandler]
 		// general state related
 		void IOnFocusChangeListener.OnFocusChange(AView v, bool hasFocus)
 		{
@@ -321,7 +325,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		float IBorderVisualElementRenderer.ShadowRadius => Context.ToPixels(OnThisPlatform().GetShadowRadius());
 		float IBorderVisualElementRenderer.ShadowDx => Context.ToPixels(OnThisPlatform().GetShadowOffset().Width);
 		float IBorderVisualElementRenderer.ShadowDy => Context.ToPixels(OnThisPlatform().GetShadowOffset().Height);
-		AColor IBorderVisualElementRenderer.ShadowColor => OnThisPlatform().GetShadowColor().ToAndroid();
+		AColor IBorderVisualElementRenderer.ShadowColor => OnThisPlatform().GetShadowColor().ToAndroid(Colors.Black);
 		bool IBorderVisualElementRenderer.IsShadowEnabled() => OnThisPlatform().GetIsShadowEnabled();
 		bool IBorderVisualElementRenderer.UseDefaultPadding() => false;
 		bool IBorderVisualElementRenderer.UseDefaultShadow() => false;

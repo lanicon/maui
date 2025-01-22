@@ -1,6 +1,7 @@
+#nullable disable
 namespace Microsoft.Maui.Controls
 {
-	[TypeConverter(typeof(VisualTypeConverter))]
+	[System.ComponentModel.TypeConverter(typeof(VisualTypeConverter))]
 	public interface IVisual
 	{
 	}

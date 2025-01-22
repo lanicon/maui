@@ -1,9 +1,12 @@
-using System;
+﻿using System;
 using System.Linq;
 using Android.Graphics;
 using Android.Graphics.Drawables;
+using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Controls.Platform;
 using AColor = Android.Graphics.Color;
 using APath = Android.Graphics.Path;
+using Color = Microsoft.Maui.Graphics.Color;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
@@ -77,7 +80,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				_normalBitmap.Width != width)
 				Reset();
 
-			if (!_drawOutlineWithBackground && BorderElement.BackgroundColor == Color.Default)
+			if (!_drawOutlineWithBackground && BorderElement.BackgroundColor == null)
 				return;
 
 			Bitmap bitmap = null;
@@ -142,8 +145,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		{
 		}
 
-		public Color BackgroundColor => BorderElement.BackgroundColor == Color.Default ? _defaultColor : BorderElement.BackgroundColor;
-		public Color PressedBackgroundColor => BackgroundColor.AddLuminosity(-.12);//<item name="highlight_alpha_material_light" format="float" type="dimen">0.12</item>
+		public Color BackgroundColor => BorderElement.BackgroundColor ?? _defaultColor;
+		public Color PressedBackgroundColor => BackgroundColor.AddLuminosity(-.12f);//<item name="highlight_alpha_material_light" format="float" type="dimen">0.12</item>
 
 		protected override void Dispose(bool disposing)
 		{
@@ -196,7 +199,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			path.AddRoundRect(rect, borderRadius, borderRadius, APath.Direction.Cw);
 
+#pragma warning disable CA1416 // https://github.com/xamarin/xamarin-android/issues/6962
 			paint.Color = pressed ? PressedBackgroundColor.ToAndroid() : BackgroundColor.ToAndroid();
+#pragma warning restore CA1416
 			paint.SetStyle(Paint.Style.Fill);
 			paint.SetShadowLayer(_shadowRadius, _shadowDx, _shadowDy, _shadowColor);
 
@@ -262,7 +267,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			}
 			catch (Exception ex)
 			{
-				Internals.Log.Warning(nameof(BorderDrawable), $"Unable to create circle image: {ex}");
+				Application.Current?.FindMauiContext()?.CreateLogger<BorderDrawable>()?.LogWarning(ex, "Unable to create circle image");
 			}
 
 			finishDraw(canvas);
@@ -288,7 +293,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				path.AddRoundRect(rect, borderRadius, borderRadius, APath.Direction.Cw);
 				paint.StrokeWidth = borderWidth;
 				paint.SetStyle(Paint.Style.Stroke);
-				paint.Color = BorderElement.BorderColor.ToAndroid();
+#pragma warning disable CA1416 // https://github.com/xamarin/xamarin-android/issues/6962
+				paint.Color = BorderElement.BorderColor.ToAndroid(Graphics.Colors.Black);
+#pragma warning restore CA1416
 
 				canvas.DrawPath(path, paint);
 			}

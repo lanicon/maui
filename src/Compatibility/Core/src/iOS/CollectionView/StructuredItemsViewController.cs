@@ -1,9 +1,11 @@
 using System;
 using CoreGraphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete]
 	public class StructuredItemsViewController<TItemsView> : ItemsViewController<TItemsView>
 		where TItemsView : StructuredItemsView
 	{
@@ -69,7 +71,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (footerView != null)
 				footerHeight = footerView.Frame.Height;
 
-			return new CGRect(CollectionView.Frame.X, CollectionView.Frame.Y, CollectionView.Frame.Width, 
+			return new CGRect(CollectionView.Frame.X, CollectionView.Frame.Y, CollectionView.Frame.Width,
 				Math.Abs(CollectionView.Frame.Height - (headerHeight + footerHeight)));
 		}
 

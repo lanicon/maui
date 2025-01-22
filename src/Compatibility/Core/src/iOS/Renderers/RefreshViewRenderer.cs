@@ -1,10 +1,14 @@
-using System;
+﻿using System;
 using System.ComponentModel;
-using UIKit;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
+using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class RefreshViewRenderer : ViewRenderer<RefreshView, UIView>, IEffectControlProvider
 	{
 		bool _isDisposed;
@@ -92,7 +96,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (_refreshControl == null)
 				return;
 
-			_refreshControl.BackgroundColor = color != Color.Default ? color.ToUIColor() : null;
+			_refreshControl.BackgroundColor = color?.ToPlatform();
 		}
 
 		protected override void SetBackground(Brush brush)
@@ -224,8 +228,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (Element == null || _refreshControl == null)
 				return;
 
-			if (Element.RefreshColor != Color.Default)
-				_refreshControl.TintColor = Element.RefreshColor.ToUIColor();
+			if (Element.RefreshColor != null)
+				_refreshControl.TintColor = Element.RefreshColor.ToPlatform();
 
 			SetBackgroundColor(Element.BackgroundColor);
 			SetBackground(Element.Background);
@@ -256,7 +260,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		bool CanUseRefreshControlProperty()
 		{
-			return Forms.IsiOS10OrNewer && !_usingLargeTitles;
+			return !_usingLargeTitles;
 		}
 
 		void OnRefresh(object sender, EventArgs e)

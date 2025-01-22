@@ -7,11 +7,13 @@ using Android.Text.Method;
 using Android.Util;
 using Android.Views;
 using Android.Views.InputMethods;
-using Android.Widget;
+using AndroidX.AppCompat.Widget;
 using Java.Lang;
+using Microsoft.Maui.Controls.Platform;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class EditorRenderer : EditorRendererBase<FormsEditText>
 	{
 		TextColorSwitcher _hintColorSwitcher;
@@ -30,20 +32,23 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			};
 		}
 
-		protected override EditText EditText => Control;
+		protected override AppCompatEditText EditText => Control;
 
+		[PortHandler]
 		protected override void UpdatePlaceholderColor()
 		{
 			_hintColorSwitcher = _hintColorSwitcher ?? new TextColorSwitcher(EditText.HintTextColors, Element.UseLegacyColorManagement());
 			_hintColorSwitcher.UpdateTextColor(EditText, Element.PlaceholderColor, EditText.SetHintTextColor);
 		}
 
+		[PortHandler]
 		protected override void UpdateTextColor()
 		{
 			_textColorSwitcher = _textColorSwitcher ?? new TextColorSwitcher(EditText.TextColors, Element.UseLegacyColorManagement());
 			_textColorSwitcher.UpdateTextColor(EditText, Element.TextColor);
 		}
 
+		[PortHandler]
 		protected override void OnAttachedToWindow()
 		{
 			base.OnAttachedToWindow();
@@ -57,11 +62,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 	}
 
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public abstract class EditorRendererBase<TControl> : ViewRenderer<Editor, TControl>, ITextWatcher
 		where TControl : global::Android.Views.View
 	{
 		bool _disposed;
-		protected abstract EditText EditText { get; }
+		protected abstract AppCompatEditText EditText { get; }
 
 		public EditorRendererBase(Context context) : base(context)
 		{
@@ -87,7 +93,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		{
 			if (!e.Focus)
 			{
-				EditText.HideKeyboard();
+				EditText.HideSoftInput();
 			}
 
 			base.OnFocusChangeRequested(sender, e);
@@ -97,7 +103,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				// Post this to the main looper queue so it doesn't happen until the other focus stuff has resolved
 				// Otherwise, ShowKeyboard will be called before this control is truly focused, and we will potentially
 				// be displaying the wrong keyboard
-				EditText?.PostShowKeyboard();
+				EditText?.PostShowSoftInput();
 			}
 		}
 
@@ -119,8 +125,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 			EditText.SetSingleLine(false);
 			EditText.Gravity = GravityFlags.Top;
-			if ((int)Forms.SdkInt > 16)
-				EditText.TextAlignment = global::Android.Views.TextAlignment.ViewStart;
+			EditText.TextAlignment = global::Android.Views.TextAlignment.ViewStart;
 			EditText.SetHorizontallyScrolling(false);
 
 			UpdateText();
@@ -210,6 +215,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				ElementController.SendCompleted();
 		}
 
+		[PortHandler]
 		protected virtual void UpdateFont()
 		{
 			EditText.Typeface = Element.ToTypeface();
@@ -247,10 +253,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		[PortHandler]
 		void UpdateCharacterSpacing()
 		{
-			if (Forms.IsLollipopOrNewer)
-			{
-				EditText.LetterSpacing = Element.CharacterSpacing.ToEm();
-			}
+			EditText.LetterSpacing = Element.CharacterSpacing.ToEm();
 		}
 
 		[PortHandler]
@@ -268,6 +271,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		abstract protected void UpdateTextColor();
 
+		[PortHandler]
 		protected virtual void UpdatePlaceholderText()
 		{
 			if (EditText.Hint == Element.Placeholder)
@@ -276,17 +280,20 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			EditText.Hint = Element.Placeholder;
 		}
 
+		[PortHandler]
 		abstract protected void UpdatePlaceholderColor();
 
+		[PortHandler]
 		void OnKeyboardBackPressed(object sender, EventArgs eventArgs)
 		{
 			ElementController?.SendCompleted();
 			EditText?.ClearFocus();
 		}
 
+		[PortHandler]
 		void UpdateMaxLength()
 		{
-			var currentFilters = new List<IInputFilter>(EditText?.GetFilters() ?? new IInputFilter[0]);
+			var currentFilters = new List<IInputFilter>(EditText?.GetFilters() ?? Array.Empty<IInputFilter>());
 
 			for (var i = 0; i < currentFilters.Count; i++)
 			{
@@ -314,6 +321,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			return currentText.Substring(0, Element.MaxLength);
 		}
 
+		[PortHandler]
 		void UpdateIsReadOnly()
 		{
 			bool isReadOnly = !Element.IsReadOnly;

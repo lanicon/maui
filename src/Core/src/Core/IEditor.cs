@@ -3,11 +3,11 @@
 	/// <summary>
 	/// Represents a View used to accept multi-line input.
 	/// </summary>
-	public interface IEditor : IView, IText
+	public interface IEditor : IView, ITextInput, ITextStyle, ITextAlignment
 	{
 		/// <summary>
-		/// Gets a value that controls whether text prediction and automatic text correction is on or off.
+		/// Occurs when the user finalizes the text in an editor with the return key.
 		/// </summary>
-		bool IsTextPredictionEnabled { get; }
+		void Completed();
 	}
 }

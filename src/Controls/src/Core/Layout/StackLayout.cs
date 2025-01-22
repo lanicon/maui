@@ -1,26 +1,40 @@
-using System.Linq;
+#nullable disable
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Layouts;
 
-
-// This is a temporary namespace until we rename everything and move the legacy layouts
-namespace Microsoft.Maui.Controls.Layout2
+namespace Microsoft.Maui.Controls
 {
-	public abstract class StackLayout : Layout, IStackLayout
+	/// <summary>
+	/// A <see cref="Layout" /> that positions child elements in a single line which can be oriented vertically or horizontally.
+	/// </summary>
+	/// <remarks>
+	/// Also see the specialized <see cref="VerticalStackLayout" /> and <see cref="HorizontalStackLayout" />, which might be more suitable if you do not need to change the orientation at runtime.
+	/// </remarks>
+	public class StackLayout : StackBase, IStackLayout
 	{
-		public int Spacing { get; set; }
+		/// <summary>Bindable property for <see cref="Orientation"/>.</summary>
+		public static readonly BindableProperty OrientationProperty = BindableProperty.Create(nameof(Orientation), typeof(StackOrientation), typeof(StackLayout), StackOrientation.Vertical,
+			propertyChanged: OrientationChanged);
 
-		bool _isMeasureValid;
-		public override bool IsMeasureValid
+		/// <summary>
+		/// Gets or sets the value which indicates the direction which child elements are positioned. Default value is <see cref="StackOrientation.Vertical"/>.
+		/// This is a bindable property.
+		/// </summary>
+		public StackOrientation Orientation
 		{
-			get
-			{
-				return _isMeasureValid
-					&& Children.All(child => child.IsMeasureValid);
-			}
+			get { return (StackOrientation)GetValue(OrientationProperty); }
+			set { SetValue(OrientationProperty, value); }
+		}
 
-			protected set
-			{
-				_isMeasureValid = value;
-			}
+		static void OrientationChanged(BindableObject bindable, object oldValue, object newValue)
+		{
+			var layout = (StackLayout)bindable;
+			layout.InvalidateMeasure();
+		}
+
+		protected override ILayoutManager CreateLayoutManager()
+		{
+			return new StackLayoutManager(this);
 		}
 	}
 }

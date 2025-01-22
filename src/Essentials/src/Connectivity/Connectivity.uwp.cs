@@ -1,86 +1,118 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
+using System.Net.NetworkInformation;
 using Windows.Networking.Connectivity;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Networking
 {
-    public static partial class Connectivity
-    {
-        static void StartListeners() =>
-             NetworkInformation.NetworkStatusChanged += NetworkStatusChanged;
+	partial class ConnectivityImplementation : IConnectivity
+	{
+		void StartListeners() =>
+			NetworkInformation.NetworkStatusChanged += NetworkStatusChanged;
 
-        static void NetworkStatusChanged(object sender) =>
-            OnConnectivityChanged();
+		void StopListeners() =>
+			NetworkInformation.NetworkStatusChanged -= NetworkStatusChanged;
 
-        static void StopListeners() =>
-             NetworkInformation.NetworkStatusChanged -= NetworkStatusChanged;
+		void NetworkStatusChanged(object sender) =>
+			OnConnectivityChanged();
 
-        static NetworkAccess PlatformNetworkAccess
-        {
-            get
-            {
-                var profile = NetworkInformation.GetInternetConnectionProfile();
-                if (profile == null)
-                    return NetworkAccess.Unknown;
+		public NetworkAccess NetworkAccess
+		{
+			get
+			{
+				if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000, 0))
+				{
+					var profile = NetworkInformation.GetInternetConnectionProfile();
+					if (profile == null)
+						return NetworkAccess.Unknown;
 
-                var level = profile.GetNetworkConnectivityLevel();
-                switch (level)
-                {
-                    case NetworkConnectivityLevel.LocalAccess:
-                        return NetworkAccess.Local;
-                    case NetworkConnectivityLevel.InternetAccess:
-                        return NetworkAccess.Internet;
-                    case NetworkConnectivityLevel.ConstrainedInternetAccess:
-                        return NetworkAccess.ConstrainedInternet;
-                    default:
-                        return NetworkAccess.None;
-                }
-            }
-        }
+					var level = profile.GetNetworkConnectivityLevel();
+					return level switch
+					{
+						NetworkConnectivityLevel.LocalAccess => NetworkAccess.Local,
+						NetworkConnectivityLevel.InternetAccess => NetworkAccess.Internet,
+						NetworkConnectivityLevel.ConstrainedInternetAccess => NetworkAccess.ConstrainedInternet,
+						_ => NetworkAccess.None,
+					};
+				}
+				else
+				{
+					// Windows 10 workaround for https://github.com/microsoft/WindowsAppSDK/issues/2965
+					var networkList = ConnectivityNativeHelper.GetNetworkListManager();
+					var enumNetworks = networkList.GetNetworks(ConnectivityNativeHelper.NLM_ENUM_NETWORK.NLM_ENUM_NETWORK_CONNECTED);
+					var connectivity = ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_DISCONNECTED;
 
-        static IEnumerable<ConnectionProfile> PlatformConnectionProfiles
-        {
-            get
-            {
-                var networkInterfaceList = NetworkInformation.GetConnectionProfiles();
-                foreach (var interfaceInfo in networkInterfaceList.Where(nii => nii.GetNetworkConnectivityLevel() != NetworkConnectivityLevel.None))
-                {
-                    var type = ConnectionProfile.Unknown;
+					foreach (ConnectivityNativeHelper.INetwork networkInterface in enumNetworks)
+					{
+						if (networkInterface.IsConnected())
+						{
+							connectivity = networkInterface.GetConnectivity();
+							break;
+						}
+					}
 
-                    try
-                    {
-                        var adapter = interfaceInfo.NetworkAdapter;
-                        if (adapter == null)
-                            continue;
+					if ((connectivity & (ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_IPV4_INTERNET | ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_IPV6_INTERNET)) != 0)
+					{
+						return NetworkAccess.Internet;
+					}
+					else if ((connectivity & (ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_IPV4_LOCALNETWORK | ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_IPV6_LOCALNETWORK)) != 0)
+					{
+						return NetworkAccess.Local;
+					}
+					else if ((connectivity & (ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_IPV4_NOTRAFFIC | ConnectivityNativeHelper.NLM_CONNECTIVITY.NLM_CONNECTIVITY_IPV6_NOTRAFFIC)) != 0)
+					{
+						return NetworkAccess.Local;
+					}
+					else
+					{
+						return NetworkAccess.None;
+					}
+				}
+			}
+		}
 
-                        // http://www.iana.org/assignments/ianaiftype-mib/ianaiftype-mib
-                        switch (adapter.IanaInterfaceType)
-                        {
-                            case 6:
-                                type = ConnectionProfile.Ethernet;
-                                break;
-                            case 71:
-                                type = ConnectionProfile.WiFi;
-                                break;
-                            case 243:
-                            case 244:
-                                type = ConnectionProfile.Cellular;
-                                break;
+		public IEnumerable<ConnectionProfile> ConnectionProfiles
+		{
+			get
+			{
+				NetworkInterface[] networkInterfaces = [];
+				try
+				{
+					networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+				}
+				catch (NetworkInformationException ex) 
+				{
+					Debug.WriteLine($"Unable to get network interfaces. Error: {ex.Message}");
+				}
 
-                            // xbox wireless, can skip
-                            case 281:
-                                continue;
-                        }
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.WriteLine($"Unable to get Network Adapter, returning Unknown: {ex.Message}");
-                    }
+				foreach (var nic in networkInterfaces)
+				{
+					if (nic.OperationalStatus is not OperationalStatus.Up ||
+						nic.NetworkInterfaceType is NetworkInterfaceType.Loopback ||
+						nic.NetworkInterfaceType is NetworkInterfaceType.Tunnel)
+					{
+						continue;
+					}
 
-                    yield return type;
-                }
-            }
-        }
-    }
+					var interfaceType = ConnectionProfile.Unknown;
+					switch (nic.NetworkInterfaceType)
+					{
+						case NetworkInterfaceType.Ethernet:
+							interfaceType = ConnectionProfile.Ethernet;
+							break;
+						case NetworkInterfaceType.Wireless80211:
+							interfaceType = ConnectionProfile.WiFi;
+							break;
+						case NetworkInterfaceType.Wwanpp:
+						case NetworkInterfaceType.Wwanpp2:
+							interfaceType = ConnectionProfile.Cellular;
+							break;
+					}
+
+					yield return interfaceType;
+				}
+			}
+		}
+	}
 }

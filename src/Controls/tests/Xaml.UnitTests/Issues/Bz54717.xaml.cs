@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -19,35 +20,28 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp]
-			public void Setup()
-			{
-				Device.PlatformServices = new MockPlatformServices();
-			}
-
 			[TearDown]
 			public void TearDown()
 			{
-				Device.PlatformServices = null;
 				Application.Current = null;
 			}
 
 			[TestCase(true)]
 			[TestCase(false)]
-			public void Foo(bool useCompiledXaml)
+			public void FooBz54717(bool useCompiledXaml)
 			{
 				Application.Current = new MockApplication
 				{
 					Resources = new ResourceDictionary {
-						{"Color1", Color.Red},
-						{"Color2", Color.Blue},
+						{"Color1", Colors.Red},
+						{"Color2", Colors.Blue},
 					}
 				};
 				var layout = new Bz54717(useCompiledXaml);
 				Assert.That(layout.Resources.Count, Is.EqualTo(1));
 				var array = layout.Resources["SomeColors"] as Color[];
-				Assert.That(array[0], Is.EqualTo(Color.Red));
-				Assert.That(array[1], Is.EqualTo(Color.Blue));
+				Assert.That(array[0], Is.EqualTo(Colors.Red));
+				Assert.That(array[1], Is.EqualTo(Colors.Blue));
 			}
 		}
 	}

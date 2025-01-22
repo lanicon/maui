@@ -9,11 +9,15 @@ using AndroidX.AppCompat.Widget;
 using AndroidX.Core.View;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AColor = Android.Graphics.Color;
 using AView = Android.Views.View;
+using Size = Microsoft.Maui.Graphics.Size;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class RadioButtonRenderer : AppCompatRadioButton,
 		IBorderVisualElementRenderer, IVisualElementRenderer, IViewRenderer, ITabStop,
 		AView.IOnFocusChangeListener,
@@ -25,7 +29,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		bool _isDisposed;
 		bool _inputTransparent;
 		Lazy<TextColorSwitcher> _textColorSwitcher;
-		AutomationPropertiesProvider _automationPropertiesProvider;
+		FastRenderers.AutomationPropertiesProvider _automationPropertiesProvider;
 		VisualElementTracker _tracker;
 		VisualElementRenderer _visualElementRenderer;
 		BorderBackgroundManager _backgroundTracker;
@@ -46,11 +50,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		VisualElement IVisualElementRenderer.Element => Element;
 		AView IVisualElementRenderer.View => this;
-		ViewGroup IVisualElementRenderer.ViewGroup => null;
 		VisualElementTracker IVisualElementRenderer.Tracker => _tracker;
 
 		AView ITabStop.TabStop => this;
 
+		[PortHandler]
 		void IOnFocusChangeListener.OnFocusChange(AView v, bool hasFocus)
 		{
 			((IElementController)Element).SetValueFromRenderer(VisualElement.IsFocusedPropertyKey, hasFocus);
@@ -149,8 +153,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (Element != null)
 				{
-					if (AppCompat.Platform.GetRenderer(Element) == this)
-						Element.ClearValue(AppCompat.Platform.RendererProperty);
+					if (Platform.GetRenderer(Element) == this)
+						Element.ClearValue(Platform.RendererProperty);
 				}
 			}
 
@@ -233,7 +237,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 		void Initialize()
 		{
-			_automationPropertiesProvider = new AutomationPropertiesProvider(this);
+			_automationPropertiesProvider = new FastRenderers.AutomationPropertiesProvider(this);
 			_backgroundTracker = new BorderBackgroundManager(this);
 
 			SoundEffectsEnabled = false;
@@ -250,7 +254,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				return;
 			}
 
-			Font font = Font.OfSize(Element.FontFamily, Element.FontSize).WithAttributes(Element.FontAttributes);
+			Font font = Element.ToFont();
 
 			if (font == Font.Default && _defaultFontSize == 0f)
 			{
@@ -270,8 +274,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			}
 			else
 			{
-				Typeface = font.ToTypeface();
-				SetTextSize(ComplexUnitType.Sp, font.ToScaledPixel());
+				Typeface = font.ToTypeface(Element.RequireFontManager());
+				if (font.AutoScalingEnabled)
+					SetTextSize(ComplexUnitType.Sp, (float)font.Size);
+				else
+					SetTextSize(ComplexUnitType.Dip, (float)font.Size);
 			}
 		}
 

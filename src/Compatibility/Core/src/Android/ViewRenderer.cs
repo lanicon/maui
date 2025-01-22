@@ -3,6 +3,8 @@ using System.ComponentModel;
 using Android.Content;
 using Android.Views;
 using Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
@@ -12,6 +14,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		void MeasureExactly();
 	}
 
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.ViewRenderer instead")]
 	public abstract class ViewRenderer : ViewRenderer<View, AView>
 	{
 		protected ViewRenderer(Context context) : base(context)
@@ -19,6 +22,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 	}
 
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.ViewRenderer instead")]
 	public abstract class ViewRenderer<TView, TNativeView> : VisualElementRenderer<TView>, IViewRenderer, ITabStop, AView.IOnFocusChangeListener where TView : View where TNativeView : AView
 	{
 		protected ViewRenderer(Context context) : base(context)
@@ -33,8 +37,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		ViewGroup _container;
 		bool _defaultAutomationSet;
 		string _defaultContentDescription;
-		bool? _defaultFocusable;
-		ImportantForAccessibility? _defaultImportantForAccessibility;
 		string _defaultHint;
 
 		bool _disposed;
@@ -77,6 +79,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			control.Measure(widthMeasureSpec, heightMeasureSpec);
 		}
 
+		[PortHandler("Partially ported")]
 		void AView.IOnFocusChangeListener.OnFocusChange(AView v, bool hasFocus)
 		{
 			if (Element is Entry || Element is SearchBar || Element is Editor)
@@ -95,7 +98,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (isInViewCell)
 				{
-					Window window = Context.GetActivity().Window;
+					var window = Context.GetActivity().Window;
 					if (hasFocus)
 					{
 						_startingInputMode = window.Attributes.SoftInputMode;
@@ -196,7 +199,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		protected override void OnRegisterEffect(PlatformEffect effect)
 		{
 			base.OnRegisterEffect(effect);
-			effect.SetControl(Control);
+			effect.Control = Control;
 		}
 
 		void SetupAutomationDefaults()
@@ -204,7 +207,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			if (!_defaultAutomationSet)
 			{
 				_defaultAutomationSet = true;
-				AutomationPropertiesProvider.SetupDefaults(ControlUsedForAutomation, ref _defaultContentDescription, ref _defaultHint);
+				Controls.Platform.AutomationPropertiesProvider.SetupDefaults(ControlUsedForAutomation, ref _defaultContentDescription, ref _defaultHint);
 			}
 		}
 
@@ -224,7 +227,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				ImportantForAccessibility = ImportantForAccessibility.No;
 			}
 
-			AutomationPropertiesProvider.SetAutomationId(ControlUsedForAutomation, Element, id);
+			Controls.Platform.AutomationPropertiesProvider.SetAutomationId(ControlUsedForAutomation, Element, id);
 		}
 
 		private protected void SetContentDescription(bool includeHint)
@@ -232,10 +235,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			SetupAutomationDefaults();
 
 			if (includeHint)
-				AutomationPropertiesProvider.SetContentDescription(
+				Controls.Platform.AutomationPropertiesProvider.SetContentDescription(
 					ControlUsedForAutomation, Element, _defaultContentDescription, _defaultHint);
 			else
-				AutomationPropertiesProvider.SetBasicContentDescription(
+				Controls.Platform.AutomationPropertiesProvider.SetBasicContentDescription(
 					ControlUsedForAutomation, Element, _defaultContentDescription);
 		}
 
@@ -250,15 +253,15 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			SetContentDescription(true);
 		}
 
-		protected override void SetFocusable()
+		protected override void SetImportantForAccessibility()
 		{
 			if (Control == null)
 			{
-				base.SetFocusable();
+				base.SetImportantForAccessibility();
 				return;
 			}
 
-			AutomationPropertiesProvider.SetFocusable(ControlUsedForAutomation, Element, ref _defaultFocusable, ref _defaultImportantForAccessibility);
+			Controls.Platform.AutomationPropertiesProvider.SetImportantForAccessibility(ControlUsedForAutomation, Element);
 		}
 
 		protected void SetNativeControl(TNativeView control)
@@ -266,6 +269,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			SetNativeControl(control, this);
 		}
 
+		[PortHandler]
 		protected virtual void OnFocusChangeRequested(object sender, VisualElement.FocusRequestArgs e)
 		{
 			if (Control == null)
@@ -279,7 +283,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				// So in case we're setting the focus in response to another control's un-focusing,
 				// we need to post the handling of it to the main looper so that it happens _after_ all the other focus
 				// work is done; otherwise, a call to ClearFocus on another control will kill the focus we set here
-				Device.BeginInvokeOnMainThread(() =>
+				Post(() =>
 				{
 					if (Control == null || Control.IsDisposed())
 						return;
@@ -318,7 +322,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			Control = control;
 			if (Control.Id == NoId)
 			{
-				Control.Id = AppCompat.Platform.GenerateViewId();
+				Control.Id = Platform.GenerateViewId();
 			}
 
 			AView toAdd = container == this ? control : (AView)container;
@@ -332,7 +336,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		}
 
 		void SetLabeledBy()
-			=> AutomationPropertiesProvider.SetLabeledBy(Control, Element);
+			=> Controls.Platform.AutomationPropertiesProvider.SetLabeledBy(Control, Element);
 
 		void UpdateIsEnabled()
 		{

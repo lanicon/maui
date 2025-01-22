@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Text;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
 namespace Microsoft.Maui.Resizetizer
 {
-	public class DetectInvalidResourceOutputFilenamesTask : AsyncTask
+	public class DetectInvalidResourceOutputFilenamesTask : Task
 	{
 		public ITaskItem[] Items { get; set; }
 
@@ -24,41 +22,52 @@ namespace Microsoft.Maui.Resizetizer
 
 		public override bool Execute()
 		{
-			System.Threading.Tasks.Task.Run(() =>
+			var tempInvalidItems = new Dictionary<ITaskItem, string>();
+			try
 			{
-				var invalidFilenames = new ConcurrentBag<string>();
-
-				try
+				if (Items != null)
 				{
-					if (Items != null)
+					foreach (var item in Items)
 					{
-						System.Threading.Tasks.Parallel.ForEach(Items, item =>
-						{
-							var filename = item.ItemSpec;
-
-							if (!Utils.IsValidResourceFilename(filename))
-								invalidFilenames.Add(filename);
-						});
+						var image = ResizeImageInfo.Parse(item);
+						var output = image.OutputName;
+						if (!Utils.IsValidResourceFilename(output))
+							tempInvalidItems.Add(item, output);
 					}
 				}
-				catch (Exception ex)
+			}
+			catch (Exception ex)
+			{
+				Log.LogErrorFromException(ex);
+			}
+			finally
+			{
+				if (tempInvalidItems.Count > 0)
 				{
-					Log.LogErrorFromException(ex);
-				}
-				finally
-				{
-					InvalidItems = invalidFilenames.Select(f => new TaskItem(f)).ToArray();
+					InvalidItems = tempInvalidItems.Keys.ToArray();
 
-					if (ThrowsError && invalidFilenames.Any())
+					var builder = new StringBuilder();
+					builder.Append(ErrorMessage);
+
+					var idx = 0;
+					foreach (var pair in tempInvalidItems)
 					{
-						Log.LogError($"{ErrorMessage}{Environment.NewLine}\t"
-							+ string.Join(Environment.NewLine + "\t", invalidFilenames.Select(f => Path.GetFileNameWithoutExtension(f))));
-					}
-					Complete();
-				}
-			});
+						if (idx > 0)
+							builder.Append(", ");
 
-			return base.Execute();
+						builder.Append($"{pair.Value} ({pair.Key.ItemSpec})");
+
+						idx++;
+					}
+
+					if (ThrowsError)
+						Log.LogError(builder.ToString());
+					else
+						Log.LogMessage(builder.ToString());
+				}
+			}
+
+			return !Log.HasLoggedErrors;
 		}
 	}
 }

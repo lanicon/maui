@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using Android.Content;
 using Android.Content.Res;
@@ -7,10 +7,14 @@ using Android.Text;
 using Android.Util;
 using Android.Views;
 using AndroidX.Core.View;
+using Microsoft.Maui.Controls.Platform;
 using AView = Android.Views.View;
+using Color = Microsoft.Maui.Graphics.Color;
+using Size = Microsoft.Maui.Graphics.Size;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class LabelRenderer : FormsTextView, IVisualElementRenderer, IViewRenderer, ITabStop
 	{
 		int? _defaultLabelFor;
@@ -23,7 +27,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 		SizeRequest? _lastSizeRequest;
 		float _lastTextSize = -1f;
 		Typeface _lastTypeface;
-		Color _lastUpdateColor = Color.Default;
+		Color _lastUpdateColor = null;
 		float _lineSpacingExtraDefault = -1.0f;
 		float _lineSpacingMultiplierDefault = -1.0f;
 		VisualElementTracker _visualElementTracker;
@@ -50,8 +54,6 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 		AView IVisualElementRenderer.View => this;
 
 		AView ITabStop.TabStop => this;
-
-		ViewGroup IVisualElementRenderer.ViewGroup => null;
 
 		protected Label Element
 		{
@@ -138,6 +140,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 			return result;
 		}
 
+		[PortHandler]
 		protected override void OnLayout(bool changed, int left, int top, int right, int bottom)
 		{
 			base.OnLayout(changed, left, top, right, bottom);
@@ -205,8 +208,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 
 				if (Element != null)
 				{
-					if (AppCompat.Platform.GetRenderer(Element) == this)
-						Element.ClearValue(AppCompat.Platform.RendererProperty);
+					if (Platform.GetRenderer(Element) == this)
+						Element.ClearValue(Platform.RendererProperty);
 				}
 			}
 
@@ -215,7 +218,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 
 		public override bool OnTouchEvent(MotionEvent e)
 		{
-			if (_visualElementRenderer.OnTouchEvent(e) || base.OnTouchEvent(e))
+			if (base.OnTouchEvent(e))
 			{
 				return true;
 			}
@@ -303,7 +306,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 				return;
 			_lastUpdateColor = c;
 
-			if (c.IsDefault)
+			if (c == null)
 				SetTextColor(_labelTextColorDefault);
 			else
 				SetTextColor(c.ToAndroid());
@@ -314,14 +317,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 		{
 			Font f = Font.OfSize(Element.FontFamily, Element.FontSize).WithAttributes(Element.FontAttributes);
 
-			Typeface newTypeface = f.ToTypeface();
+			Typeface newTypeface = f.ToTypeface(Element.RequireFontManager());
 			if (newTypeface != _lastTypeface)
 			{
 				Typeface = newTypeface;
 				_lastTypeface = newTypeface;
 			}
 
-			float newTextSize = f.ToScaledPixel();
+			float newTextSize = (float)f.Size;
 			if (newTextSize != _lastTextSize)
 			{
 				SetTextSize(ComplexUnitType.Sp, newTextSize);
@@ -360,10 +363,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 		[PortHandler]
 		void UpdateCharacterSpacing()
 		{
-			if (Forms.IsLollipopOrNewer)
-			{
-				LetterSpacing = Element.CharacterSpacing.ToEm();
-			}
+			LetterSpacing = Element.CharacterSpacing.ToEm();
 		}
 
 		[PortHandler]
@@ -380,6 +380,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 			_lastSizeRequest = null;
 		}
 
+		[PortHandler("Partially ported")]
 		void UpdateText()
 		{
 			if (Element.FormattedText != null)
@@ -387,7 +388,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 				FormattedString formattedText = Element.FormattedText ?? Element.Text;
 
 				Font f = Font.OfSize(Element.FontFamily, Element.FontSize).WithAttributes(Element.FontAttributes);
-				TextFormatted = _spannableString = formattedText.ToAttributed(f, Element.TextColor, this);
+				TextFormatted = _spannableString = formattedText.ToSpannableString(Element.RequireFontManager());
 				_wasFormatted = true;
 			}
 			else
@@ -395,13 +396,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.FastRenderers
 				if (_wasFormatted)
 				{
 					SetTextColor(_labelTextColorDefault);
-					_lastUpdateColor = Color.Default;
+					_lastUpdateColor = null;
 				}
 
 				switch (Element.TextType)
 				{
 					case TextType.Html:
-						if (Forms.IsNougatOrNewer)
+						if (OperatingSystem.IsAndroidVersionAtLeast(24))
 							Control.SetText(Html.FromHtml(Element.Text ?? string.Empty, FromHtmlOptions.ModeCompact), BufferType.Spannable);
 						else
 #pragma warning disable CS0618 // Type or member is obsolete

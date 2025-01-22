@@ -1,3 +1,4 @@
+#nullable disable
 //
 // Tweener.cs
 //
@@ -25,30 +26,64 @@
 // THE SOFTWARE.
 
 using System;
-using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Animations;
 
 namespace Microsoft.Maui.Controls
 {
+	internal class TweenerAnimation : Animation
+	{
+		readonly Func<long, bool> _step;
+
+		public TweenerAnimation(Func<long, bool> step)
+		{
+			_step = step;
+		}
+
+		protected override void OnTick(double millisecondsSinceLastUpdate)
+		{
+			var running = _step.Invoke((long)millisecondsSinceLastUpdate);
+			HasFinished = !running;
+
+			if (HasFinished)
+				Finished?.Invoke();
+		}
+
+		internal override void ForceFinish()
+		{
+			if (HasFinished)
+			{
+				return;
+			}
+
+			HasFinished = true;
+
+			// The tweeners use long.MaxValue for in-band signaling that they should
+			// jump to the end of the animation 
+			_ = _step.Invoke(long.MaxValue);
+		}
+	}
+
 	internal class Tweener
 	{
+		readonly IAnimationManager _animationManager;
 		long _lastMilliseconds;
-
-		int _timer;
+		int _animationManagerKey;
 		long _frames;
 
-		public Tweener(uint length)
+		public Tweener(uint length, IAnimationManager animationManager)
 		{
 			Value = 0.0f;
 			Length = length;
-			Rate = 1;
+			_animationManager = animationManager;
 			Loop = false;
 		}
 
-		public Tweener(uint length, uint rate)
+		public Tweener(uint length, uint rate, IAnimationManager animationManager)
 		{
 			Value = 0.0f;
 			Length = length;
 			Rate = rate;
+			_animationManager = animationManager;
 			Loop = false;
 		}
 
@@ -56,21 +91,65 @@ namespace Microsoft.Maui.Controls
 
 		public uint Length { get; }
 
-		public uint Rate { get; }
+		public uint Rate { get; } = 1;
 
 		public bool Loop { get; set; }
 
-		public double Value { get; private set; }
+		public double Value { get; set; }
 
 		public event EventHandler Finished;
+		public event EventHandler ValueUpdated;
 
 		public void Pause()
 		{
-			if (_timer != 0)
+			if (_animationManagerKey != 0)
 			{
-				Ticker.Default.Remove(_timer);
-				_timer = 0;
+				_animationManager.Remove(_animationManagerKey);
+				_animationManagerKey = 0;
 			}
+		}
+
+		bool Step(long step)
+		{
+			if (step == long.MaxValue)
+			{
+				// Signal that the Tweener is being force to move to the finished state, 
+				// usually because the underlying Ticker has been disabled by the system
+				FinishImmediately();
+				return false;
+			}
+			else
+			{
+				long ms = step + _lastMilliseconds;
+				Value = Math.Min(1.0f, ms / (double)Length);
+				_lastMilliseconds = ms;
+			}
+
+			long wantedFrames = (_lastMilliseconds / Rate) + 1;
+			if (wantedFrames > _frames || Value >= 1.0f)
+			{
+				ValueUpdated?.Invoke(this, EventArgs.Empty);
+			}
+
+			_frames = wantedFrames;
+
+			if (Value >= 1.0f)
+			{
+				if (Loop)
+				{
+					_lastMilliseconds = 0;
+					Value = 0.0f;
+					return true;
+				}
+
+				Finished?.Invoke(this, EventArgs.Empty);
+
+				Value = 0.0f;
+				_animationManagerKey = 0;
+				return false;
+			}
+
+			return true;
 		}
 
 		public void Start()
@@ -80,85 +159,51 @@ namespace Microsoft.Maui.Controls
 			_lastMilliseconds = 0;
 			_frames = 0;
 
-			if (!Ticker.Default.SystemEnabled)
+			if (!_animationManager.Ticker.SystemEnabled)
 			{
+				// The Ticker's disabled, probably because the system has animations disabled
+				// The Tweener should move immediately to the finished state and shut down
 				FinishImmediately();
 				return;
 			}
 
-			_timer = Ticker.Default.Insert(step =>
-			{
-				if (step == long.MaxValue)
-				{
-					// We're being forced to finish
-					Value = 1.0;
-				}
-				else
-				{
-					long ms = step + _lastMilliseconds;
+			_animationManagerKey = _animationManager.Insert(Step);
 
-					Value = Math.Min(1.0f, ms / (double)Length);
-
-					_lastMilliseconds = ms;
-				}
-
-				long wantedFrames = (_lastMilliseconds / Rate) + 1;
-				if (wantedFrames > _frames || Value >= 1.0f)
-				{
-					ValueUpdated?.Invoke(this, EventArgs.Empty);
-				}
-				_frames = wantedFrames;
-
-				if (Value >= 1.0f)
-				{
-					if (Loop)
-					{
-						_lastMilliseconds = 0;
-						Value = 0.0f;
-						return true;
-					}
-
-					Finished?.Invoke(this, EventArgs.Empty);
-					Value = 0.0f;
-					_timer = 0;
-					return false;
-				}
-				return true;
-			});
+			if (!_animationManager.Ticker.IsRunning)
+				_animationManager.Ticker.Start();
 		}
 
 		void FinishImmediately()
 		{
 			Value = 1.0f;
+
 			ValueUpdated?.Invoke(this, EventArgs.Empty);
 			Finished?.Invoke(this, EventArgs.Empty);
+
 			Value = 0.0f;
-			_timer = 0;
+			_animationManagerKey = 0;
 		}
 
 		public void Stop()
 		{
 			Pause();
-			Value = 1.0f;
 			Finished?.Invoke(this, EventArgs.Empty);
 			Value = 0.0f;
 		}
 
-		public event EventHandler ValueUpdated;
-
 		~Tweener()
 		{
-			if (_timer != 0)
+			if (_animationManagerKey != 0)
 			{
 				try
 				{
-					Ticker.Default.Remove(_timer);
+					_animationManager.Remove(_animationManagerKey);
 				}
 				catch (InvalidOperationException)
 				{
 				}
 			}
-			_timer = 0;
+			_animationManagerKey = 0;
 		}
 	}
 }

@@ -1,29 +1,67 @@
+#nullable enable
+#if __IOS__ || MACCATALYST
+using PlatformView = Microsoft.Maui.Platform.MauiLabel;
+#elif MONOANDROID
+using PlatformView = AndroidX.AppCompat.Widget.AppCompatTextView;
+#elif WINDOWS
+using PlatformView = Microsoft.UI.Xaml.Controls.TextBlock;
+#elif TIZEN
+using PlatformView = Tizen.UIExtensions.NUI.Label;
+#elif (NETSTANDARD || !PLATFORM) || (NET6_0_OR_GREATER && !IOS && !TIZEN)
+using PlatformView = System.Object;
+#endif
+
 namespace Microsoft.Maui.Handlers
 {
-	public partial class LabelHandler
+	public partial class LabelHandler : ILabelHandler
 	{
-		public static PropertyMapper<ILabel, LabelHandler> LabelMapper = new PropertyMapper<ILabel, LabelHandler>(ViewHandler.ViewMapper)
+		public static IPropertyMapper<ILabel, ILabelHandler> Mapper = new PropertyMapper<ILabel, ILabelHandler>(ViewHandler.ViewMapper)
 		{
-			[nameof(ILabel.TextColor)] = MapTextColor,
-			[nameof(ILabel.Text)] = MapText,
-			[nameof(ILabel.CharacterSpacing)] = MapCharacterSpacing,
-			[nameof(ILabel.MaxLines)] = MapMaxLines,
-			[nameof(ILabel.Font)] = MapFont,
-			[nameof(ILabel.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
-			[nameof(ILabel.LineBreakMode)] = MapLineBreakMode,
+#if IOS || TIZEN
+			[nameof(ILabel.Background)] = MapBackground,
+			[nameof(ILabel.Opacity)] = MapOpacity,
+#elif WINDOWS
+			[nameof(ILabel.Background)] = MapBackground,
+			[nameof(ILabel.Height)] = MapHeight,
+			[nameof(ILabel.Opacity)] = MapOpacity,
+#endif
+#if TIZEN
+			[nameof(ILabel.Shadow)] = MapShadow,
+#endif
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+			[nameof(ITextStyle.Font)] = MapFont,
+			[nameof(ITextAlignment.HorizontalTextAlignment)] = MapHorizontalTextAlignment,
+			[nameof(ITextAlignment.VerticalTextAlignment)] = MapVerticalTextAlignment,
+			[nameof(ILabel.LineHeight)] = MapLineHeight,
 			[nameof(ILabel.Padding)] = MapPadding,
+			[nameof(ILabel.Text)] = MapText,
+			[nameof(ITextStyle.TextColor)] = MapTextColor,
 			[nameof(ILabel.TextDecorations)] = MapTextDecorations,
-			[nameof(ILabel.LineHeight)] = MapLineHeight
+#if ANDROID
+			[nameof(ILabel.Background)] = MapBackground,
+#endif
 		};
 
-		public LabelHandler() : base(LabelMapper)
+		public static CommandMapper<ILabel, ILabelHandler> CommandMapper = new(ViewCommandMapper)
 		{
+		};
 
+		public LabelHandler() : base(Mapper, CommandMapper)
+		{
 		}
 
-		public LabelHandler(PropertyMapper mapper) : base(mapper ?? LabelMapper)
+		public LabelHandler(IPropertyMapper? mapper)
+			: base(mapper ?? Mapper, CommandMapper)
 		{
-
 		}
+
+		public LabelHandler(IPropertyMapper? mapper, CommandMapper? commandMapper)
+			: base(mapper ?? Mapper, commandMapper ?? CommandMapper)
+		{
+		}
+
+		ILabel ILabelHandler.VirtualView => VirtualView;
+
+		PlatformView ILabelHandler.PlatformView => PlatformView;
 	}
 }

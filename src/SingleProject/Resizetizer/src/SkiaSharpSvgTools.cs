@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Drawing;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -10,22 +9,25 @@ namespace Microsoft.Maui.Resizetizer
 	{
 		SKSvg svg;
 
-		public SkiaSharpSvgTools(SharedImageInfo info, ILogger logger)
-			: this(info.Filename, info.BaseSize, info.TintColor, logger)
+		public SkiaSharpSvgTools(ResizeImageInfo info, ILogger logger)
+			: this(info.Filename, info.BaseSize, info.Color, info.TintColor, logger)
 		{
 		}
 
-		public SkiaSharpSvgTools(string filename, Size? baseSize, Color? tintColor, ILogger logger)
-			: base(filename, baseSize, tintColor, logger)
+		public SkiaSharpSvgTools(string filename, SKSize? baseSize, SKColor? backgroundColor, SKColor? tintColor, ILogger logger)
+			: base(filename, baseSize, backgroundColor, tintColor, logger)
 		{
 			var sw = new Stopwatch();
 			sw.Start();
 
 			svg = new SKSvg();
-			svg.Load(filename);
+			var pic = svg.Load(filename);
 
 			sw.Stop();
 			Logger?.Log($"Open SVG took {sw.ElapsedMilliseconds}ms ({filename})");
+
+			if (pic.CullRect.Size.IsEmpty)
+				Logger?.Log($"SVG picture did not have a size and will fail to generate. ({Filename})");
 		}
 
 		public override SKSize GetOriginalSize() =>

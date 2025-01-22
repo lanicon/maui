@@ -1,4 +1,6 @@
+#nullable disable
 using System;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls
 {
@@ -12,6 +14,6 @@ namespace Microsoft.Maui.Controls
 
 		void SetScrolledPosition(double x, double y);
 
-		Rectangle LayoutAreaOverride { get; set; }
+		Rect LayoutAreaOverride { get; set; }
 	}
 }

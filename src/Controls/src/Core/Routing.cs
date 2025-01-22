@@ -1,15 +1,18 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Microsoft.Maui.Controls
 {
+	/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="Type[@FullName='Microsoft.Maui.Controls.Routing']/Docs/*" />
 	public static class Routing
 	{
 		static int s_routeCount = 0;
-		static Dictionary<string, RouteFactory> s_routes = new Dictionary<string, RouteFactory>();
-		static Dictionary<string, Page> s_implicitPageRoutes = new Dictionary<string, Page>();
+		static Dictionary<string, RouteFactory> s_routes = new(StringComparer.Ordinal);
+		static Dictionary<string, Page> s_implicitPageRoutes = new(StringComparer.Ordinal);
+		static HashSet<string> s_routeKeys;
 
 		const string ImplicitPrefix = "IMPL_";
 		const string DefaultPrefix = "D_FAULT_";
@@ -19,13 +22,17 @@ namespace Microsoft.Maui.Controls
 		internal static void ClearImplicitPageRoutes()
 		{
 			s_implicitPageRoutes.Clear();
+			s_routeKeys = null;
 		}
 
 		internal static void RegisterImplicitPageRoute(Page page)
 		{
 			var route = GetRoute(page);
 			if (!IsUserDefined(route))
+			{
 				s_implicitPageRoutes[route] = page;
+				s_routeKeys = null;
+			}
 		}
 
 		// Shell works much better if the entire nav stack can be represented by a string
@@ -47,7 +54,7 @@ namespace Microsoft.Maui.Controls
 						var page = section.Navigation.ModalStack[i];
 						RegisterImplicitPageRoute(page);
 
-						if (page is NavigationPage np)
+						if (page is INavigationPageController np)
 						{
 							foreach (var npPages in np.Pages)
 							{
@@ -105,11 +112,21 @@ namespace Microsoft.Maui.Controls
 
 		internal static void Clear()
 		{
+			s_implicitPageRoutes.Clear();
 			s_routes.Clear();
+			s_routeKeys = null;
 		}
 
-		public static readonly BindableProperty RouteProperty =
-			BindableProperty.CreateAttached("Route", typeof(string), typeof(Routing), null,
+		/// <summary>Bindable property for attached property <c>Route</c>.</summary>
+		public static readonly BindableProperty RouteProperty = CreateRouteProperty();
+
+		[UnconditionalSuppressMessage("ReflectionAnalysis", "IL2111:ReflectionToDynamicallyAccessedMembers",
+			Justification = "The CreateAttached method has a DynamicallyAccessedMembers annotation for all public methods"
+			+ "on the declaring type. This includes the Routing.RegisterRoute(string, Type) method which also has a "
+			+ "DynamicallyAccessedMembers annotation and the trimmer can't guarantee the availability of the requirements"
+			+ "of the method. `BindableProperty` only needs methods starting with `Get`, so `RegisterRoute` is never accessed via reflection.")]
+		private static BindableProperty CreateRouteProperty()
+			=> BindableProperty.CreateAttached("Route", typeof(string), typeof(Routing), null,
 				defaultValueCreator: CreateDefaultRoute);
 
 		static object CreateDefaultRoute(BindableObject bindable)
@@ -117,15 +134,28 @@ namespace Microsoft.Maui.Controls
 			return $"{DefaultPrefix}{bindable.GetType().Name}{++s_routeCount}";
 		}
 
-		internal static string[] GetRouteKeys()
+		internal static HashSet<string> GetRouteKeys()
 		{
-			string[] keys = new string[s_routes.Count + s_implicitPageRoutes.Count];
-			s_routes.Keys.CopyTo(keys, 0);
-			s_implicitPageRoutes.Keys.CopyTo(keys, s_routes.Count);
-			return keys;
+			var keys = s_routeKeys;
+			if (keys != null)
+				return keys;
+
+			keys = new HashSet<string>(StringComparer.Ordinal);
+			foreach (var key in s_routes.Keys)
+			{
+				keys.Add(ShellUriHandler.FormatUri(key));
+			}
+			foreach (var key in s_implicitPageRoutes.Keys)
+			{
+				keys.Add(ShellUriHandler.FormatUri(key));
+			}
+			return s_routeKeys = keys;
 		}
 
-		public static Element GetOrCreateContent(string route)
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='GetOrCreateContent']/Docs/*" />
+#pragma warning disable CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
+		public static Element GetOrCreateContent(string route, IServiceProvider services = null)
+#pragma warning restore CS1573 // Parameter has no matching param tag in the XML comment (but other parameters do)
 		{
 			Element result = null;
 
@@ -135,15 +165,7 @@ namespace Microsoft.Maui.Controls
 			}
 
 			if (s_routes.TryGetValue(route, out var content))
-				result = content.GetOrCreate();
-
-			if (result == null)
-			{
-				// okay maybe its a type, we'll try that just to be nice to the user
-				var type = Type.GetType(route);
-				if (type != null)
-					result = Activator.CreateInstance(type) as Element;
-			}
+				result = content.GetOrCreate(services);
 
 			if (result != null)
 				SetRoute(result, route);
@@ -151,6 +173,7 @@ namespace Microsoft.Maui.Controls
 			return result;
 		}
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='GetRoute']/Docs/*" />
 		public static string GetRoute(BindableObject obj)
 		{
 			return (string)obj.GetValue(RouteProperty);
@@ -165,17 +188,20 @@ namespace Microsoft.Maui.Controls
 			return $"{source}/";
 		}
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='FormatRoute'][1]/Docs/*" />
 		public static string FormatRoute(List<string> segments)
 		{
 			var route = FormatRoute(String.Join(PathSeparator, segments));
 			return route;
 		}
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='FormatRoute'][2]/Docs/*" />
 		public static string FormatRoute(string route)
 		{
 			return route;
 		}
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='RegisterRoute'][2]/Docs/*" />
 		public static void RegisterRoute(string route, RouteFactory factory)
 		{
 			if (!String.IsNullOrWhiteSpace(route))
@@ -183,19 +209,27 @@ namespace Microsoft.Maui.Controls
 			ValidateRoute(route, factory);
 
 			s_routes[route] = factory;
+			s_routeKeys = null;
 		}
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='UnRegisterRoute']/Docs/*" />
 		public static void UnRegisterRoute(string route)
 		{
-			if (s_routes.TryGetValue(route, out _))
-				s_routes.Remove(route);
+			if (s_routes.Remove(route))
+			{
+				s_routeKeys = null;
+			}
 		}
 
-		public static void RegisterRoute(string route, Type type)
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='RegisterRoute'][1]/Docs/*" />
+		public static void RegisterRoute(
+			string route,
+			[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type type)
 		{
 			RegisterRoute(route, new TypeRouteFactory(type));
 		}
 
+		/// <include file="../../docs/Microsoft.Maui.Controls/Routing.xml" path="//Member[@MemberName='SetRoute']/Docs/*" />
 		public static void SetRoute(Element obj, string value)
 		{
 			obj.SetValue(RouteProperty, value);
@@ -224,9 +258,11 @@ namespace Microsoft.Maui.Controls
 
 		class TypeRouteFactory : RouteFactory
 		{
+			[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
 			readonly Type _type;
 
-			public TypeRouteFactory(Type type)
+			public TypeRouteFactory(
+				[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type type)
 			{
 				_type = type;
 			}
@@ -235,6 +271,17 @@ namespace Microsoft.Maui.Controls
 			{
 				return (Element)Activator.CreateInstance(_type);
 			}
+
+			public override Element GetOrCreate(IServiceProvider services)
+			{
+				if (services != null)
+				{
+					return (Element)Extensions.DependencyInjection.ActivatorUtilities.GetServiceOrCreateInstance(services, _type);
+				}
+
+				return (Element)Activator.CreateInstance(_type);
+			}
+
 			public override bool Equals(object obj)
 			{
 				if ((obj is TypeRouteFactory typeRouteFactory))

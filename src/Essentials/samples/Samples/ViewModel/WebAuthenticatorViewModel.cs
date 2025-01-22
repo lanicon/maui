@@ -1,8 +1,9 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.Maui.Essentials;
-using Xamarin.Forms;
+using Microsoft.Maui.Authentication;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Devices;
 
 namespace Samples.ViewModel
 {
@@ -40,7 +41,7 @@ namespace Samples.ViewModel
 			{
 				WebAuthenticatorResult r = null;
 
-				if (scheme.Equals("Apple")
+				if (scheme.Equals("Apple", StringComparison.Ordinal)
 					&& DeviceInfo.Platform == DevicePlatform.iOS
 					&& DeviceInfo.Version.Major >= 13)
 				{

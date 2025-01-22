@@ -1,7 +1,11 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform;
 using NUnit.Framework;
+using ObjCRuntime;
 using UIKit;
+using CategoryAttribute = NUnit.Framework.CategoryAttribute;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 {
@@ -12,8 +16,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Description("Label text color should apply in HTML mode")]
 		public async Task LabelTextColorAppliesToHtml()
 		{
-			var label = new Label { TextColor = Color.Red, Text = "<p>Hello</p>", TextType = TextType.Html };
-			var expected = Color.Red.ToUIColor();
+			var label = new Label { TextColor = Colors.Red, Text = "<p>Hello</p>", TextType = TextType.Html };
+			var expected = Colors.Red.ToPlatform();
 			var actual = await GetControlProperty(label, uiLabel => uiLabel.TextColor);
 			Assert.That(actual, Is.EqualTo(expected));
 		}
@@ -22,9 +26,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Description("If Label does not specify a TextColor, HTML colors should work")]
 		public async Task LabelDefaultTextColorDefersToHtml()
 		{
-			var label = new Label { Text = "<p style='color:blue;font-size:72pt'>Hello</p>", TextType = TextType.Html, 
-				VerticalOptions = LayoutOptions.Center };
-			var expected = Color.Blue.ToUIColor();
+			var label = new Label
+			{
+				Text = "<p style='color:blue;font-size:72pt'>Hello</p>",
+				TextType = TextType.Html,
+				VerticalOptions = LayoutOptions.Center
+			};
+			var expected = Colors.Blue.ToPlatform();
 
 			var actual = await GetControlProperty(label, uiLabel => uiLabel.TextColor);
 			Assert.That(actual, Is.EqualTo(expected).Using<UIColor>(ColorComparison.ARGBEquivalent));
@@ -34,8 +42,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Description("If Label specifies a TextColor, it should override HTML colors")]
 		public async Task LabelTextColorOverridesHtmlColors()
 		{
-			var label = new Label { Text = "<p style='color:blue;'>Hello</p>", TextType = TextType.Html, TextColor = Color.Red };
-			var expected = Color.Red.ToUIColor();
+			var label = new Label { Text = "<p style='color:blue;'>Hello</p>", TextType = TextType.Html, TextColor = Colors.Red };
+			var expected = Colors.Red.ToPlatform();
 			var actual = await GetControlProperty(label, uiLabel => uiLabel.TextColor);
 			Assert.That(actual, Is.EqualTo(expected));
 		}
@@ -44,8 +52,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Description("Label background color should apply in HTML mode")]
 		public async Task LabelBackgroundColorAppliesToHtml()
 		{
-			var label = new Label { BackgroundColor = Color.Red, Text = "<p>Hello</p>", TextType = TextType.Html };
-			var expected = Color.Red.ToUIColor();
+			var label = new Label { BackgroundColor = Colors.Red, Text = "<p>Hello</p>", TextType = TextType.Html };
+			var expected = Colors.Red.ToPlatform();
 			var actual = await GetRendererProperty(label, r => r.NativeView.BackgroundColor);
 			Assert.That(actual, Is.EqualTo(expected));
 		}
@@ -54,11 +62,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 		[Description("Label Font should apply in HTML mode")]
 		public async Task LabelFontAppliesToHtml()
 		{
-			var label = new Label { FontFamily = "MarkerFelt-Thin", FontSize = 24, FontAttributes = FontAttributes.Italic, 
-				Text = "<p>Hello</p>", TextType = TextType.Html };
+			var label = new Label
+			{
+				FontFamily = "MarkerFelt-Thin",
+				FontSize = 24,
+				FontAttributes = FontAttributes.Italic,
+				Text = "<p>Hello</p>",
+				TextType = TextType.Html
+			};
 			var expectedFontFamily = label.FontFamily;
-			var expectedFontSize = (System.nfloat)label.FontSize;
-			
+			var expectedFontSize = (nfloat)label.FontSize;
+
 			var actualFont = await GetControlProperty(label, uiLabel => uiLabel.Font);
 
 			Assert.That(actualFont.FontDescriptor.SymbolicTraits & UIFontDescriptorSymbolicTraits.Italic, Is.Not.Zero);
@@ -99,7 +113,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 			var expected = TextType.Html;
 			var actual = await GetRendererProperty(label, renderer =>
 			{
+#pragma warning disable CS0618 // Type or member is obsolete
 				var uiLabel = (UILabel)(renderer as LabelRenderer).Control;
+#pragma warning restore CS0618 // Type or member is obsolete
 				uiLabel.Frame = new CoreGraphics.CGRect(0, 0, 200, 200);
 				uiLabel.RecalculateSpanPositions(label);
 				return label.TextType;

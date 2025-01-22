@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -14,12 +16,12 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			Resources = new ResourceDictionary{
 				new Style(typeof(Label)) {
 					Setters = {
-						new Setter {Property = Label.TextColorProperty, Value=Color.Blue}
+						new Setter {Property = Label.TextColorProperty, Value=Colors.Blue}
 					}
 				}
 			};
-			MainPage = new Bz54334(useCompiledXaml);
-			MessagingCenter.Subscribe<ContentPage>(this, "ChangeTheme", (s) =>
+			this.LoadPage(new Bz54334(useCompiledXaml));
+			WeakReferenceMessenger.Default.Register<ContentPage, string>(this, "ChangeTheme", (s, m) =>
 			{
 				ToggleTheme();
 			});
@@ -30,13 +32,13 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			Resources = daymode ? new ResourceDictionary{
 				new Style(typeof(Label)) {
 					Setters = {
-						new Setter {Property = Label.TextColorProperty, Value=Color.Red}
+						new Setter {Property = Label.TextColorProperty, Value=Colors.Red}
 					}
 				}
 			} : new ResourceDictionary{
 				new Style(typeof(Label)) {
 					Setters = {
-						new Setter {Property = Label.TextColorProperty, Value=Color.Blue}
+						new Setter {Property = Label.TextColorProperty, Value=Colors.Blue}
 					}
 				}
 			};
@@ -58,38 +60,31 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp]
-			public void Setup()
-			{
-				Device.PlatformServices = new MockPlatformServices();
-			}
-
 			[TearDown]
 			public void TearDown()
 			{
 				Application.Current = null;
-				Device.PlatformServices = null;
 			}
 
 			[TestCase(true)]
-			[TestCase(false)]
-			public void Foo(bool useCompiledXaml)
+			[TestCase(false, Ignore = "This is failing on CI on macOS: https://github.com/dotnet/maui/issues/15054")]
+			public void FooBz54334(bool useCompiledXaml)
 			{
 				var app = Application.Current = new Bz54334App(useCompiledXaml);
 				var page = app.MainPage as Bz54334;
 				var l0 = page.label;
 				var l1 = page.themedLabel;
 
-				Assert.That(l0.TextColor, Is.EqualTo(Color.Black));
-				Assert.That(l1.TextColor, Is.EqualTo(Color.Blue));
+				Assert.That(l0.TextColor, Is.EqualTo(Colors.Black));
+				Assert.That(l1.TextColor, Is.EqualTo(Colors.Blue));
 
-				MessagingCenter.Send<ContentPage>(page, "ChangeTheme");
-				Assert.That(l0.TextColor, Is.EqualTo(Color.Black));
-				Assert.That(l1.TextColor, Is.EqualTo(Color.Red));
+				WeakReferenceMessenger.Default.Send<ContentPage, string>(page, "ChangeTheme");
+				Assert.That(l0.TextColor, Is.EqualTo(Colors.Black));
+				Assert.That(l1.TextColor, Is.EqualTo(Colors.Red));
 
-				MessagingCenter.Send<ContentPage>(page, "ChangeTheme");
-				Assert.That(l0.TextColor, Is.EqualTo(Color.Black));
-				Assert.That(l1.TextColor, Is.EqualTo(Color.Blue));
+				WeakReferenceMessenger.Default.Send<ContentPage, string>(page, "ChangeTheme");
+				Assert.That(l0.TextColor, Is.EqualTo(Colors.Black));
+				Assert.That(l1.TextColor, Is.EqualTo(Colors.Blue));
 
 			}
 		}

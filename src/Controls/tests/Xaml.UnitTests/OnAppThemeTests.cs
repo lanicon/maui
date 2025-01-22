@@ -1,4 +1,7 @@
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -6,17 +9,22 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 	[TestFixture]
 	public class OnAppThemeTests : BaseTestFixture
 	{
+		MockAppInfo mockAppInfo;
+		MockApplication mockApp;
+
 		[SetUp]
 		public override void Setup()
 		{
 			base.Setup();
-			Application.Current = new MockApplication();
+			AppInfo.SetCurrent(mockAppInfo = new MockAppInfo());
+			Application.Current = mockApp = new MockApplication();
 		}
 
 		[TearDown]
 		public override void TearDown()
 		{
 			Application.Current = null;
+			AppInfo.SetCurrent(null);
 			base.TearDown();
 		}
 
@@ -25,17 +33,17 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label 
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"" TextColor=""{AppThemeBinding Light = Green, Dark = Red}
 			"">This text is green or red depending on Light (or default) or Dark</Label>";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Light;
+			SetAppTheme(AppTheme.Light);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Dark;
+			SetAppTheme(AppTheme.Dark);
 			label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Red, label.TextColor);
+			Assert.AreEqual(Colors.Red, label.TextColor);
 		}
 
 		[Test]
@@ -43,7 +51,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 			Text=""This text is green or red depending on Light(or default) or Dark"">
                 <Label.TextColor>
@@ -51,13 +59,13 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				</Label.TextColor>
 			</Label> ";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Light;
+			SetAppTheme(AppTheme.Light);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Dark;
+			SetAppTheme(AppTheme.Dark);
 			label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Red, label.TextColor);
+			Assert.AreEqual(Colors.Red, label.TextColor);
 		}
 
 		[Test]
@@ -65,7 +73,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 			Text=""This text is green or red depending on Light(or default) or Dark"">
                 <Label.TextColor>
@@ -73,9 +81,9 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				</Label.TextColor>
 			</Label> ";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Unspecified;
+			SetAppTheme(AppTheme.Unspecified);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
 		}
 
 		[Test]
@@ -83,7 +91,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 			Text=""This text is green or red depending on Light(or default) or Dark"">
                 <Label.TextColor>
@@ -91,9 +99,9 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				</Label.TextColor>
 			</Label> ";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Light;
+			SetAppTheme(AppTheme.Light);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
 		}
 
 		[Test]
@@ -101,7 +109,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 			Text=""This text is green or red depending on Light(or default) or Dark"">
                 <Label.TextColor>
@@ -109,13 +117,13 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				</Label.TextColor>
 			</Label> ";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Light;
+			SetAppTheme(AppTheme.Light);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Dark;
+			SetAppTheme(AppTheme.Dark);
 			label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Red, label.TextColor);
+			Assert.AreEqual(Colors.Red, label.TextColor);
 		}
 
 		[Test]
@@ -123,7 +131,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 			Text=""This text is green or red depending on Light(or default) or Dark"">
                 <Label.TextColor>
@@ -131,9 +139,9 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				</Label.TextColor>
 			</Label> ";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Unspecified;
+			SetAppTheme(AppTheme.Unspecified);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
 		}
 
 		[Test]
@@ -141,7 +149,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		{
 			var xaml = @"
 			<Label
-			xmlns=""http://xamarin.com/schemas/2014/forms""
+			xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 			xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 			Text=""This text is green or red depending on Light(or default) or Dark"">
                 <Label.TextColor>
@@ -149,9 +157,15 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				</Label.TextColor>
 			</Label> ";
 
-			((MockPlatformServices)Device.PlatformServices).RequestedTheme = OSAppTheme.Unspecified;
+			SetAppTheme(AppTheme.Unspecified);
 			var label = new Label().LoadFromXaml(xaml);
-			Assert.AreEqual(Color.Green, label.TextColor);
+			Assert.AreEqual(Colors.Green, label.TextColor);
+		}
+
+		void SetAppTheme(AppTheme theme)
+		{
+			mockAppInfo.RequestedTheme = theme;
+			mockApp.NotifyThemeChanged();
 		}
 	}
 }

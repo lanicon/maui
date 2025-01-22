@@ -5,6 +5,7 @@ using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
+	[RequireService([typeof(IProvideValueTarget)])]
 	public class TargetPropertyExtension : IMarkupExtension
 	{
 		public object ProvideValue(IServiceProvider serviceProvider)
@@ -31,18 +32,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		class Tests
 		{
-			[SetUp]
-			public void Setup()
-			{
-				Device.PlatformServices = new MockPlatformServices();
-			}
-
-			[TearDown]
-			public void TearDown()
-			{
-				Device.PlatformServices = null;
-			}
-
 			[TestCase(true)]
 			[TestCase(false)]
 			public void TargetPropertyIsSetOnMarkups(bool useCompiledXaml)

@@ -3,18 +3,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Versioning;
 using System.Text;
-
 using Foundation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Controls.Platform;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[SupportedOSPlatform("ios11.0")]
 	internal class DragAndDropDelegate : NSObject, IUIDragInteractionDelegate, IUIDropInteractionDelegate
 	{
-		#region UIDragInteractionDelegate
-
-
 		[Export("dragInteraction:session:willEndWithOperation:")]
 		[Preserve(Conditional = true)]
 		public void SessionWillEnd(UIDragInteraction interaction, IUIDragSession session, UIDropOperation operation)
@@ -33,9 +34,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (interaction.View is IVisualElementRenderer renderer && renderer.Element is View view)
 				return HandleDragStarting(view, renderer);
 
-			return new UIDragItem[0];
+			return Array.Empty<UIDragItem>();
 		}
-		#endregion
 
 		[Export("dropInteraction:canHandleSession:")]
 		[Preserve(Conditional = true)]
@@ -49,7 +49,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			{
 				return true;
 			}
-			
+
 			return false;
 		}
 
@@ -85,8 +85,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (interaction.View is IVisualElementRenderer renderer)
 			{
 				DataPackage package = null;
-					
-				if(session.LocalDragSession.Items.Length > 0 &&
+
+				if (session.LocalDragSession.Items.Length > 0 &&
 					session.LocalDragSession.Items[0].LocalObject is CustomLocalStateData cdi)
 				{
 					package = cdi.DataPackage;
@@ -108,9 +108,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (session.LocalDragSession == null)
 				return;
 
-			if(session.LocalDragSession.Items.Length > 0 && 
+			if (session.LocalDragSession.Items.Length > 0 &&
 				session.LocalDragSession.Items[0].LocalObject is CustomLocalStateData cdi &&
-				interaction.View is IVisualElementRenderer renderer && 
+				interaction.View is IVisualElementRenderer renderer &&
 				renderer.Element is View view)
 			{
 				HandleDrop(view, cdi.DataPackage);
@@ -130,7 +130,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			foreach (var gesture in gestures)
 			{
-				if(gesture is TRecognizer recognizer)
+				if (gesture is TRecognizer recognizer)
 					func(recognizer);
 			}
 		}
@@ -147,8 +147,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 				if (args.Cancel)
 					return;
-
+#pragma warning disable CS0618 // Type or member is obsolete
 				if (!args.Handled)
+#pragma warning restore CS0618 // Type or member is obsolete
 				{
 					UIImage uIImage = null;
 					string clipDescription = String.Empty;
@@ -189,10 +190,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 					returnValue = new UIDragItem[] { dragItem };
 				}
-			}, 
+			},
 			element);
 
-			return returnValue ?? new UIDragItem[0];
+			return returnValue ?? Array.Empty<UIDragItem>();
 		}
 
 		void HandleDropCompleted(View element)
@@ -249,7 +250,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				}
 				catch (Exception e)
 				{
-					Controls.Internals.Log.Warning(nameof(DropGestureRecognizer), $"{e}");
+					Forms.MauiContext?.CreateLogger<DropGestureRecognizer>()?.LogWarning(e, null);
 				}
 			}, (View)element);
 		}
@@ -264,4 +265,3 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 }
 #endif
-	  

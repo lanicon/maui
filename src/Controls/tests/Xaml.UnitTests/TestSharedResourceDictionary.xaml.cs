@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -21,7 +22,6 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			[SetUp]
 			public void Setup()
 			{
-				Device.PlatformServices = new MockPlatformServices();
 				Application.Current = new MockApplication
 				{
 					Resources = new ResourceDictionary
@@ -34,7 +34,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			[TearDown]
 			public void TearDown()
 			{
-				Device.PlatformServices = null;
+				Application.ClearCurrent();
 			}
 
 			[TestCase(false)]
@@ -42,7 +42,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			public void MergedResourcesAreFound(bool useCompiledXaml)
 			{
 				var layout = new TestSharedResourceDictionary(useCompiledXaml);
-				Assert.AreEqual(Color.Pink, layout.label.TextColor);
+				Assert.AreEqual(Colors.Pink, layout.label.TextColor);
 			}
 
 			[TestCase(false)]
@@ -50,8 +50,8 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			public void NoConflictsBetweenSharedRDs(bool useCompiledXaml)
 			{
 				var layout = new TestSharedResourceDictionary(useCompiledXaml);
-				Assert.AreEqual(Color.Pink, layout.label.TextColor);
-				Assert.AreEqual(Color.Purple, layout.label2.TextColor);
+				Assert.AreEqual(Colors.Pink, layout.label.TextColor);
+				Assert.AreEqual(Colors.Purple, layout.label2.TextColor);
 			}
 
 			[TestCase(false)]
@@ -59,7 +59,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			public void ImplicitStyleCanBeSharedFromSharedRD(bool useCompiledXaml)
 			{
 				var layout = new TestSharedResourceDictionary(useCompiledXaml);
-				Assert.AreEqual(Color.Red, layout.implicitLabel.TextColor);
+				Assert.AreEqual(Colors.Red, layout.implicitLabel.TextColor);
 			}
 
 			class MyRD : ResourceDictionary

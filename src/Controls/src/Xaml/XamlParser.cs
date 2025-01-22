@@ -5,7 +5,7 @@
 //       Stephane Delcroix <stephane@mi8.be>
 //
 // Copyright (c) 2013 Mobile Inception
-// Copyright (c) 2013-2014 Microsoft.Maui.Controls, Inc
+// Copyright (c) 2013-2014 Xamarin, Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,22 +28,18 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Xml;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Devices;
 
 namespace Microsoft.Maui.Controls.Xaml
 {
-	static class XamlParser
+	static partial class XamlParser
 	{
-		public const string XFUri = "http://xamarin.com/schemas/2014/forms";
-		public const string XFDesignUri = "http://xamarin.com/schemas/2014/forms/design";
-		public const string X2006Uri = "http://schemas.microsoft.com/winfx/2006/xaml";
-		public const string X2009Uri = "http://schemas.microsoft.com/winfx/2009/xaml";
-		public const string McUri = "http://schemas.openxmlformats.org/markup-compatibility/2006";
-
-
 		public static void ParseXaml(RootNode rootNode, XmlReader reader)
 		{
 			var attributes = ParseXamlAttributes(reader, out IList<KeyValuePair<string, string>> xmlns);
@@ -72,7 +68,7 @@ namespace Microsoft.Maui.Controls.Xaml
 						return;
 					case XmlNodeType.Element:
 						// 1. Property Element.
-						if (reader.Name.Contains("."))
+						if (reader.Name.IndexOf(".", StringComparison.Ordinal) != -1)
 						{
 							XmlName name;
 							if (reader.Name.StartsWith(elementName + ".", StringComparison.Ordinal))
@@ -81,7 +77,7 @@ namespace Microsoft.Maui.Controls.Xaml
 								name = new XmlName(reader.NamespaceURI, reader.LocalName);
 
 							if (node.Properties.ContainsKey(name))
-								throw new XamlParseException($"'{reader.Name}' is a duplicate property name.", (IXmlLineInfo)reader);
+								throw new XamlParseException($"'{reader.Name}' is a duplicate property name.", ((IXmlLineInfo)reader).Clone());
 
 							INode prop = null;
 							if (reader.IsEmptyElement)
@@ -96,18 +92,18 @@ namespace Microsoft.Maui.Controls.Xaml
 						else if (reader.NamespaceURI == X2009Uri && reader.LocalName == "Arguments")
 						{
 							if (node.Properties.ContainsKey(XmlName.xArguments))
-								throw new XamlParseException($"'x:Arguments' is a duplicate directive name.", (IXmlLineInfo)reader);
+								throw new XamlParseException($"'x:Arguments' is a duplicate directive name.", ((IXmlLineInfo)reader).Clone());
 
 							var prop = ReadNode(reader);
 							if (prop != null)
 								node.Properties.Add(XmlName.xArguments, prop);
 						}
 						// 3. DataTemplate (should be handled by 4.)
-						else if (node.XmlType.NamespaceUri == XFUri &&
+						else if (node.XmlType.NamespaceUri == MauiUri &&
 								 (node.XmlType.Name == "DataTemplate" || node.XmlType.Name == "ControlTemplate"))
 						{
 							if (node.Properties.ContainsKey(XmlName._CreateContent))
-								throw new XamlParseException($"Multiple child elements in {node.XmlType.Name}", (IXmlLineInfo)reader);
+								throw new XamlParseException($"Multiple child elements in {node.XmlType.Name}", ((IXmlLineInfo)reader).Clone());
 
 							var prop = ReadNode(reader, true);
 							if (prop != null)
@@ -193,7 +189,7 @@ namespace Microsoft.Maui.Controls.Xaml
 						break;
 				}
 			}
-			throw new XamlParseException("Closing PropertyElement expected", (IXmlLineInfo)reader);
+			throw new XamlParseException("Closing PropertyElement expected", ((IXmlLineInfo)reader).Clone());
 		}
 
 		internal static IList<XmlType> GetTypeArguments(XmlReader reader) => GetTypeArguments(ParseXamlAttributes(reader, out _));
@@ -222,7 +218,7 @@ namespace Microsoft.Maui.Controls.Xaml
 				}
 
 				var namespaceUri = reader.NamespaceURI;
-				if (reader.LocalName.Contains(".") && namespaceUri == "")
+				if (reader.LocalName.IndexOf(".", StringComparison.Ordinal) != -1 && namespaceUri == "")
 					namespaceUri = ((IXmlNamespaceResolver)reader).LookupNamespace("");
 				var propertyName = ParsePropertyName(new XmlName(namespaceUri, reader.LocalName));
 
@@ -295,16 +291,16 @@ namespace Microsoft.Maui.Controls.Xaml
 			{
 				var prefix = kvp.Key;
 
-				string typeName = null, ns = null, asm = null, targetPlatform = null;
-				XmlnsHelper.ParseXmlns(kvp.Value, out typeName, out ns, out asm, out targetPlatform);
+				XmlnsHelper.ParseXmlns(kvp.Value, out _, out _, out _, out var targetPlatform);
 				if (targetPlatform == null)
 					continue;
+
 				try
 				{
-					if (targetPlatform != Device.RuntimePlatform)
+					if (targetPlatform != DeviceInfo.Platform.ToString())
 					{
 						// Special case for Windows backward compatibility
-						if (targetPlatform == "Windows" && Device.RuntimePlatform == Device.UWP)
+						if (targetPlatform == "Windows" && DeviceInfo.Platform == DevicePlatform.WinUI)
 							continue;
 
 						prefixes.Add(prefix);
@@ -339,37 +335,38 @@ namespace Microsoft.Maui.Controls.Xaml
 
 		static void GatherXmlnsDefinitionAttributes()
 		{
-			Assembly[] assemblies = null;
-#if !NETSTANDARD2_0 && !NET6_0
-			assemblies = new[] {
-				typeof(XamlLoader).GetTypeInfo().Assembly,
-				typeof(View).GetTypeInfo().Assembly,
-			};
-#else
-			assemblies = AppDomain.CurrentDomain.GetAssemblies();
-#endif
-
+			Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
 			s_xmlnsDefinitions = new List<XmlnsDefinitionAttribute>();
 
 			foreach (var assembly in assemblies)
-				foreach (XmlnsDefinitionAttribute attribute in assembly.GetCustomAttributes(typeof(XmlnsDefinitionAttribute)))
+			{
+				try
 				{
-					s_xmlnsDefinitions.Add(attribute);
-					attribute.AssemblyName = attribute.AssemblyName ?? assembly.FullName;
+					foreach (XmlnsDefinitionAttribute attribute in assembly.GetCustomAttributes(typeof(XmlnsDefinitionAttribute)))
+					{
+						s_xmlnsDefinitions.Add(attribute);
+						attribute.AssemblyName = attribute.AssemblyName ?? assembly.FullName;
+					}
 				}
+				catch (Exception ex)
+				{
+					// If we can't load the custom attribute for whatever reason from the assembly,
+					// We can ignore it and keep going.
+					Debug.WriteLine($"Failed to parse Assembly Attribute: {ex.ToString()}");
+				}
+			}
 		}
 
+		[RequiresUnreferencedCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#if !NETSTANDARD
+		[RequiresDynamicCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#endif
 		public static Type GetElementType(XmlType xmlType, IXmlLineInfo xmlInfo, Assembly currentAssembly,
 			out XamlParseException exception)
 		{
-#if NETSTANDARD2_0 || NET6_0
 			bool hasRetriedNsSearch = false;
-#endif
-			IList<XamlLoader.FallbackTypeInfo> potentialTypes;
 
-#if NETSTANDARD2_0 || NET6_0
 		retry:
-#endif
 			if (s_xmlnsDefinitions == null)
 				GatherXmlnsDefinitionAttributes();
 
@@ -377,13 +374,16 @@ namespace Microsoft.Maui.Controls.Xaml
 				s_xmlnsDefinitions,
 				currentAssembly?.FullName,
 				(typeInfo) =>
-					Type.GetType($"{typeInfo.ClrNamespace}.{typeInfo.TypeName}, {typeInfo.AssemblyName}"),
-				out potentialTypes);
+				{
+					var t = Type.GetType($"{typeInfo.clrNamespace}.{typeInfo.typeName}, {typeInfo.assemblyName}");
+					if (t is not null && t.IsPublicOrVisibleInternal(currentAssembly))
+						return t;
+					return null;
+				});
 
 			var typeArguments = xmlType.TypeArguments;
 			exception = null;
 
-#if NETSTANDARD2_0 || NET6_0
 			if (type == null)
 			{
 				// This covers the scenario where the AppDomain's loaded
@@ -397,10 +397,6 @@ namespace Microsoft.Maui.Controls.Xaml
 					goto retry;
 				}
 			}
-#endif
-
-			if (XamlLoader.FallbackTypeResolver != null)
-				type = XamlLoader.FallbackTypeResolver(potentialTypes, type);
 
 			if (type != null && typeArguments != null)
 			{
@@ -437,67 +433,19 @@ namespace Microsoft.Maui.Controls.Xaml
 			return type;
 		}
 
-		public static T GetTypeReference<T>(
-			this XmlType xmlType,
-			IEnumerable<XmlnsDefinitionAttribute> xmlnsDefinitions,
-			string defaultAssemblyName,
-			Func<XamlLoader.FallbackTypeInfo, T> refFromTypeInfo,
-			out IList<XamlLoader.FallbackTypeInfo> potentialTypes)
-			where T : class
+		public static bool IsPublicOrVisibleInternal(this Type type, Assembly assembly)
 		{
-			var lookupAssemblies = new List<XmlnsDefinitionAttribute>();
-			var namespaceURI = xmlType.NamespaceUri;
-			var elementName = xmlType.Name;
-			var typeArguments = xmlType.TypeArguments;
-			potentialTypes = null;
-
-			foreach (var xmlnsDef in xmlnsDefinitions)
-			{
-				if (xmlnsDef.XmlNamespace != namespaceURI)
-					continue;
-				lookupAssemblies.Add(xmlnsDef);
-			}
-
-			if (lookupAssemblies.Count == 0)
-			{
-				XmlnsHelper.ParseXmlns(namespaceURI, out _, out var ns, out var asmstring, out _);
-				asmstring = asmstring ?? defaultAssemblyName;
-				if (namespaceURI != null && ns != null)
-					lookupAssemblies.Add(new XmlnsDefinitionAttribute(namespaceURI, ns) { AssemblyName = asmstring });
-			}
-
-			var lookupNames = new List<string>();
-			if (elementName != "DataTemplate" && !elementName.EndsWith("Extension", StringComparison.Ordinal))
-				lookupNames.Add(elementName + "Extension");
-			lookupNames.Add(elementName);
-
-			for (var i = 0; i < lookupNames.Count; i++)
-			{
-				var name = lookupNames[i];
-				if (name.Contains(":"))
-					name = name.Substring(name.LastIndexOf(':') + 1);
-				if (typeArguments != null)
-					name += "`" + typeArguments.Count; //this will return an open generic Type
-				lookupNames[i] = name;
-			}
-
-			potentialTypes = new List<XamlLoader.FallbackTypeInfo>();
-			foreach (string typeName in lookupNames)
-				foreach (XmlnsDefinitionAttribute xmlnsDefinitionAttribute in lookupAssemblies)
-					potentialTypes.Add(new XamlLoader.FallbackTypeInfo
-					{
-						ClrNamespace = xmlnsDefinitionAttribute.ClrNamespace,
-						TypeName = typeName,
-						AssemblyName = xmlnsDefinitionAttribute.AssemblyName,
-						XmlNamespace = xmlnsDefinitionAttribute.XmlNamespace
-					});
-
-			T type = null;
-			foreach (XamlLoader.FallbackTypeInfo typeInfo in potentialTypes)
-				if ((type = refFromTypeInfo(typeInfo)) != null)
-					break;
-
-			return type;
+			if (type.IsPublic || type.IsNestedPublic)
+				return true;
+			if (type.Assembly == assembly)
+				return true;
+			if (type.Assembly.IsVisibleInternal(assembly))
+				return true;
+			return false;
 		}
+
+		public static bool IsVisibleInternal(this Assembly from, Assembly to) =>
+			from.GetCustomAttributes<InternalsVisibleToAttribute>().Any(ca =>
+				ca.AssemblyName.StartsWith(to.GetName().Name, StringComparison.InvariantCulture));
 	}
 }

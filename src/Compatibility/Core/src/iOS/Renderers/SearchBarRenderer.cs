@@ -1,13 +1,18 @@
-using System;
+﻿using System;
 using System.ComponentModel;
-using System.Drawing;
 using CoreGraphics;
 using Foundation;
-using UIKit;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform;
+using ObjCRuntime;
+using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class SearchBarRenderer : ViewRenderer<SearchBar, UISearchBar>
 	{
 		UIColor _cancelButtonTextColorDefaultDisabled;
@@ -31,6 +36,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		}
 
+		[PortHandler]
 		protected override void Dispose(bool disposing)
 		{
 			if (disposing)
@@ -50,13 +56,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			base.Dispose(disposing);
 		}
 
+		[PortHandler]
 		protected override void OnElementChanged(ElementChangedEventArgs<SearchBar> e)
 		{
 			if (e.NewElement != null)
 			{
 				if (Control == null)
 				{
-					var searchBar = new UISearchBar(RectangleF.Empty) { ShowsCancelButton = true, BarStyle = UIBarStyle.Default };
+					var searchBar = new UISearchBar(CGRect.Empty) { ShowsCancelButton = true, BarStyle = UIBarStyle.Default };
 
 					var cancelButton = searchBar.FindDescendantView<UIButton>();
 					_cancelButtonTextColorDefaultNormal = cancelButton.TitleColor(UIControlState.Normal);
@@ -130,13 +137,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				UpdateVerticalTextAlignment();
 			else if (e.PropertyName == VisualElement.FlowDirectionProperty.PropertyName)
 				UpdateHorizontalTextAlignment();
-			else if(e.PropertyName == Microsoft.Maui.Controls.InputView.MaxLengthProperty.PropertyName)
+			else if (e.PropertyName == Microsoft.Maui.Controls.InputView.MaxLengthProperty.PropertyName)
 				UpdateMaxLength();
-			else if(e.PropertyName == Microsoft.Maui.Controls.InputView.KeyboardProperty.PropertyName)
+			else if (e.PropertyName == Microsoft.Maui.Controls.InputView.KeyboardProperty.PropertyName)
 				UpdateKeyboard();
-			else if(e.PropertyName == Microsoft.Maui.Controls.InputView.IsSpellCheckEnabledProperty.PropertyName)
+			else if (e.PropertyName == Microsoft.Maui.Controls.InputView.IsSpellCheckEnabledProperty.PropertyName)
 				UpdateKeyboard();
-			else if(e.PropertyName == PlatformConfiguration.iOSSpecific.SearchBar.SearchBarStyleProperty.PropertyName)
+			else if (e.PropertyName == PlatformConfiguration.iOSSpecific.SearchBar.SearchBarStyleProperty.PropertyName)
 				UpdateSearchBarStyle();
 		}
 
@@ -151,8 +158,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			{
 				_defaultTintColor = Control.BarTintColor;
 			}
-			
-			Control.BarTintColor = color.ToUIColor(_defaultTintColor);
+
+			Control.BarTintColor = color.ToPlatform(_defaultTintColor);
 
 			Control.SetBackgroundImage(new UIImage(), UIBarPosition.Any, UIBarMetrics.Default);
 
@@ -160,6 +167,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			UpdateCancelButton();
 		}
 
+		[PortHandler]
 		protected override void SetBackground(Brush brush)
 		{
 			base.SetBackground(brush);
@@ -168,13 +176,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			if (brush is SolidColorBrush solidColorBrush)
-				Control.BarTintColor = solidColorBrush.Color.ToUIColor(_defaultTintColor);
+				Control.BarTintColor = solidColorBrush.Color.ToPlatform(_defaultTintColor);
 		}
 
 		public override CoreGraphics.CGSize SizeThatFits(CoreGraphics.CGSize size)
 		{
 			if (nfloat.IsInfinity(size.Width))
-				size.Width = (nfloat)(Element?.Parent is VisualElement parent ? parent.Width : Device.Info.ScaledScreenSize.Width);
+				size.Width = (nfloat)(Element?.Parent is VisualElement parent ? parent.Width : DeviceDisplay.MainDisplayInfo.GetScaledScreenSize().Width);
 
 			var sizeThatFits = Control.SizeThatFits(size);
 
@@ -189,7 +197,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public override void TraitCollectionDidChange(UITraitCollection previousTraitCollection)
 		{
+#pragma warning disable CA1422 // Validate platform compatibility
 			base.TraitCollectionDidChange(previousTraitCollection);
+#pragma warning restore CA1422 // Validate platform compatibility	
 			// Make sure the control adheres to changes in UI theme
 			if (Forms.IsiOS13OrNewer && previousTraitCollection?.UserInterfaceStyle != TraitCollection.UserInterfaceStyle)
 				UpdateTextColor();
@@ -233,8 +243,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (_textField == null)
 				return;
 
-			_textField.AttributedText = _textField.AttributedText.AddCharacterSpacing(Element.Text, Element.CharacterSpacing);
-			_textField.AttributedPlaceholder = _textField.AttributedPlaceholder.AddCharacterSpacing(Element.Placeholder, Element.CharacterSpacing);
+			_textField.AttributedText = _textField.AttributedText.WithCharacterSpacing(Element.CharacterSpacing);
+			_textField.AttributedPlaceholder = _textField.AttributedPlaceholder.WithCharacterSpacing(Element.CharacterSpacing);
 		}
 
 		[PortHandler]
@@ -245,9 +255,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (_textField == null)
 				return;
 
-			_textField.TextAlignment = Element.HorizontalTextAlignment.ToNativeTextAlignment(((IVisualElementController)Element).EffectiveFlowDirection);
+			_textField.TextAlignment = Element.HorizontalTextAlignment.ToPlatformTextAlignment(((IVisualElementController)Element).EffectiveFlowDirection);
 		}
 
+		[PortHandler]
 		void UpdateVerticalTextAlignment()
 		{
 			_textField = _textField ?? Control.FindDescendantView<UITextField>();
@@ -255,7 +266,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (_textField == null)
 				return;
 
-			_textField.VerticalAlignment = Element.VerticalTextAlignment.ToNativeTextAlignment();
+			_textField.VerticalAlignment = Element.VerticalTextAlignment.ToPlatformTextAlignment();
 		}
 
 		public virtual void UpdateCancelButton()
@@ -269,7 +280,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (cancelButton == null)
 				return;
 
-			if (Element.CancelButtonColor == Color.Default)
+			if (Element.CancelButtonColor == null)
 			{
 				cancelButton.SetTitleColor(_cancelButtonTextColorDefaultNormal, UIControlState.Normal);
 				cancelButton.SetTitleColor(_cancelButtonTextColorDefaultHighlighted, UIControlState.Highlighted);
@@ -277,8 +288,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 			else
 			{
-				cancelButton.SetTitleColor(Element.CancelButtonColor.ToUIColor(), UIControlState.Normal);
-				cancelButton.SetTitleColor(Element.CancelButtonColor.ToUIColor(), UIControlState.Highlighted);
+				cancelButton.SetTitleColor(Element.CancelButtonColor.ToPlatform(), UIControlState.Normal);
+				cancelButton.SetTitleColor(Element.CancelButtonColor.ToPlatform(), UIControlState.Highlighted);
 
 				if (_useLegacyColorManagement)
 				{
@@ -286,7 +297,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				}
 				else
 				{
-					cancelButton.SetTitleColor(Element.CancelButtonColor.ToUIColor(), UIControlState.Disabled);
+					cancelButton.SetTitleColor(Element.CancelButtonColor.ToPlatform(), UIControlState.Disabled);
 				}
 			}
 		}
@@ -302,6 +313,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_textField.Font = Element.ToUIFont();
 		}
 
+		[PortHandler]
 		void UpdateIsEnabled()
 		{
 			Control.UserInteractionEnabled = Element.IsEnabled;
@@ -321,18 +333,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				// Placeholder default color is 70% gray
 				// https://developer.apple.com/library/prerelease/ios/documentation/UIKit/Reference/UITextField_Class/index.html#//apple_ref/occ/instp/UITextField/placeholder
 
-				var color = Element.IsEnabled && !targetColor.IsDefault 
-					? targetColor : ColorExtensions.PlaceholderColor.ToColor();
+				var color = Element.IsEnabled && targetColor != null
+					? targetColor : Maui.Platform.ColorExtensions.PlaceholderColor.ToColor();
 
-				_textField.AttributedPlaceholder = formatted.ToAttributed(Element, color);
-				_textField.AttributedPlaceholder.AddCharacterSpacing(Element.Placeholder, Element.CharacterSpacing);
+				_textField.AttributedPlaceholder = formatted.ToNSAttributedString(Element.RequireFontManager(), defaultColor: color);
+				_textField.AttributedPlaceholder.WithCharacterSpacing(Element.CharacterSpacing);
 
 			}
 			else
 			{
-				_textField.AttributedPlaceholder = formatted.ToAttributed(Element, targetColor.IsDefault 
-					? ColorExtensions.PlaceholderColor.ToColor() : targetColor);
-				_textField.AttributedPlaceholder.AddCharacterSpacing(Element.Placeholder, Element.CharacterSpacing);
+				_textField.AttributedPlaceholder = formatted.ToNSAttributedString(Element.RequireFontManager(), defaultColor: targetColor ?? ColorExtensions.PlaceholderColor.ToColor());
+				_textField.AttributedPlaceholder.WithCharacterSpacing(Element.CharacterSpacing);
 			}
 		}
 
@@ -347,7 +358,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			// other changes to Element.Text.
 			if (!_textWasTyped)
 				Control.Text = Element.UpdateFormsText(Element.Text, Element.TextTransform);
-			
+
 			UpdateCancelButton();
 		}
 
@@ -367,12 +378,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (_useLegacyColorManagement)
 			{
-				var color = Element.IsEnabled && !targetColor.IsDefault ? targetColor : _defaultTextColor.ToColor();
-				_textField.TextColor = color.ToUIColor();
+				var color = Element.IsEnabled && targetColor != null ? targetColor : _defaultTextColor.ToColor();
+				_textField.TextColor = color.ToPlatform();
 			}
 			else
 			{
-				_textField.TextColor = targetColor.IsDefault ? _defaultTextColor : targetColor.ToUIColor();
+				_textField.TextColor = targetColor == null ? _defaultTextColor : targetColor.ToPlatform();
 			}
 		}
 
@@ -390,6 +401,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			return newLength <= Element?.MaxLength;
 		}
 
+		[PortHandler]
 		void UpdateKeyboard()
 		{
 			var keyboard = Element.Keyboard;
@@ -406,7 +418,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 
 			// iPhone does not have an enter key on numeric keyboards
-			if (Device.Idiom == TargetIdiom.Phone && (keyboard == Keyboard.Numeric || keyboard == Keyboard.Telephone))
+			if (DeviceInfo.Idiom == DeviceIdiom.Phone && (keyboard == Keyboard.Numeric || keyboard == Keyboard.Telephone))
 			{
 				_numericAccessoryView = _numericAccessoryView ?? CreateNumericKeyboardAccessoryView();
 				Control.InputAccessoryView = _numericAccessoryView;
@@ -431,9 +443,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			return accessoryView;
 		}
 
+		[PortHandler]
 		void UpdateSearchBarStyle()
 		{
-			Control.SearchBarStyle = Element.OnThisPlatform().GetSearchBarStyle().ToNativeSearchBarStyle();
+			Control.SearchBarStyle = Element.OnThisPlatform().GetSearchBarStyle().ToPlatformSearchBarStyle();
 		}
 	}
 }

@@ -1,27 +1,37 @@
-using Microsoft.Maui.Controls.Core.UnitTests;
+﻿using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Devices;
+using Microsoft.Maui.Dispatching;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.UnitTests;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
 {
+	using StackLayout = Microsoft.Maui.Controls.Compatibility.StackLayout;
+
 	[TestFixture]
 	public class Issue1545
 	{
+		MockDeviceInfo mockDeviceInfo;
+
 		[SetUp]
 		public void Setup()
 		{
-			Device.PlatformServices = new MockPlatformServices { RuntimePlatform = Device.iOS };
+			DeviceInfo.SetCurrent(mockDeviceInfo = new MockDeviceInfo(platform: DevicePlatform.iOS));
+			DispatcherProvider.SetCurrent(new DispatcherProviderStub());
 		}
 
 		[TearDown]
 		public void TearDown()
 		{
-			Device.PlatformServices = null;
+			DeviceInfo.SetCurrent(null);
+			DispatcherProvider.SetCurrent(null);
 		}
 
 		[Test]
 		public void BindingCanNotBeReused()
 		{
-			string xaml = @"<ContentPage xmlns=""http://xamarin.com/schemas/2014/forms""
+			string xaml = @"<ContentPage xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 						 xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 						 x:Class=""Microsoft.Maui.Controls.ControlGallery.Issue1545"">
 						<ListView x:Name=""List"" ItemsSource=""{Binding}"">
@@ -50,8 +60,10 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[Test]
 		public void ElementsCanNotBeReused()
 		{
-			string xaml = @"<ContentPage xmlns=""http://xamarin.com/schemas/2014/forms""
+			string xaml = @"<ContentPage xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 						 xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
+						 xmlns:local=""clr-namespace:Microsoft.Maui.Controls.Xaml.UnitTests;assembly=Microsoft.Maui.Controls.Xaml.UnitTests""
+						 xmlns:cmp=""clr-namespace:Microsoft.Maui.Controls.Compatibility;assembly=Microsoft.Maui.Controls""
 						 x:Class=""Microsoft.Maui.Controls.ControlGallery.Issue1545"">
 							<ContentPage.Resources>
 							<ResourceDictionary>
@@ -63,9 +75,9 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 							<ListView.ItemTemplate>
 								<DataTemplate>
 									<ViewCell>
-									<StackLayout>
+									<cmp:StackLayout>
 										<Label Text=""{Binding}"" BackgroundColor=""{StaticResource color}""/>
-									</StackLayout>
+									</cmp:StackLayout>
 									</ViewCell>
 								</DataTemplate>
 							</ListView.ItemTemplate>
@@ -90,14 +102,14 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			Assert.AreNotSame(cell0, cell1);
 			Assert.AreNotSame(cell0.View, cell1.View);
 			Assert.AreNotSame(((StackLayout)cell0.View).Children[0], ((StackLayout)cell1.View).Children[0]);
-			Assert.AreEqual(Color.FromHex("ff00aa"), ((StackLayout)cell1.View).Children[0].BackgroundColor);
+			Assert.AreEqual(Color.FromArgb("ff00aa"), ((StackLayout)cell1.View).Children[0].BackgroundColor);
 		}
 
 		[Test]
 		public void ElementsFromCollectionsAreNotReused()
 		{
 			var xaml = @"<ListView 
-						xmlns=""http://xamarin.com/schemas/2014/forms""
+						xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 						xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 						xmlns:local=""clr-namespace:Microsoft.Maui.Controls.Xaml.UnitTests;assembly=Microsoft.Maui.Controls.Xaml.UnitTests""
 						ItemsSource=""{Binding}"">
@@ -132,7 +144,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		public void ResourcesDeclaredInDataTemplatesAreNotShared()
 		{
 			var xaml = @"<ListView 
-						xmlns=""http://xamarin.com/schemas/2014/forms""
+						xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 						xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml""
 						xmlns:sys=""clr-namespace:System;assembly=mscorlib""
 						ItemsSource=""{Binding}"">

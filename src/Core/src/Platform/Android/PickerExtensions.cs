@@ -1,46 +1,69 @@
-﻿namespace Microsoft.Maui
+﻿using Android.App;
+using Android.Content.Res;
+
+namespace Microsoft.Maui.Platform
 {
 	public static class PickerExtensions
-	{ 
-		public static void UpdateTitle(this MauiPicker nativePicker, IPicker picker) =>
-			UpdatePicker(nativePicker, picker);
+	{
+		public static void UpdateTitle(this MauiPicker platformPicker, IPicker picker) =>
+			UpdatePicker(platformPicker, picker);
 
-		public static void UpdateSelectedIndex(this MauiPicker nativePicker, IPicker picker) =>
-			UpdatePicker(nativePicker, picker);
-
-		internal static void UpdatePicker(this MauiPicker nativePicker, IPicker picker)
+		public static void UpdateTitleColor(this MauiPicker platformPicker, IPicker picker)
 		{
-			nativePicker.Hint = picker.Title;
+			var titleColor = picker.TitleColor;
 
-			if (picker.SelectedIndex == -1 || picker.Items == null || picker.SelectedIndex >= picker.Items.Count)
-				nativePicker.Text = null;
-			else
-				nativePicker.Text = picker.Items[picker.SelectedIndex];
-
-			nativePicker.SetSelectedItem(picker);
+			if (titleColor != null)
+			{
+				if (PlatformInterop.CreateEditTextColorStateList(platformPicker.TextColors, titleColor.ToPlatform()) is ColorStateList c)
+					platformPicker.SetHintTextColor(c);
+			}
 		}
 
-		internal static void SetSelectedItem(this MauiPicker nativePicker, IPicker picker)
+		public static void UpdateTextColor(this MauiPicker platformPicker, IPicker picker, ColorStateList? defaultColor)
 		{
-			if (picker == null || nativePicker == null)
-				return;
+			var textColor = picker.TextColor;
 
-			int index = picker.SelectedIndex;
-
-			if (index == -1)
+			if (textColor == null)
 			{
-				picker.SelectedItem = null;
-				return;
+				platformPicker.SetTextColor(defaultColor);
 			}
-
-			if (picker.ItemsSource != null)
+			else
 			{
-				picker.SelectedItem = picker.ItemsSource[index];
-				return;
+				if (PlatformInterop.CreateEditTextColorStateList(platformPicker.TextColors, textColor.ToPlatform()) is ColorStateList c)
+					platformPicker.SetTextColor(c);
 			}
+		}
 
-			if (picker.Items != null)
-				picker.SelectedItem = picker.Items[index];
+		public static void UpdateSelectedIndex(this MauiPicker platformPicker, IPicker picker) =>
+			UpdatePicker(platformPicker, picker);
+
+		internal static void UpdatePicker(this MauiPicker platformPicker, IPicker picker)
+		{
+			platformPicker.Hint = picker.Title;
+
+			if (picker.SelectedIndex == -1 || picker.SelectedIndex >= picker.GetCount())
+				platformPicker.Text = null;
+			else
+				platformPicker.Text = picker.GetItem(picker.SelectedIndex);
+		}
+
+		internal static void UpdateFlowDirection(this AndroidX.AppCompat.App.AlertDialog alertDialog, MauiPicker platformPicker)
+		{
+			var platformLayoutDirection = platformPicker.LayoutDirection;
+
+			// Propagate the MauiPicker LayoutDirection to the AlertDialog
+			var dv = alertDialog.Window?.DecorView;
+
+			if (dv is not null)
+				dv.LayoutDirection = platformLayoutDirection;
+
+			var lv = alertDialog?.ListView;
+
+			if (lv is not null)
+			{
+				lv.LayoutDirection = platformLayoutDirection;
+				lv.TextDirection = platformLayoutDirection.ToTextDirection();
+			}
 		}
 	}
 }

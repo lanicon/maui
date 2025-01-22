@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -21,19 +22,13 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		[TestFixture]
 		public class Tests
 		{
-			[SetUp]
-			public void Setup()
-			{
-				Device.PlatformServices = new MockPlatformServices();
-			}
-
 			[TestCase(false)]
 			[TestCase(true)]
 			public void ConstantConstraint(bool useCompiledXaml)
 			{
 				var layout = new ConstraintExpression(useCompiledXaml);
 				var label = layout.constantConstraint;
-				var constraint = RelativeLayout.GetWidthConstraint(label);
+				var constraint = Microsoft.Maui.Controls.Compatibility.RelativeLayout.GetWidthConstraint(label);
 				Assert.NotNull(constraint);
 				Assert.AreEqual(42, constraint.Compute(null));
 			}
@@ -43,9 +38,9 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			public void ConstraintRelativeToParent(bool useCompiledXaml)
 			{
 				var layout = new ConstraintExpression(useCompiledXaml);
-				layout.relativeLayout.Layout(new Rectangle(0, 0, 200, 200));
+				layout.relativeLayout.Layout(new Rect(0, 0, 200, 200));
 				var label = layout.constraintRelativeToParent;
-				var constraint = RelativeLayout.GetWidthConstraint(label);
+				var constraint = Microsoft.Maui.Controls.Compatibility.RelativeLayout.GetWidthConstraint(label);
 				Assert.NotNull(constraint);
 				Assert.AreEqual(102, constraint.Compute(layout.relativeLayout));
 			}
@@ -58,11 +53,11 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 				{
 					IsPlatformEnabled = true
 				};
-				layout.relativeLayout.Layout(new Rectangle(0, 0, 200, 100));
-				layout.foo.Layout(new Rectangle(5, 5, 190, 25));
+				layout.relativeLayout.Layout(new Rect(0, 0, 200, 100));
+				layout.foo.Layout(new Rect(5, 5, 190, 25));
 
 				var label = layout.constraintRelativeToView;
-				var constraint = RelativeLayout.GetWidthConstraint(label);
+				var constraint = Microsoft.Maui.Controls.Compatibility.RelativeLayout.GetWidthConstraint(label);
 				Assert.NotNull(constraint);
 				Assert.AreEqual(97, constraint.Compute(layout.relativeLayout));
 			}

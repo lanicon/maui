@@ -1,81 +1,140 @@
 parameters:
-  platform: '' # [ android, ios ]
+  platform: '' # [ android, ios, catalyst, windows ]
   path: '' # path to csproj
   device: '' # the xharness device to use
+  apiversion: '' # the iOS device api version to use
+  cakeArgs: '' # additional cake args
+  deviceTestConfiguration: '' # Indicates the configuration to use for Android. We're slowly enabling this for all projects
+  provisionatorChannel: 'latest'
+  agentPoolAccessToken: ''
+  artifactName: 'nuget'
+  artifactItemPattern: '**/*.nupkg'
+  checkoutDirectory: $(System.DefaultWorkingDirectory)
+  useArtifacts: false
+  rebootAgent: true
+  poolName: 'Azure Pipelines'
+  skipProvisioning: true
 
 steps:
-  - checkout: self
-    clean: true
+  - ${{ if and(eq(parameters.platform, 'ios'), ne(parameters.poolName, 'Azure Pipelines')) }}:
+    - bash: |
+        chmod +x $(System.DefaultWorkingDirectory)/eng/scripts/clean-bot.sh
+        chmod +x $(System.DefaultWorkingDirectory)/eng/scripts/clean-simulator-runtime.sh
+        $(System.DefaultWorkingDirectory)/eng/scripts/clean-bot.sh
+      displayName: 'Clean bot'
+      continueOnError: true
+      timeoutInMinutes: 60
+  - template: provision.yml
+    parameters:
+      ${{ if eq(parameters.platform, 'windows')}}:
+        platform: windows
+      ${{ if or(eq(parameters.platform, 'ios'), eq(parameters.platform, 'catalyst'), eq(parameters.platform, 'android'))}}:
+        platform: macos
+      skipXcode: ${{ or(eq(parameters.platform, 'android'), eq(parameters.platform, 'windows')) }}
+      skipAndroidImages : ${{ or(eq(parameters.platform, 'ios'), eq(parameters.platform, 'catalyst')) }}
+      skipAndroidSdks: ${{ or(eq(parameters.platform, 'ios'), eq(parameters.platform, 'catalyst'))  }}
+      installDefaultAndroidApi: ${{ or(eq(parameters.platform, 'ios'), eq(parameters.platform, 'catalyst'))  }}
+      provisionatorChannel: ${{ parameters.provisionatorChannel }}
+      ${{ if not(parameters.skipProvisioning) }}:
+        skipProvisionator : false
+        gitHubToken: $(github--pat--vs-mobiletools-engineering-service2)
+      ${{ else }}:  
+        skipProvisionator: true
 
-  - ${{ if eq(parameters['platform'], 'ios') }}:
-    - task: xamops.azdevex.provisionator-task.provisionator@1
-      displayName: 'Provision Xcode'
-      condition: ne(variables['REQUIRED_XCODE'], '')
+  - pwsh: ./build.ps1 --target=dotnet --configuration="Release" --verbosity=diagnostic
+    displayName: 'Install .NET'
+    retryCountOnTaskFailure: 3
+    env:
+      DOTNET_TOKEN: $(dotnetbuilds-internal-container-read-token)
+      PRIVATE_BUILD: $(PrivateBuild)
+
+  - pwsh: echo "##vso[task.prependpath]$(DotNet.Dir)"
+    displayName: 'Add .NET to PATH'
+
+  - ${{ if eq(parameters.useArtifacts, true) }}:
+
+    - task: DownloadBuildArtifacts@0
+      displayName: 'Download Packages'
       inputs:
-        provisioning_script: $(provisionator.xcode)
+        artifactName: ${{ parameters.artifactName }}
+        itemPattern: ${{ parameters.artifactItemPattern }}
+        downloadPath: $(System.DefaultWorkingDirectory)/artifacts
 
-    - script: |
-        echo "##vso[task.prependpath]/Library/Frameworks/Mono.framework/Versions/Current/Commands/"
-        echo "##vso[task.prependpath]~/Library/Developer/Xamarin/android-sdk-macosx"
-      displayName: 'Setup SDK Paths'
-      condition: ne(variables['osx2019VmPool'], 'Azure Pipelines')
+    - pwsh: Move-Item -Path artifacts\${{ parameters.artifactName }}\*.nupkg -Destination artifacts -Force
+      displayName: Move the downloaded artifacts
 
-    - task: InstallAppleCertificate@2
-      displayName: 'Install an Apple certificate'
-      inputs:
-        certSecureFile: 'Maui.p12'
-        certPwd: $(P12password)
+    - pwsh: ./build.ps1 --target=dotnet-local-workloads --verbosity=diagnostic
+      displayName: 'Install .NET (Local Workloads)'
+      retryCountOnTaskFailure: 2
+      workingDirectory: ${{ parameters.checkoutDirectory }}
+      env:
+        DOTNET_TOKEN: $(dotnetbuilds-internal-container-read-token)
+        PRIVATE_BUILD: $(PrivateBuild)
 
-    - task: InstallAppleProvisioningProfile@1
-      displayName: 'Install an Apple provisioning profile'
-      inputs:
-        provProfileSecureFile: 'Maui_iOS_Provisioning.mobileprovision'
-
-  - task: xamops.azdevex.provisionator-task.provisionator@1
-    displayName: 'Provisionator'
-    condition: eq(variables['provisioning'], 'true')
-    inputs:
-      provisioning_script: $(provisionator.path)
-      provisioning_extra_args: $(provisionator.extraArguments)
+  - ${{ else }}:
+    - pwsh: ./build.ps1 --target=dotnet-buildtasks --configuration="Release"
+      displayName: 'Build the MSBuild Tasks'
 
   - pwsh: |
-      ./build.ps1 --target provision --TeamProject="$(System.TeamProject)"
-    displayName: 'Cake Provision'
-    condition: eq(variables['provisioningCake'], 'true')
+      $platformName = 'Windows'
+      if ($IsMacOS) {
+        $platformName = 'Mac'
+      } elseif ($IsLinux) {
+        $platformName = 'Linux'
+      }
+      Write-Host "Platform.Name: ${platformName}"
+      Write-Host "##vso[task.setvariable variable=Platform.Name]${platformName}"
+    displayName: 'Set Platform.Name'
 
-  - task: UseDotNet@2
-    displayName: 'Install .net core $(DOTNET_VERSION)'
-    condition: ne(variables['DOTNET_VERSION'], '')
-    inputs:
-      version: $(DOTNET_VERSION)
-      packageType: 'sdk'
+  - ${{ if eq(parameters.platform, 'windows')}}:
+    - pwsh: |
+        $errorPath = "HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps"
+        New-ItemProperty -Path $errorPath -Name DumpFolder -PropertyType String -Value "$(Build.ArtifactStagingDirectory)/crash-dumps"
+        New-ItemProperty -Path $errorPath -Name DumpType -PropertyType DWORD -Value 2
+      displayName: 'Set dump file location'
+      continueOnError: true
+      timeoutInMinutes: 5
 
   - pwsh: |
-      ./build.ps1 --target=BuildTasks --BUILD_CONFIGURATION=Debug --Build_ArtifactStagingDirectory="$(Build.ArtifactStagingDirectory)"
-    name: winbuild
-    displayName: 'Build the MSBuild Tasks'
+      Get-Content $PSCommandPath
+      ./build.ps1 -Script eng/devices/${{ parameters.platform }}.cake --project="${{ parameters.path }}" --device=${{ parameters.device }} --apiversion=${{ parameters.apiversion }} --packageid=${{ parameters.windowsPackageId }} --results="$(TestResultsDirectory)" --binlog="$(LogDirectory)" ${{ parameters.cakeArgs }} --configuration=${{ parameters.deviceTestConfiguration }}
+    displayName: $(Agent.JobName)
+    workingDirectory: ${{ parameters.checkoutDirectory }}
+    condition: and(succeeded(), ne(variables['Platform.Name'], 'Mac'))      
+    retryCountOnTaskFailure: 1
 
-  - ${{ if eq(parameters['platform'], 'android') }}:
-    - pwsh: |
-        ./build.ps1 -Script eng/devices/android.cake --project="${{ parameters.path }}" --device=${{ parameters.device }} --results="$(System.DefaultWorkingDirectory)/output/testlogs"
-      displayName: $(Agent.JobName)
+  # Execute the powershell script from a bash shell on Mac to avoid interference between powershell processes that lead to this error: The STDIO streams did not close within 10 seconds of the exit event from process '/usr/local/bin/pwsh'. This may indicate a child process inherited the STDIO streams and has not yet exited.
+  - bash: |
+      cat ${BASH_SOURCE[0]}
+      pwsh ./build.ps1 -Script eng/devices/${{ parameters.platform }}.cake --project="${{ parameters.path }}" --device=${{ parameters.device }} --apiversion=${{ parameters.apiversion }} --packageid=${{ parameters.windowsPackageId }} --results="$(TestResultsDirectory)" --binlog="$(LogDirectory)" ${{ parameters.cakeArgs }} --configuration=${{ parameters.deviceTestConfiguration }}
+    displayName: $(Agent.JobName)
+    workingDirectory: ${{ parameters.checkoutDirectory }}
+    condition: and(succeeded(), eq(variables['Platform.Name'], 'Mac'))
+    retryCountOnTaskFailure: 1
 
-  - ${{ if eq(parameters['platform'], 'ios') }}:
-    - pwsh: |
-        ./build.ps1 -Script eng/devices/ios.cake --project="${{ parameters.path }}" --device=${{ parameters.device }} --results="$(System.DefaultWorkingDirectory)/output/testlogs"
-      displayName: $(Agent.JobName)
+  - ${{ if eq(parameters.platform, 'ios')}}:
+    - bash: |
+        pwsh ./build.ps1 --target=Cleanup -Script eng/devices/${{ parameters.platform }}.cake ---results="$(TestResultsDirectory)" ${{ parameters.cakeArgs }}
+      displayName: Cleanup and Create Simulator Logs if Test Run Failed To
+      condition: always()
+      continueOnError: true
 
   - task: PublishTestResults@2
-    displayName: Publish the $(System.PhaseName) test results
+    displayName: Publish the $(Agent.JobName) test results
     condition: always()
     inputs:
       testResultsFormat: xUnit
-      testResultsFiles: 'output/testlogs/**/TestResults.xml'
-      testRunTitle: '$(System.PhaseName)'
+      testResultsFiles: '$(TestResultsDirectory)/**/TestResults*(-*).xml'
+      testRunTitle: '$(Agent.JobName) (attempt $(System.JobAttempt))'
 
   - task: PublishBuildArtifacts@1
-    displayName: Publish the $(System.PhaseName) logs
+    displayName: Publish Artifacts
     condition: always()
     inputs:
-      artifactName: $(System.PhaseName)
-      pathToPublish: 'output/testlogs'
+      artifactName: '$(Agent.JobName) (attempt $(System.JobAttempt))'
+
+  - ${{ if and(eq(parameters.platform, 'ios'), ne(parameters.poolName, 'Azure Pipelines'), eq(variables['System.TeamProject'], 'devdiv') ) }}:
+    # This must always be placed as the last step in the job
+    - template: agent-rebooter/mac.v1.yml@yaml-templates
+      parameters:
+        AgentPoolAccessToken: ${{ parameters.agentPoolAccessToken }}

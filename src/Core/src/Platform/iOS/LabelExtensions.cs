@@ -1,128 +1,101 @@
-using Microsoft.Maui.Platform.iOS;
+using Foundation;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class LabelExtensions
 	{
-		public static void UpdateText(this UILabel nativeLabel, ILabel label)
+		public static void UpdateTextColor(this UILabel platformLabel, ITextStyle textStyle, UIColor? defaultColor = null)
 		{
-			nativeLabel.Text = label.Text;
+			// Default value of color documented to be black in iOS docs
+			var textColor = textStyle.TextColor;
+			platformLabel.TextColor = textColor.ToPlatform(defaultColor ?? ColorExtensions.LabelColor);
 		}
 
-		public static void UpdateTextColor(this UILabel nativeLabel, ILabel label)
+		public static void UpdateCharacterSpacing(this UILabel platformLabel, ITextStyle textStyle)
 		{
-			var textColor = label.TextColor;
-
-			if (textColor.IsDefault)
-			{
-				// Default value of color documented to be black in iOS docs
-				nativeLabel.TextColor = textColor.ToNative(ColorExtensions.LabelColor);
-			}
-			else
-			{
-				nativeLabel.TextColor = textColor.ToNative(textColor);
-			}
-		}
-
-		public static void UpdateCharacterSpacing(this UILabel nativeLabel, ILabel label)
-		{
-			if (string.IsNullOrEmpty(label.Text))
-				return;
-
-			var textAttr = nativeLabel.AttributedText?.WithCharacterSpacing(label.CharacterSpacing);
+			var textAttr = platformLabel.AttributedText?.WithCharacterSpacing(textStyle.CharacterSpacing);
 
 			if (textAttr != null)
-				nativeLabel.AttributedText = textAttr;
+				platformLabel.AttributedText = textAttr;
 		}
 
-		public static void UpdateFont(this UILabel nativeLabel, ILabel label, IFontManager fontManager)
+		public static void UpdateFont(this UILabel platformLabel, ITextStyle textStyle, IFontManager fontManager) =>
+			platformLabel.UpdateFont(textStyle, fontManager, UIFont.LabelFontSize);
+
+		public static void UpdateFont(this UILabel platformLabel, ITextStyle textStyle, IFontManager fontManager, double defaultSize)
 		{
-			var uiFont = fontManager.GetFont(label.Font);
-			nativeLabel.Font = uiFont;
+			var uiFont = fontManager.GetFont(textStyle.Font, defaultSize);
+			platformLabel.Font = uiFont;
 		}
 
-		public static void UpdateHorizontalTextAlignment(this UILabel nativeLabel, ILabel label)
+		public static void UpdateHorizontalTextAlignment(this UILabel platformLabel, ILabel label)
 		{
-			// We don't have a FlowDirection yet, so there's nothing to pass in here. 
-			// TODO ezhart Update this when FlowDirection is available 
-			// (or update the extension to take an ILabel instead of an alignment and work it out from there) 
-			nativeLabel.TextAlignment = label.HorizontalTextAlignment.ToNative(true);
+			platformLabel.TextAlignment = label.HorizontalTextAlignment.ToPlatformHorizontal(platformLabel.EffectiveUserInterfaceLayoutDirection);
 		}
 
-		public static void UpdateLineBreakMode(this UILabel nativeLabel, ILabel label)
+		// Don't use this method, it doesn't work. But we can't remove it.
+		public static void UpdateVerticalTextAlignment(this UILabel platformLabel, ILabel label)
 		{
-			SetLineBreakMode(nativeLabel, label);
+			if (!platformLabel.Bounds.IsEmpty)
+				platformLabel.InvalidateMeasure(label);
 		}
 
-		public static void UpdateMaxLines(this UILabel nativeLabel, ILabel label)
+		internal static void UpdateVerticalTextAlignment(this MauiLabel platformLabel, ILabel label)
 		{
-			int maxLines = label.MaxLines;
-
-			if (maxLines >= 0)
-			{
-				nativeLabel.Lines = maxLines;
-			}
+			platformLabel.VerticalAlignment = label.VerticalTextAlignment.ToPlatformVertical();
 		}
 
-		public static void UpdatePadding(this MauiLabel nativeLabel, ILabel label)
+		public static void UpdatePadding(this MauiLabel platformLabel, ILabel label)
 		{
-			nativeLabel.TextInsets = new UIEdgeInsets(
+			platformLabel.TextInsets = new UIEdgeInsets(
 				(float)label.Padding.Top,
 				(float)label.Padding.Left,
 				(float)label.Padding.Bottom,
 				(float)label.Padding.Right);
 		}
 
-		internal static void SetLineBreakMode(this UILabel nativeLabel, ILabel label)
+		public static void UpdateTextDecorations(this UILabel platformLabel, ILabel label)
 		{
-			int maxLines = label.MaxLines;
-			if (maxLines < 0)
-				maxLines = 0;
+			var modAttrText = platformLabel.AttributedText?.WithDecorations(label.TextDecorations);
 
-			switch (label.LineBreakMode)
+			if (modAttrText != null)
+				platformLabel.AttributedText = modAttrText;
+		}
+
+		public static void UpdateLineHeight(this UILabel platformLabel, ILabel label)
+		{
+			var modAttrText = platformLabel.AttributedText?.WithLineHeight(label.LineHeight);
+
+			if (modAttrText != null)
+				platformLabel.AttributedText = modAttrText;
+		}
+
+		internal static void UpdateTextHtml(this UILabel platformLabel, ILabel label)
+		{
+			string text = label.Text ?? string.Empty;
+
+			var attr = new NSAttributedStringDocumentAttributes
 			{
-				case LineBreakMode.NoWrap:
-					nativeLabel.LineBreakMode = UILineBreakMode.Clip;
-					maxLines = 1;
-					break;
-				case LineBreakMode.WordWrap:
-					nativeLabel.LineBreakMode = UILineBreakMode.WordWrap;
-					break;
-				case LineBreakMode.CharacterWrap:
-					nativeLabel.LineBreakMode = UILineBreakMode.CharacterWrap;
-					break;
-				case LineBreakMode.HeadTruncation:
-					nativeLabel.LineBreakMode = UILineBreakMode.HeadTruncation;
-					maxLines = 1;
-					break;
-				case LineBreakMode.MiddleTruncation:
-					nativeLabel.LineBreakMode = UILineBreakMode.MiddleTruncation;
-					maxLines = 1;
-					break;
-				case LineBreakMode.TailTruncation:
-					nativeLabel.LineBreakMode = UILineBreakMode.TailTruncation;
-					maxLines = 1;
-					break;
-			}
+				DocumentType = NSDocumentType.HTML,
+#if IOS17_5_OR_GREATER || MACCATALYST17_5_OR_GREATER
+				CharacterEncoding = NSStringEncoding.UTF8
+#else
+				StringEncoding = NSStringEncoding.UTF8
+#endif
+			};
 
-			nativeLabel.Lines = maxLines;
+			NSError nsError = new();
+#pragma warning disable CS8601
+			platformLabel.AttributedText = new NSAttributedString(text, attr, ref nsError);
+#pragma warning restore CS8601
 		}
 
-		public static void UpdateTextDecorations(this UILabel nativeLabel, ILabel label)
+		internal static void UpdateTextPlainText(this UILabel platformLabel, IText label)
 		{
-			var modAttrText = nativeLabel.AttributedText?.WithDecorations(label.TextDecorations);
-
-			if (modAttrText != null)
-				nativeLabel.AttributedText = modAttrText;
-		}
-
-		internal static void UpdateLineHeight(this UILabel nativeLabel, ILabel label)
-		{
-			var modAttrText = nativeLabel.AttributedText?.WithLineHeight(label.LineHeight);
-
-			if (modAttrText != null)
-				nativeLabel.AttributedText = modAttrText;
+			platformLabel.Text = label.Text;
 		}
 	}
 }

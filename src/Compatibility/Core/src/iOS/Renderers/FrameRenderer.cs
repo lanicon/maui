@@ -1,10 +1,14 @@
+﻿using System;
 using System.ComponentModel;
 using System.Drawing;
 using CoreGraphics;
+using Microsoft.Maui.Controls.Platform;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[Obsolete("Use Microsoft.Maui.Controls.Handlers.Compatibility.FrameRenderer instead")]
 	public class FrameRenderer : VisualElementRenderer<Frame>, ITabStop
 	{
 		UIView _actualView;
@@ -54,14 +58,15 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public override void TraitCollectionDidChange(UITraitCollection previousTraitCollection)
 		{
+#pragma warning disable CA1422 // Validate platform compatibility
 			base.TraitCollectionDidChange(previousTraitCollection);
-			// Make sure the control adheres to changes in UI theme
+#pragma warning restore CA1422 // Validate platform compatibility			// Make sure the control adheres to changes in UI theme
 			if (Forms.IsiOS13OrNewer && previousTraitCollection?.UserInterfaceStyle != TraitCollection.UserInterfaceStyle)
 				SetupLayer();
 		}
 
 		public virtual void SetupLayer()
-		{			
+		{
 			if (_actualView == null)
 				return;
 
@@ -73,7 +78,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_actualView.Layer.CornerRadius = cornerRadius;
 			_actualView.Layer.MasksToBounds = cornerRadius > 0;
 
-			if (Element.BackgroundColor == Color.Default)
+			if (Element.BackgroundColor == null)
 				_actualView.Layer.BackgroundColor = ColorExtensions.BackgroundColor.CGColor;
 			else
 			{
@@ -97,7 +102,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				}
 			}
 
-			if (Element.BorderColor == Color.Default)
+			if (Element.BorderColor == null)
 				_actualView.Layer.BorderColor = UIColor.Clear.CGColor;
 			else
 			{
@@ -129,7 +134,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		public override void LayoutSubviews()
 		{
 			if (_previousSize != Bounds.Size)
+			{
 				SetNeedsDisplay();
+				this.UpdateBackgroundLayer();
+			}
 
 			base.LayoutSubviews();
 		}
@@ -184,7 +192,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			public override bool PointInside(CGPoint point, UIEvent uievent)
 			{
-				foreach(var view in Subviews)
+				foreach (var view in Subviews)
 				{
 					if (view.HitTest(ConvertPointToView(point, view), uievent) != null)
 						return true;

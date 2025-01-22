@@ -3,10 +3,10 @@ using AView = Android.Views.View;
 
 namespace Microsoft.Maui
 {
-	public interface IAndroidViewHandler : IViewHandler
+	public interface IPlatformViewHandler : IViewHandler
 	{
-		void SetContext(Context context);
+		new AView? PlatformView { get; }
 
-		AView? View { get; }
+		new AView? ContainerView { get; }
 	}
 }

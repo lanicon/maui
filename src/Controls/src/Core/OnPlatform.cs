@@ -1,10 +1,12 @@
+#nullable disable
 using System.Collections.Generic;
 using Microsoft.Maui.Controls.Xaml;
+using Microsoft.Maui.Devices;
 
 namespace Microsoft.Maui.Controls
 {
 	[ContentProperty("Platforms")]
-	public class OnPlatform<T>
+	public class OnPlatform<T> : IWrappedValue
 	{
 		public OnPlatform()
 		{
@@ -31,26 +33,40 @@ namespace Microsoft.Maui.Controls
 
 		public static implicit operator T(OnPlatform<T> onPlatform)
 		{
-			foreach (var onPlat in onPlatform.Platforms)
+			if (s_valueConverter != null)
 			{
-				if (onPlat.Platform == null)
-					continue;
-				if (!onPlat.Platform.Contains(Device.RuntimePlatform))
-					continue;
-				if (s_valueConverter == null)
-					continue;
-				return (T)s_valueConverter.Convert(onPlat.Value, typeof(T), null, null);
+				foreach (var onPlat in onPlatform.Platforms)
+				{
+					if (onPlat.Platform == null)
+						continue;
+					if (!onPlat.Platform.Contains(DeviceInfo.Platform.ToString()))
+						continue;
+					return (T)s_valueConverter.Convert(onPlat.Value, typeof(T), null, null);
+				}
+
+				// fallback for UWP
+				foreach (var onPlat in onPlatform.Platforms)
+				{
+					if (onPlat.Platform != null && onPlat.Platform.Contains("UWP") && DeviceInfo.Platform == DevicePlatform.WinUI)
+						return (T)s_valueConverter.Convert(onPlat.Value, typeof(T), null, null);
+				}
 			}
 
 			return onPlatform.hasDefault ? onPlatform.@default : default(T);
 		}
+
+		object IWrappedValue.Value => (T)this;
+		System.Type IWrappedValue.ValueType => typeof(T);
 	}
 
+	/// <include file="../../docs/Microsoft.Maui.Controls/On.xml" path="Type[@FullName='Microsoft.Maui.Controls.On']/Docs/*" />
 	[ContentProperty("Value")]
 	public class On
 	{
-		[TypeConverter(typeof(ListStringTypeConverter))]
+		/// <include file="../../docs/Microsoft.Maui.Controls/On.xml" path="//Member[@MemberName='Platform']/Docs/*" />
+		[System.ComponentModel.TypeConverter(typeof(ListStringTypeConverter))]
 		public IList<string> Platform { get; set; }
+		/// <include file="../../docs/Microsoft.Maui.Controls/On.xml" path="//Member[@MemberName='Value']/Docs/*" />
 		public object Value { get; set; }
 	}
 }

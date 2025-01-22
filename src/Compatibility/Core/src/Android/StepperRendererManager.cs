@@ -6,16 +6,17 @@ using AView = Android.Views.View;
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
 	[PortHandler]
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public static class StepperRendererManager
 	{
 		public static void CreateStepperButtons<TButton>(IStepperRenderer renderer, out TButton downButton, out TButton upButton)
 			where TButton : AButton
 		{
 			downButton = (TButton)renderer.CreateButton();
-			downButton.Id = AppCompat.Platform.GenerateViewId();
+			downButton.Id = Platform.GenerateViewId();
 			downButton.Focusable = true;
 			upButton = (TButton)renderer.CreateButton();
-			upButton.Id = AppCompat.Platform.GenerateViewId();
+			upButton.Id = Platform.GenerateViewId();
 			upButton.Focusable = true;
 
 			downButton.Gravity = GravityFlags.Center;
@@ -26,14 +27,14 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 			upButton.SetOnClickListener(StepperListener.Instance);
 
 			// IMPORTANT:
-			// Do not be decieved. These are NOT the same characters. Neither are a "minus" either.
+			// Do not be deceived. These are NOT the same characters. Neither are a "minus" either.
 			// The Text is a visually pleasing "minus", and the description is the phonetically correct "minus".
 			// The little key on your keyboard is a dash/hyphen.
 			downButton.Text = "－";
 			downButton.ContentDescription = "−";
 
 			// IMPORTANT:
-			// Do not be decieved. These are NOT the same characters.
+			// Do not be deceived. These are NOT the same characters.
 			// The Text is a visually pleasing "plus", and the description is the phonetically correct "plus"
 			// (which, unlike the minus, IS found on your keyboard).
 			upButton.Text = "＋";

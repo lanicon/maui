@@ -1,20 +1,22 @@
+#nullable enable
 using System;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
-namespace Microsoft.Maui.Hosting
+namespace Microsoft.Maui
 {
-	public static class ServiceProviderExtensions
+	internal static class ServiceProviderExtensions
 	{
-		internal static IServiceProvider BuildServiceProvider(this IMauiServiceCollection serviceCollection)
-			=> new MauiServiceProvider(serviceCollection);
+		internal static ILogger<T>? CreateLogger<T>(this IMauiContext context) =>
+			context.Services.CreateLogger<T>();
 
-		internal static IMauiHandlersServiceProvider BuildHandlersServiceProvider(this IMauiServiceCollection serviceCollection)
-			=> new MauiHandlersServiceProvider(serviceCollection);
+		internal static ILogger<T>? CreateLogger<T>(this IServiceProvider services) =>
+			services.GetService<ILogger<T>>();
 
-		public static IViewHandler? GetHandler(this IServiceProvider services, Type type)
-			=> services.GetService(type) as IViewHandler;
+		internal static ILogger? CreateLogger(this IMauiContext context, string loggerName) =>
+			context.Services.CreateLogger(loggerName);
 
-		public static IViewHandler? GetHandler<T>(this IServiceProvider services) where T : IView
-			=> GetHandler(services, typeof(T));
-
+		internal static ILogger? CreateLogger(this IServiceProvider services, string loggerName) =>
+			services.GetService<ILoggerFactory>()?.CreateLogger(loggerName);
 	}
 }

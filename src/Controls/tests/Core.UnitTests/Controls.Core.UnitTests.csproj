@@ -1,30 +1,42 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
-		<AssemblyName>Microsoft.Maui.Controls.Core.UnitTests</AssemblyName>
+    <TargetFramework>$(_MauiDotNetTfm)</TargetFramework>
+    <AssemblyName>Microsoft.Maui.Controls.Core.UnitTests</AssemblyName>
     <IsPackable>false</IsPackable>
-    <NoWarn>0114;0672;0108;0067;0168;0169;0219;0612;0618;1998;4014</NoWarn>
+    <NoWarn>0114;0672;0108;0067;0168;0169;0219;0612;0618;1998</NoWarn>
+    <RootNamespace>Microsoft.Maui.Controls.Core.UnitTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
-    <PackageReference Include="coverlet.collector" Version="1.3.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="NSubstitute" Version="4.2.2" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
-    <PackageReference Include="NUnit" Version="3.13.0" />
+    <PackageReference Include="coverlet.collector" Version="$(CoverletCollectorPackageVersion)"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="NSubstitute" Version="$(NSubstitutePackageVersion)" />
+    <PackageReference Include="xunit" Version="$(XunitPackageVersion)"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Maps\src\Controls.Maps.csproj" />
+    <ProjectReference Include="..\..\..\Controls\Maps\src\Controls.Maps.csproj" />
+    <ProjectReference Include="..\..\..\Controls\src\Core\Controls.Core.csproj" />
+    <ProjectReference Include="..\..\..\Controls\src\Xaml\Controls.Xaml.csproj" />
+    <ProjectReference Include="..\..\..\Core\maps\src\Maps.csproj" />
     <ProjectReference Include="..\..\..\Core\src\Core.csproj" />
-    <ProjectReference Include="..\..\src\Core\Controls.Core.csproj" />
-    <ProjectReference Include="..\..\src\Xaml\Controls.Xaml.csproj" />
+    <ProjectReference Include="..\..\..\Essentials\src\Essentials.csproj" />
+    <ProjectReference Include="..\..\..\TestUtils\src\TestUtils\TestUtils.csproj" />
   </ItemGroup>
 
-  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
+  <PropertyGroup>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Microsoft.Maui.Controls.Generated</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference
+      Include="..\..\..\Controls\src\BindingSourceGen\Controls.BindingSourceGen.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\Core\tests\UnitTests\TestClasses\DispatcherStub.cs" Link="TestClasses\DispatcherStub.cs" />
+  </ItemGroup>
 
 </Project>

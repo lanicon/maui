@@ -1,8 +1,10 @@
-﻿namespace Microsoft.Maui
+﻿using UIKit;
+
+namespace Microsoft.Maui.Platform
 {
 	public static class ActivityIndicatorExtensions
 	{
-		public static void UpdateIsRunning(this NativeActivityIndicator activityIndicatorView, IActivityIndicator activityIndicator)
+		public static void UpdateIsRunning(this UIActivityIndicatorView activityIndicatorView, IActivityIndicator activityIndicator)
 		{
 			if (activityIndicator.IsRunning)
 				activityIndicatorView.StartAnimating();
@@ -10,9 +12,7 @@
 				activityIndicatorView.StopAnimating();
 		}
 
-		public static void UpdateColor(this NativeActivityIndicator activityIndicatorView, IActivityIndicator activityIndicator)
-		{
-			activityIndicatorView.Color = activityIndicator.Color == Color.Default ? null : activityIndicator.Color.ToNative();
-		}
+		public static void UpdateColor(this UIActivityIndicatorView activityIndicatorView, IActivityIndicator activityIndicator)
+			=> activityIndicatorView.Color = activityIndicator.Color?.ToPlatform();
 	}
 }

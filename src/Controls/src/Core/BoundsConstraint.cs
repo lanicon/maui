@@ -1,13 +1,16 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls
 {
+	/// <include file="../../docs/Microsoft.Maui.Controls/BoundsConstraint.xml" path="Type[@FullName='Microsoft.Maui.Controls.BoundsConstraint']/Docs/*" />
 	public class BoundsConstraint
 	{
-		Func<Rectangle> _measureFunc;
+		Func<Rect> _measureFunc;
 
 		BoundsConstraint()
 		{
@@ -16,14 +19,15 @@ namespace Microsoft.Maui.Controls
 		internal bool CreatedFromExpression { get; set; }
 		internal IEnumerable<View> RelativeTo { get; set; }
 
-		public static BoundsConstraint FromExpression(Expression<Func<Rectangle>> expression, IEnumerable<View> parents = null)
+		/// <include file="../../docs/Microsoft.Maui.Controls/BoundsConstraint.xml" path="//Member[@MemberName='FromExpression']/Docs/*" />
+		public static BoundsConstraint FromExpression(Expression<Func<Rect>> expression, IEnumerable<View> parents = null)
 		{
 			return FromExpression(expression, false, parents);
 		}
 
-		internal static BoundsConstraint FromExpression(Expression<Func<Rectangle>> expression, bool fromExpression, IEnumerable<View> parents = null)
+		internal static BoundsConstraint FromExpression(Expression<Func<Rect>> expression, bool fromExpression, IEnumerable<View> parents = null)
 		{
-			Func<Rectangle> compiled = expression.Compile();
+			Func<Rect> compiled = expression.Compile();
 			var result = new BoundsConstraint
 			{
 				_measureFunc = compiled,
@@ -34,7 +38,7 @@ namespace Microsoft.Maui.Controls
 			return result;
 		}
 
-		internal Rectangle Compute()
+		internal Rect Compute()
 		{
 			return _measureFunc();
 		}

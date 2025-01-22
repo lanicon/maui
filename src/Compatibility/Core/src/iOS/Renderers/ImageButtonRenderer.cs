@@ -4,12 +4,16 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Foundation;
-using UIKit;
+using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using ObjCRuntime;
+using UIKit;
 using SizeF = CoreGraphics.CGSize;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class ImageButtonRenderer : ViewRenderer<ImageButton, UIButton>, IImageVisualElementRenderer
 	{
 		bool _isDisposed;
@@ -88,18 +92,21 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 		}
 
+		[PortHandler]
 		void UpdatePadding(UIButton button = null)
 		{
 			var uiElement = button ?? Control;
 			if (uiElement == null)
 				return;
 
+#pragma warning disable CA1416, CA1422 // TOOO:  UIButton.ContentEdgeInsets' is unsupported on: 'ios' 15.0 and later
 			uiElement.ContentEdgeInsets = new UIEdgeInsets(
 				(float)(Element.Padding.Top),
 				(float)(Element.Padding.Left),
 				(float)(Element.Padding.Bottom),
 				(float)(Element.Padding.Right)
 			);
+#pragma warning restore CA1416, CA1422
 		}
 		async Task UpdateImage()
 		{
@@ -109,12 +116,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			}
 			catch (Exception ex)
 			{
-				Controls.Internals.Log.Warning(nameof(ImageRenderer), "Error loading image: {0}", ex);
+				Forms.MauiContext?.CreateLogger<ImageRenderer>()?.LogWarning(ex, "Error loading image");
 			}
 		}
 
 		protected override UIButton CreateNativeControl()
-		{			
+		{
 			return new UIButton(UIButtonType.System);
 		}
 

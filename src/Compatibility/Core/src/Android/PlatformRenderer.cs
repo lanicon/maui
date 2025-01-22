@@ -4,6 +4,7 @@ using Android.Content;
 using Android.Views;
 using Android.Widget;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 {
@@ -17,10 +18,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 		public PlatformRenderer(Context context, IPlatformLayout canvas) : base(context)
 		{
 			_canvas = canvas;
-			Focusable = true;
-			FocusableInTouchMode = true;
 		}
 
+		[PortHandler]
 		public override bool DispatchTouchEvent(MotionEvent e)
 		{
 			if (e.Action == MotionEventActions.Down)
@@ -56,7 +56,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				float x = e.RawX + currentView.Left - location[0];
 				float y = e.RawY + currentView.Top - location[1];
 
-				var rect = new Rectangle(currentView.Left, currentView.Top, currentView.Width, currentView.Height);
+				var rect = new Rect(currentView.Left, currentView.Top, currentView.Width, currentView.Height);
 
 				if (rect.Contains(x, y))
 					break;

@@ -1,15 +1,17 @@
 ﻿using System;
 using Android.App;
+using Android.Content.Res;
+using Android.Graphics.Drawables;
 using Android.Text.Format;
 
 namespace Microsoft.Maui.Handlers
 {
-	public partial class TimePickerHandler : AbstractViewHandler<ITimePicker, MauiTimePicker>
+	public partial class TimePickerHandler : ViewHandler<ITimePicker, MauiTimePicker>
 	{
 		MauiTimePicker? _timePicker;
-		AlertDialog? _dialog;
+		TimePickerDialog? _dialog;
 
-		protected override MauiTimePicker CreateNativeView()
+		protected override MauiTimePicker CreatePlatformView()
 		{
 			_timePicker = new MauiTimePicker(Context)
 			{
@@ -20,7 +22,7 @@ namespace Microsoft.Maui.Handlers
 			return _timePicker;
 		}
 
-		protected override void DisconnectHandler(MauiTimePicker nativeView)
+		protected override void DisconnectHandler(MauiTimePicker platformView)
 		{
 			if (_dialog != null)
 			{
@@ -33,10 +35,16 @@ namespace Microsoft.Maui.Handlers
 		{
 			void onTimeSetCallback(object? obj, TimePickerDialog.TimeSetEventArgs args)
 			{
-				if (VirtualView == null || TypedNativeView == null)
+				if (VirtualView == null || PlatformView == null)
 					return;
 
 				VirtualView.Time = new TimeSpan(args.HourOfDay, args.Minute, 0);
+				VirtualView.IsFocused = false;
+
+				if (_dialog != null)
+				{
+					_dialog = null;
+				}
 			}
 
 			var dialog = new TimePickerDialog(Context!, onTimeSetCallback, hour, minute, Use24HourView);
@@ -44,14 +52,37 @@ namespace Microsoft.Maui.Handlers
 			return dialog;
 		}
 
-		public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)
+		// This is a Android-specific mapping
+		public static void MapBackground(ITimePickerHandler handler, ITimePicker timePicker)
 		{
-			handler.TypedNativeView?.UpdateFormat(timePicker);
+			handler.PlatformView?.UpdateBackground(timePicker);
 		}
 
-		public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
+		public static void MapFormat(ITimePickerHandler handler, ITimePicker timePicker)
 		{
-			handler.TypedNativeView?.UpdateTime(timePicker);
+			handler.PlatformView?.UpdateFormat(timePicker);
+		}
+
+		public static void MapTime(ITimePickerHandler handler, ITimePicker timePicker)
+		{
+			handler.PlatformView?.UpdateTime(timePicker);
+		}
+
+		public static void MapCharacterSpacing(ITimePickerHandler handler, ITimePicker timePicker)
+		{
+			handler.PlatformView?.UpdateCharacterSpacing(timePicker);
+		}
+
+		public static void MapFont(ITimePickerHandler handler, ITimePicker timePicker)
+		{
+			var fontManager = handler.GetRequiredService<IFontManager>();
+
+			handler.PlatformView?.UpdateFont(timePicker, fontManager);
+		}
+
+		public static void MapTextColor(ITimePickerHandler handler, ITimePicker timePicker)
+		{
+			handler.PlatformView?.UpdateTextColor(timePicker);
 		}
 
 		void ShowPickerDialog()
@@ -74,11 +105,15 @@ namespace Microsoft.Maui.Handlers
 
 		void HidePickerDialog()
 		{
-			_dialog?.Hide();
+			if (_dialog != null)
+			{
+				_dialog.Hide();
+			}
+
 			_dialog = null;
 		}
 
-		bool Use24HourView => VirtualView != null && (DateFormat.Is24HourFormat(TypedNativeView?.Context)
+		bool Use24HourView => VirtualView != null && (DateFormat.Is24HourFormat(PlatformView?.Context)
 			&& VirtualView.Format == "t" || VirtualView.Format == "HH:mm");
 	}
 }

@@ -8,44 +8,48 @@ using Contacts;
 using ContactsUI;
 #endif
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.ApplicationModel.Communication
 {
-	public static partial class Contacts
+	class ContactsImplementation : IContacts
 	{
 #if __MACOS__
-        static Task<Contact> PlatformPickContactAsync() => throw ExceptionUtils.NotSupportedOrImplementedException;
-
+		public Task<Contact> PickContactAsync() =>
+			throw ExceptionUtils.NotSupportedOrImplementedException;
 #elif __IOS__
-        static Task<Contact> PlatformPickContactAsync()
-        {
-            var uiView = Platform.GetCurrentViewController();
-            if (uiView == null)
-                throw new ArgumentNullException($"The View Controller can't be null.");
+		public Task<Contact> PickContactAsync()
+		{
+			var vc = WindowStateManager.Default.GetCurrentUIViewController(true);
 
-            var source = new TaskCompletionSource<Contact>();
+			var source = new TaskCompletionSource<Contact>();
 
-            var picker = new CNContactPickerViewController
-            {
-                Delegate = new ContactPickerDelegate(phoneContact =>
-                {
-                    try
-                    {
-                        source?.TrySetResult(ConvertContact(phoneContact));
-                    }
-                    catch (Exception ex)
-                    {
-                        source?.TrySetException(ex);
-                    }
-                })
-            };
+			var picker = new CNContactPickerViewController
+			{
+				Delegate = new ContactPickerDelegate(phoneContact =>
+				{
+					try
+					{
+						source?.TrySetResult(ConvertContact(phoneContact));
+					}
+					catch (Exception ex)
+					{
+						source?.TrySetException(ex);
+					}
+				})
+			};
 
-            uiView.PresentViewController(picker, true, null);
+			if (picker.PresentationController != null)
+			{
+				picker.PresentationController.Delegate =
+					new UIPresentationControllerDelegate(() => source?.TrySetResult(null));
+			}
 
-            return source.Task;
-        }
+			vc.PresentViewController(picker, true, null);
 
+			return source.Task;
+		}
 #endif
-		static Task<IEnumerable<Contact>> PlatformGetAllAsync(CancellationToken cancellationToken)
+
+		public Task<IEnumerable<Contact>> GetAllAsync(CancellationToken cancellationToken)
 		{
 			var keys = new[]
 			{
@@ -106,33 +110,37 @@ namespace Microsoft.Maui.Essentials
 		}
 
 #if __IOS__
-        class ContactPickerDelegate : CNContactPickerDelegate
-        {
-            public ContactPickerDelegate(Action<CNContact> didSelectContactHandler) =>
-                DidSelectContactHandler = didSelectContactHandler;
+		class ContactPickerDelegate : CNContactPickerDelegate
+		{
+			public ContactPickerDelegate(Action<CNContact> didSelectContactHandler) =>
+				DidSelectContactHandler = didSelectContactHandler;
 
-            public ContactPickerDelegate(IntPtr handle)
-                : base(handle)
-            {
-            }
+			public ContactPickerDelegate(IntPtr handle)
+				: base(handle)
+			{
+			}
 
-            public Action<CNContact> DidSelectContactHandler { get; }
+			public Action<CNContact> DidSelectContactHandler { get; }
+#pragma warning disable CA1416 // picker.DismissModalViewController(bool) has UnsupportedOSPlatform("ios6.0")]. (Deprecated but still works)
+#pragma warning disable CA1422 // Validate platform compatibility
+			public override void ContactPickerDidCancel(CNContactPickerViewController picker)
+			{
+				DidSelectContactHandler?.Invoke(default);
+				picker.DismissModalViewController(true);
+			}
 
-            public override void ContactPickerDidCancel(CNContactPickerViewController picker)
-            {
-                DidSelectContactHandler?.Invoke(default);
-                picker.DismissModalViewController(true);
-            }
+			public override void DidSelectContact(CNContactPickerViewController picker, CNContact contact)
+			{
+				DidSelectContactHandler?.Invoke(contact);
+				picker.DismissModalViewController(true);
+			}
 
-            public override void DidSelectContact(CNContactPickerViewController picker, CNContact contact)
-            {
-                DidSelectContactHandler?.Invoke(contact);
-                picker.DismissModalViewController(true);
-            }
+			public override void DidSelectContactProperty(CNContactPickerViewController picker, CNContactProperty contactProperty) =>
+				picker.DismissModalViewController(true);
 
-            public override void DidSelectContactProperty(CNContactPickerViewController picker, CNContactProperty contactProperty) =>
-                picker.DismissModalViewController(true);
-        }
+#pragma warning restore CA1422 // Validate platform compatibility
+#pragma warning restore CA1416
+		}
 #endif
 	}
 }

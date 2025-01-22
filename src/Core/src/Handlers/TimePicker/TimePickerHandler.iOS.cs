@@ -2,53 +2,131 @@
 
 namespace Microsoft.Maui.Handlers
 {
-	public partial class TimePickerHandler : AbstractViewHandler<ITimePicker, MauiTimePicker>
+#if IOS && !MACCATALYST
+	public partial class TimePickerHandler : ViewHandler<ITimePicker, MauiTimePicker>
 	{
-		protected override MauiTimePicker CreateNativeView()
+		readonly MauiTimePickerProxy _proxy = new();
+
+		protected override MauiTimePicker CreatePlatformView()
 		{
-			return new MauiTimePicker(() => {
-				SetVirtualViewTime();
-				TypedNativeView?.ResignFirstResponder();
-			});
+			return new MauiTimePicker(_proxy.OnDateSelected);
 		}
 
-		protected override void ConnectHandler(MauiTimePicker nativeView)
+		internal bool UpdateImmediately { get; set; }
+
+		protected override void ConnectHandler(MauiTimePicker platformView)
 		{
-			if (nativeView != null)
-				nativeView.ValueChanged += OnValueChanged;
+			base.ConnectHandler(platformView);
+
+			_proxy.Connect(this, VirtualView, platformView);
+			platformView.UpdateTime(VirtualView.Time);
 		}
 
-		protected override void DisconnectHandler(MauiTimePicker nativeView)
+		protected override void DisconnectHandler(MauiTimePicker platformView)
 		{
-			if (nativeView != null)
-			{
-				nativeView.RemoveFromSuperview();
-				nativeView.ValueChanged -= OnValueChanged;
-				nativeView.Dispose();
-			}
+			base.DisconnectHandler(platformView);
+
+			_proxy.Disconnect(platformView);
 		}
 
-		public static void MapFormat(TimePickerHandler handler, ITimePicker timePicker)
+		public static void MapFormat(ITimePickerHandler handler, ITimePicker timePicker)
 		{
-			handler.TypedNativeView?.UpdateFormat(timePicker);
+			handler.PlatformView?.UpdateFormat(timePicker, handler.PlatformView?.Picker);
 		}
 
-		public static void MapTime(TimePickerHandler handler, ITimePicker timePicker)
+		public static void MapTime(ITimePickerHandler handler, ITimePicker timePicker)
 		{
-			handler.TypedNativeView?.UpdateTime(timePicker);
+			handler.PlatformView?.UpdateTime(timePicker, handler.PlatformView?.Picker);
 		}
 
-		void OnValueChanged(object? sender, EventArgs e)
+		public static void MapCharacterSpacing(ITimePickerHandler handler, ITimePicker timePicker)
 		{
-			SetVirtualViewTime();
+			handler.PlatformView?.UpdateCharacterSpacing(timePicker);
+		}
+
+		public static void MapFont(ITimePickerHandler handler, ITimePicker timePicker)
+		{
+			var fontManager = handler.GetRequiredService<IFontManager>();
+
+			handler.PlatformView?.UpdateFont(timePicker, fontManager);
+		}
+
+		public static void MapTextColor(ITimePickerHandler handler, ITimePicker timePicker)
+		{
+			handler.PlatformView?.UpdateTextColor(timePicker);
+		}
+
+		public static void MapFlowDirection(TimePickerHandler handler, ITimePicker timePicker)
+		{
+			handler.PlatformView?.UpdateFlowDirection(timePicker);
+			handler.PlatformView?.UpdateTextAlignment(timePicker);
 		}
 
 		void SetVirtualViewTime()
 		{
-			if (VirtualView == null || TypedNativeView == null)
+			if (VirtualView == null || PlatformView == null)
 				return;
 
-			VirtualView.Time = TypedNativeView.Date.ToDateTime() - new DateTime(1, 1, 1);
+			var datetime = PlatformView.Date.ToDateTime();
+			VirtualView.Time = new TimeSpan(datetime.Hour, datetime.Minute, 0);
+		}
+
+		class MauiTimePickerProxy
+		{
+			WeakReference<TimePickerHandler>? _handler;
+			WeakReference<ITimePicker>? _virtualView;
+
+			ITimePicker? VirtualView => _virtualView is not null && _virtualView.TryGetTarget(out var v) ? v : null;
+
+			public void Connect(TimePickerHandler handler, ITimePicker virtualView, MauiTimePicker platformView)
+			{
+				_handler = new(handler);
+				_virtualView = new(virtualView);
+
+				platformView.EditingDidBegin += OnStarted;
+				platformView.EditingDidEnd += OnEnded;
+				platformView.ValueChanged += OnValueChanged;
+				platformView.Picker.ValueChanged += OnValueChanged;
+			}
+
+			public void Disconnect(MauiTimePicker platformView)
+			{
+				_virtualView = null;
+
+				platformView.EditingDidBegin -= OnStarted;
+				platformView.EditingDidEnd -= OnEnded;
+				platformView.ValueChanged -= OnValueChanged;
+				platformView.Picker.ValueChanged -= OnValueChanged;
+				platformView.RemoveFromSuperview();
+			}
+
+			void OnStarted(object? sender, EventArgs eventArgs)
+			{
+				if (VirtualView is not null)
+					VirtualView.IsFocused = true;
+			}
+
+			void OnEnded(object? sender, EventArgs eventArgs)
+			{
+				if (VirtualView is not null)
+					VirtualView.IsFocused = false;
+			}
+
+			void OnValueChanged(object? sender, EventArgs e)
+			{
+				if (_handler is not null && _handler.TryGetTarget(out var handler) && handler.UpdateImmediately)  // Platform Specific
+					handler.SetVirtualViewTime();
+			}
+
+			public void OnDateSelected()
+			{
+				if (_handler is not null && _handler.TryGetTarget(out var handler))
+				{
+					handler.SetVirtualViewTime();
+					handler.PlatformView?.ResignFirstResponder();
+				}
+			}
 		}
 	}
+#endif
 }

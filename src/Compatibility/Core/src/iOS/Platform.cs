@@ -4,14 +4,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using CoreGraphics;
 using Foundation;
-using UIKit;
-using IOPath = System.IO.Path;
-using RectangleF = CoreGraphics.CGRect;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Controls.Internals;
+using Microsoft.Maui.Controls.Platform;
 using Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Platform;
+using ObjCRuntime;
+using UIKit;
+using CGRect = CoreGraphics.CGRect;
+using IOPath = System.IO.Path;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete]
 	public class Platform : BindableObject, INavigation, IDisposable
 	{
 		internal static readonly BindableProperty RendererProperty = BindableProperty.CreateAttached("Renderer", typeof(IVisualElementRenderer), typeof(Platform), default(IVisualElementRenderer),
@@ -20,12 +26,18 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 #if DEBUG
 				if (oldvalue != null && newvalue != null)
 				{
-					Log.Warning("Renderer", $"{bindable} already has a renderer attached to it: {oldvalue}. Please figure out why and then fix it.");
+					Forms.MauiContext?.CreateLogger("Renderer")?.LogWarning("{bindable} already has a renderer attached to it: {oldvalue}. Please figure out why and then fix it.", bindable, oldvalue);
 				}
 #endif
 				var view = bindable as VisualElement;
 				if (view != null)
 					view.IsPlatformEnabled = newvalue != null;
+
+				if (bindable is IView mauiView)
+				{
+					if (mauiView.Handler == null && newvalue is IVisualElementRenderer ver)
+						mauiView.Handler = new RendererToHandlerShim(ver);
+				}
 			});
 
 		readonly int _alertPadding = 10;
@@ -161,7 +173,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			var elementConfiguration = modal as IElementConfiguration<Page>;
 
-			var presentationStyle = elementConfiguration?.On<PlatformConfiguration.iOS>()?.ModalPresentationStyle().ToNativeModalPresentationStyle();
+			var presentationStyle = elementConfiguration?.On<PlatformConfiguration.iOS>()?.ModalPresentationStyle().ToPlatformModalPresentationStyle();
 
 			bool shouldFire = true;
 
@@ -175,7 +187,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				// While the above IsiOS13OrNewer will always be false if __XCODE11__ is true
 				// the UIModalPresentationStyle.Automatic is the only Xcode 11 API
 				// for readability I decided to only take this part out
+#pragma warning disable CA1416 // TODO: 'UIModalPresentationStyle.Automatic' is only supported on: 'ios' 13.0 and later
 				if (presentationStyle == UIKit.UIModalPresentationStyle.Automatic)
+#pragma warning restore CA1416
 					shouldFire = false;
 
 				if (presentationStyle == UIKit.UIModalPresentationStyle.FullScreen)
@@ -207,7 +221,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			if (renderView == null || renderView.NativeView == null)
 			{
 				if (view is IView iView)
+				{
+					Application.Current?.FindMauiContext()?.CreateLogger<Platform>()?.LogWarning(
+						"Someone called Platform.GetNativeSize instead of going through the Handler.");
+
 					return new SizeRequest(iView.Handler.GetDesiredSize(widthConstraint, heightConstraint));
+				}
 
 				Performance.Stop(reference);
 				return new SizeRequest(Size.Zero);
@@ -238,7 +257,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				//TODO: Handle this with AppBuilderHost
 				try
 				{
-					handler = Forms.ActivationState.Context.Handlers.GetHandler(element.GetType());
+					handler = Forms.MauiContext.Handlers.GetHandler(element.GetType()) as IViewHandler;
+					handler.SetMauiContext(Forms.MauiContext);
 				}
 				catch
 				{
@@ -265,9 +285,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				}
 				else if (handler is IVisualElementRenderer ver)
 					renderer = ver;
-				else if (handler is INativeViewHandler vh)
+				else if (handler is IPlatformViewHandler vh)
 				{
 					renderer = new HandlerToRendererShim(vh);
+					element.Handler = handler;
+					SetRenderer(element, renderer);
 				}
 			}
 
@@ -303,8 +325,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 					safeAreaInsets = new UIEdgeInsets(UIApplication.SharedApplication.StatusBarFrame.Size.Height, 0, 0, 0);
 				else if (UIApplication.SharedApplication.GetKeyWindow() != null)
 					safeAreaInsets = UIApplication.SharedApplication.GetKeyWindow().SafeAreaInsets;
+#pragma warning disable CA1416, CA1422  // TODO: UIApplication.Windows is unsupported on: 'ios' 15.0 and later
 				else if (UIApplication.SharedApplication.Windows.Length > 0)
 					safeAreaInsets = UIApplication.SharedApplication.Windows[0].SafeAreaInsets;
+#pragma warning restore CA1416, CA1422
 				else
 					safeAreaInsets = UIEdgeInsets.Zero;
 
@@ -380,7 +404,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				_renderer.View.AddSubview(nativeView);
 				if (viewRenderer.ViewController != null)
 					_renderer.AddChildViewController(viewRenderer.ViewController);
-				viewRenderer.NativeView.Frame = new RectangleF(0, 0, _renderer.View.Bounds.Width, _renderer.View.Bounds.Height);
+				viewRenderer.NativeView.Frame = new CGRect(0, 0, _renderer.View.Bounds.Width, _renderer.View.Bounds.Height);
 				viewRenderer.SetElementSize(new Size(_renderer.View.Bounds.Width, _renderer.View.Bounds.Height));
 			}
 			else
@@ -412,11 +436,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		void PresentAlert(AlertArguments arguments)
 		{
-			var window = new UIWindow { BackgroundColor = Color.Transparent.ToUIColor() };
+			var window = new UIWindow { BackgroundColor = Colors.Transparent.ToPlatform() };
 
 			var alert = UIAlertController.Create(arguments.Title, arguments.Message, UIAlertControllerStyle.Alert);
 			var oldFrame = alert.View.Frame;
-			alert.View.Frame = new RectangleF(oldFrame.X, oldFrame.Y, oldFrame.Width, oldFrame.Height - _alertPadding * 2);
+			alert.View.Frame = new CGRect(oldFrame.X, oldFrame.Y, oldFrame.Width, oldFrame.Height - _alertPadding * 2);
 
 			if (arguments.Cancel != null)
 			{
@@ -435,7 +459,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		void PresentPrompt(PromptArguments arguments)
 		{
-			var window = new UIWindow { BackgroundColor = Color.Transparent.ToUIColor() };
+			var window = new UIWindow { BackgroundColor = Colors.Transparent.ToPlatform() };
 
 			var alert = UIAlertController.Create(arguments.Title, arguments.Message, UIAlertControllerStyle.Alert);
 			alert.AddTextField(uiTextField =>
@@ -446,7 +470,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				uiTextField.ApplyKeyboard(arguments.Keyboard);
 			});
 			var oldFrame = alert.View.Frame;
-			alert.View.Frame = new RectangleF(oldFrame.X, oldFrame.Y, oldFrame.Width, oldFrame.Height - _alertPadding * 2);
+			alert.View.Frame = new CGRect(oldFrame.X, oldFrame.Y, oldFrame.Width, oldFrame.Height - _alertPadding * 2);
 
 			alert.AddAction(CreateActionWithWindowHide(arguments.Cancel, UIAlertActionStyle.Cancel, () => arguments.SetResult(null), window));
 			alert.AddAction(CreateActionWithWindowHide(arguments.Accept, UIAlertActionStyle.Default, () => arguments.SetResult(alert.TextFields[0].Text), window));
@@ -457,7 +481,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		void PresentActionSheet(ActionSheetArguments arguments)
 		{
 			var alert = UIAlertController.Create(arguments.Title, null, UIAlertControllerStyle.ActionSheet);
-			var window = new UIWindow { BackgroundColor = Color.Transparent.ToUIColor() };
+			var window = new UIWindow { BackgroundColor = Colors.Transparent.ToPlatform() };
 
 			// Clicking outside of an ActionSheet is an implicit cancel on iPads. If we don't handle it, it freezes the app.
 			if (arguments.Cancel != null || UIDevice.CurrentDevice.UserInterfaceIdiom == UIUserInterfaceIdiom.Pad)
@@ -486,7 +510,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		static void PresentPopUp(UIWindow window, UIAlertController alert, ActionSheetArguments arguments = null)
 		{
 			window.RootViewController = new UIViewController();
-			window.RootViewController.View.BackgroundColor = Color.Transparent.ToUIColor();
+			window.RootViewController.View.BackgroundColor = Colors.Transparent.ToPlatform();
 			window.WindowLevel = UIWindowLevel.Alert + 1;
 			window.MakeKeyAndVisible();
 
@@ -494,7 +518,11 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			{
 				UIDevice.CurrentDevice.BeginGeneratingDeviceOrientationNotifications();
 				var observer = NSNotificationCenter.DefaultCenter.AddObserver(UIDevice.OrientationDidChangeNotification,
-					n => { alert.PopoverPresentationController.SourceRect = window.RootViewController.View.Bounds; });
+					n =>
+					{
+						if (alert.PopoverPresentationController != null)
+							alert.PopoverPresentationController.SourceRect = window.RootViewController.View.Bounds;
+					});
 
 				arguments.Result.Task.ContinueWith(t =>
 				{
@@ -502,15 +530,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 					UIDevice.CurrentDevice.EndGeneratingDeviceOrientationNotifications();
 				}, TaskScheduler.FromCurrentSynchronizationContext());
 
-				alert.PopoverPresentationController.SourceView = window.RootViewController.View;
-				alert.PopoverPresentationController.SourceRect = window.RootViewController.View.Bounds;
-				alert.PopoverPresentationController.PermittedArrowDirections = 0; // No arrow
-			}
-
-			if (!Forms.IsiOS9OrNewer)
-			{
-				// For iOS 8, we need to explicitly set the size of the window
-				window.Frame = new RectangleF(0, 0, UIScreen.MainScreen.Bounds.Width, UIScreen.MainScreen.Bounds.Height);
+				if (alert.PopoverPresentationController != null)
+				{
+					alert.PopoverPresentationController.SourceView = window.RootViewController.View;
+					alert.PopoverPresentationController.SourceRect = window.RootViewController.View.Bounds;
+					alert.PopoverPresentationController.PermittedArrowDirections = 0; // No arrow
+				}
 			}
 
 			window.RootViewController.PresentViewController(alert, true, null);
@@ -525,7 +550,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				SetRenderer(modal, modalRenderer);
 			}
 
-			var wrapper = new ModalWrapper(modalRenderer);
+			var wrapper = new ControlsModalWrapper(modalRenderer.Element.Handler as IPlatformViewHandler);
 
 			if (_modals.Count > 1)
 			{
@@ -566,6 +591,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_renderer.View?.Window?.EndEditing(true);
 		}
 
+		[System.Obsolete]
 		internal class DefaultRenderer : VisualElementRenderer<VisualElement>
 		{
 			public override UIView HitTest(CGPoint point, UIEvent uievent)
@@ -646,7 +672,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				if (!PageIsChildOfPlatform(sender))
 					return;
 				busyCount = Math.Max(0, enabled ? busyCount + 1 : busyCount - 1);
+#pragma warning disable CA1416, CA1422  // TODO: 'UIApplication.NetworkActivityIndicatorVisible' is unsupported on: 'ios' 13.0 and later
 				UIApplication.SharedApplication.NetworkActivityIndicatorVisible = busyCount > 0;
+#pragma warning restore CA1416, CA1422
 			});
 
 			MessagingCenter.Subscribe(this, Page.AlertSignalName, (Page sender, AlertArguments arguments) =>

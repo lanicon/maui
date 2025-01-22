@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Core.UnitTests;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 
 namespace Microsoft.Maui.Controls.Xaml.UnitTests
@@ -13,20 +14,17 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 
 		public static string FontFamily => "MyFontFamily";
 		public static string Glyph => "MyGlyph";
-		public static Color Color => Color.Black;
+		public static Color Color => Colors.Black;
 		public static double Size = 50d;
 
 		[TestFixture]
 		class Tests
 		{
-			[SetUp] public void Setup() => Device.PlatformServices = new MockPlatformServices();
-			[TearDown] public void TearDown() => Device.PlatformServices = null;
-
 			[TestCase(true), TestCase(false)]
 			public void FontImageExtension_Positive(bool useCompiledXaml)
 			{
 				var layout = new FontImageExtension(useCompiledXaml);
-				var tabs = layout.AllChildren;
+				var tabs = ((IVisualTreeElement)layout).GetVisualChildren();
 
 				int i = 0;
 				foreach (var tab in tabs)
@@ -55,7 +53,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 			public void FontImageExtension_Negative(bool useCompiledXaml)
 			{
 				var layout = new FontImageExtension(useCompiledXaml);
-				var tabs = layout.AllChildren;
+				var tabs = ((IVisualTreeElement)layout).GetVisualChildren();
 
 				foreach (var tab in tabs)
 				{

@@ -2,14 +2,15 @@ using System.Collections;
 using System.Linq;
 using System.Threading.Tasks;
 using Android.Graphics.Drawables;
+using Microsoft.Maui.Controls.CustomAttributes;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
-using Microsoft.Maui.Controls.CustomAttributes;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 {
 	[TestFixture]
-	public class BackgroundColorTests : PlatformTestFixture 
+	public class BackgroundColorTests : PlatformTestFixture
 	{
 		static IEnumerable TestCases
 		{
@@ -18,7 +19,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 				foreach (var element in BasicElements
 					.Where(e => !(e is Button) && !(e is ImageButton) && !(e is Frame)))
 				{
-					element.BackgroundColor = Color.AliceBlue;
+					element.BackgroundColor = Colors.AliceBlue;
 					yield return new TestCaseData(element)
 						.SetCategory(element.GetType().Name);
 				}
@@ -29,11 +30,12 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 		[Description("Button background color should match renderer background color")]
 		public async Task ButtonBackgroundColorConsistent()
 		{
-			var button = new Button 
-			{ 
+			var button = new Button
+			{
 				Text = "      ",
-				HeightRequest = 100, WidthRequest = 100,
-				BackgroundColor = Color.AliceBlue 
+				HeightRequest = 100,
+				WidthRequest = 100,
+				BackgroundColor = Colors.AliceBlue
 			};
 
 			var expectedColor = button.BackgroundColor.ToAndroid();
@@ -49,7 +51,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 			{
 				HeightRequest = 100,
 				WidthRequest = 100,
-				BackgroundColor = Color.AliceBlue
+				BackgroundColor = Colors.AliceBlue
 			};
 
 			var expectedColor = button.BackgroundColor.ToAndroid();
@@ -65,7 +67,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 			{
 				HeightRequest = 100,
 				WidthRequest = 100,
-				BackgroundColor = Color.AliceBlue
+				BackgroundColor = Colors.AliceBlue
 			};
 
 			var expectedColor = frame.BackgroundColor.ToAndroid();

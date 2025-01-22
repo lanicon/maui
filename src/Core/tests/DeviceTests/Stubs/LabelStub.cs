@@ -1,8 +1,12 @@
+using Microsoft.Maui.Graphics;
+
 namespace Microsoft.Maui.DeviceTests.Stubs
 {
 	public partial class LabelStub : StubBase, ILabel
 	{
 		public string Text { get; set; }
+
+		public TextType TextType { get; set; } = TextType.Text;
 
 		public Color TextColor { get; set; }
 
@@ -14,11 +18,9 @@ namespace Microsoft.Maui.DeviceTests.Stubs
 
 		public TextAlignment HorizontalTextAlignment { get; set; }
 
-		public LineBreakMode LineBreakMode { get; set; } = LineBreakMode.WordWrap;
+		public TextAlignment VerticalTextAlignment { get; set; }
 
 		public TextDecorations TextDecorations { get; set; }
-
-		public int MaxLines { get; set; } = -1;
 
 		public double LineHeight { get; set; } = -1;
 	}

@@ -1,6 +1,9 @@
 using System.Threading.Tasks;
+using Microsoft.Maui.Graphics;
 using NUnit.Framework;
+using ObjCRuntime;
 using UIKit;
+using CategoryAttribute = NUnit.Framework.CategoryAttribute;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 {
@@ -18,7 +21,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 			var expected = UITextAlignment.Right;
 			var actual = await GetControlProperty(label, uiLabel =>
 			{
-				label.BackgroundColor = Color.Yellow;
+				label.BackgroundColor = Colors.Yellow;
 				label.HeightRequest = 50;
 				label.LineBreakMode = LineBreakMode.WordWrap;
 				label.Margin = 20;
@@ -30,7 +33,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 				label.FontAttributes = FontAttributes.Bold;
 				label.FontSize = 20;
 				label.LineHeight = 3;
-				label.TextColor = Color.Blue;
+				label.TextColor = Colors.Blue;
 				label.TextTransform = TextTransform.Uppercase;
 				label.HorizontalTextAlignment = TextAlignment.Start;
 				label.VerticalTextAlignment = TextAlignment.Center;
@@ -50,7 +53,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 			var expected = UITextAlignment.Right;
 			var actual = await GetControlProperty(label, uiLabel =>
 			{
-				label.BackgroundColor = Color.Yellow;
+				label.BackgroundColor = Colors.Yellow;
 				label.HeightRequest = 50;
 				label.LineBreakMode = LineBreakMode.WordWrap;
 				label.Margin = 20;
@@ -62,7 +65,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS.UnitTests
 				label.FontAttributes = FontAttributes.Bold;
 				label.FontSize = 20;
 				label.LineHeight = 3;
-				label.TextColor = Color.Blue;
+				label.TextColor = Colors.Blue;
 				label.TextTransform = TextTransform.Uppercase;
 				label.TextType = TextType.Html;
 				label.HorizontalTextAlignment = TextAlignment.Start;

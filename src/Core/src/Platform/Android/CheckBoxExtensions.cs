@@ -2,33 +2,53 @@
 using Android.Graphics;
 using AndroidX.AppCompat.Widget;
 using AndroidX.Core.Widget;
-using AAttribute = Android.Resource.Attribute;
+using Microsoft.Maui.Graphics;
 using AColor = Android.Graphics.Color;
-using XColor = Microsoft.Maui.Color;
 
-namespace Microsoft.Maui
+namespace Microsoft.Maui.Platform
 {
 	public static class CheckBoxExtensions
 	{
-		static readonly int[][] CheckedStates = new int[][]
+		public static void UpdateBackground(this AppCompatCheckBox platformCheckBox, ICheckBox check)
 		{
-			new int[] { AAttribute.StateEnabled, AAttribute.StateChecked },
-			new int[] { AAttribute.StateEnabled, -AAttribute.StateChecked },
-			new int[] { -AAttribute.StateEnabled, AAttribute.StateChecked },
-			new int[] { -AAttribute.StateEnabled, -AAttribute.StatePressed },
-		};
+			var paint = check.Background;
 
-		public static void UpdateBackgroundColor(this AppCompatCheckBox nativeCheckBox, ICheckBox check)
-		{
-			if (check.BackgroundColor == XColor.Default)
-				nativeCheckBox.SetBackgroundColor(AColor.Transparent);
+			if (paint.IsNullOrEmpty())
+				platformCheckBox.SetBackgroundColor(AColor.Transparent);
 			else
-				nativeCheckBox.SetBackgroundColor(check.BackgroundColor.ToNative());
+				platformCheckBox.UpdateBackground((IView)check);
 		}
 
-		public static void UpdateIsChecked(this AppCompatCheckBox nativeCheckBox, ICheckBox check)
+		public static void UpdateIsChecked(this AppCompatCheckBox platformCheckBox, ICheckBox check)
 		{
-			nativeCheckBox.Checked = check.IsChecked;
+			platformCheckBox.Checked = check.IsChecked;
+		}
+
+		public static void UpdateForeground(this AppCompatCheckBox platformCheckBox, ICheckBox check)
+		{
+			var mode = PorterDuff.Mode.SrcIn;
+
+			CompoundButtonCompat.SetButtonTintList(platformCheckBox, platformCheckBox.GetColorStateList(check));
+			CompoundButtonCompat.SetButtonTintMode(platformCheckBox, mode);
+		}
+
+		internal static ColorStateList GetColorStateList(this AppCompatCheckBox platformCheckBox, ICheckBox check)
+		{
+			AColor tintColor;
+
+			// For the moment, we're only supporting solid color Paint for the Android Checkbox
+			if (check.Foreground is SolidPaint solid)
+			{
+				var color = solid.Color;
+				tintColor = color.ToPlatform();
+			}
+			else
+			{
+				Graphics.Color accent = platformCheckBox.Context?.GetAccentColor() ?? Graphics.Color.FromArgb("#ff33b5e5");
+				tintColor = accent.ToPlatform();
+			}
+
+			return ColorStateListExtensions.CreateCheckBox(tintColor);
 		}
 	}
 }

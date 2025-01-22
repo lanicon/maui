@@ -1,11 +1,13 @@
-using NUnit.Framework;
+using Xunit;
 
 namespace Microsoft.Maui.Controls.Core.UnitTests
 {
-	[TestFixture]
+	using Grid = Microsoft.Maui.Controls.Compatibility.Grid;
+	using StackLayout = Microsoft.Maui.Controls.Compatibility.StackLayout;
+
 	public class RadioButtonTests : BaseTestFixture
 	{
-		[Test]
+		[Fact]
 		public void RadioButtonAddedToGroupGetsGroupName()
 		{
 			var layout = new StackLayout();
@@ -15,10 +17,10 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			layout.SetValue(RadioButtonGroup.GroupNameProperty, groupName);
 			layout.Children.Add(radioButton);
 
-			Assert.That(radioButton.GroupName, Is.EqualTo(groupName));
+			Assert.Equal(radioButton.GroupName, groupName);
 		}
 
-		[Test]
+		[Fact]
 		public void NestedRadioButtonAddedToGroupGetsGroupName()
 		{
 			var layout = new StackLayout();
@@ -32,24 +34,24 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			grid.Children.Add(radioButton);
 			layout.Children.Add(grid);
 
-			Assert.That(radioButton.GroupName, Is.EqualTo(groupName));
+			Assert.Equal(radioButton.GroupName, groupName);
 		}
 
-		[Test]
+		[Fact]
 		public void RadioButtonAddedToGroupKeepsGroupName()
 		{
 			var layout = new StackLayout();
 			var groupName = "foo";
 			var oldName = "bar";
-			var radioButton = new RadioButton() { GroupName = oldName };
+			var radioButton = new RadioButton() { GroupName = oldName, Value = 1 };
 
 			layout.SetValue(RadioButtonGroup.GroupNameProperty, groupName);
 			layout.Children.Add(radioButton);
 
-			Assert.That(radioButton.GroupName, Is.EqualTo(oldName));
+			Assert.Equal(radioButton.GroupName, oldName);
 		}
 
-		[Test]
+		[Fact]
 		public void LayoutGroupNameAppliesToExistingRadioButtons()
 		{
 			var layout = new StackLayout();
@@ -59,10 +61,10 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			layout.Children.Add(radioButton);
 			layout.SetValue(RadioButtonGroup.GroupNameProperty, groupName);
 
-			Assert.That(radioButton.GroupName, Is.EqualTo(groupName));
+			Assert.Equal(radioButton.GroupName, groupName);
 		}
 
-		[Test]
+		[Fact]
 		public void UpdatedGroupNameAppliesToRadioButtonsWithOldGroupName()
 		{
 			var layout = new StackLayout();
@@ -78,11 +80,11 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			layout.SetValue(RadioButtonGroup.GroupNameProperty, updatedGroupName);
 
-			Assert.That(radioButton1.GroupName, Is.EqualTo(updatedGroupName));
-			Assert.That(radioButton2.GroupName, Is.EqualTo("other"));
+			Assert.Equal(radioButton1.GroupName, updatedGroupName);
+			Assert.Equal("other", radioButton2.GroupName);
 		}
 
-		[Test]
+		[Fact]
 		public void ThereCanBeOnlyOne()
 		{
 			var groupName = "foo";
@@ -101,20 +103,20 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			radioButton1.IsChecked = true;
 
-			Assert.IsTrue(radioButton1.IsChecked);
-			Assert.IsFalse(radioButton2.IsChecked);
-			Assert.IsFalse(radioButton3.IsChecked);
-			Assert.IsFalse(radioButton4.IsChecked);
+			Assert.True(radioButton1.IsChecked);
+			Assert.False(radioButton2.IsChecked);
+			Assert.False(radioButton3.IsChecked);
+			Assert.False(radioButton4.IsChecked);
 
 			radioButton3.IsChecked = true;
 
-			Assert.IsFalse(radioButton1.IsChecked);
-			Assert.IsFalse(radioButton2.IsChecked);
-			Assert.IsTrue(radioButton3.IsChecked);
-			Assert.IsFalse(radioButton4.IsChecked);
+			Assert.False(radioButton1.IsChecked);
+			Assert.False(radioButton2.IsChecked);
+			Assert.True(radioButton3.IsChecked);
+			Assert.False(radioButton4.IsChecked);
 		}
 
-		[Test]
+		[Fact]
 		public void ImpliedGroup()
 		{
 			var radioButton1 = new RadioButton();
@@ -129,18 +131,18 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			radioButton1.IsChecked = true;
 
-			Assert.IsTrue(radioButton1.IsChecked);
-			Assert.IsFalse(radioButton2.IsChecked);
-			Assert.IsFalse(radioButton3.IsChecked);
+			Assert.True(radioButton1.IsChecked);
+			Assert.False(radioButton2.IsChecked);
+			Assert.False(radioButton3.IsChecked);
 
 			radioButton3.IsChecked = true;
 
-			Assert.IsFalse(radioButton1.IsChecked);
-			Assert.IsFalse(radioButton2.IsChecked);
-			Assert.IsTrue(radioButton3.IsChecked);
+			Assert.False(radioButton1.IsChecked);
+			Assert.False(radioButton2.IsChecked);
+			Assert.True(radioButton3.IsChecked);
 		}
 
-		[Test]
+		[Fact]
 		public void ImpliedGroupDoesNotIncludeExplicitGroups()
 		{
 			var radioButton1 = new RadioButton();
@@ -156,12 +158,12 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			radioButton1.IsChecked = true;
 			radioButton3.IsChecked = true;
 
-			Assert.IsTrue(radioButton1.IsChecked);
-			Assert.IsFalse(radioButton2.IsChecked);
-			Assert.IsTrue(radioButton3.IsChecked);
+			Assert.True(radioButton1.IsChecked);
+			Assert.False(radioButton2.IsChecked);
+			Assert.True(radioButton3.IsChecked);
 		}
 
-		[Test]
+		[Fact]
 		public void RemovingSelectedButtonFromGroupClearsSelection()
 		{
 			var radioButton1 = new RadioButton() { GroupName = "foo" };
@@ -171,18 +173,18 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			radioButton1.IsChecked = true;
 			radioButton2.IsChecked = true;
 
-			Assert.IsFalse(radioButton1.IsChecked);
-			Assert.IsTrue(radioButton2.IsChecked);
-			Assert.IsFalse(radioButton3.IsChecked);
+			Assert.False(radioButton1.IsChecked);
+			Assert.True(radioButton2.IsChecked);
+			Assert.False(radioButton3.IsChecked);
 
 			radioButton2.GroupName = "bar";
 
-			Assert.IsFalse(radioButton1.IsChecked);
-			Assert.IsTrue(radioButton2.IsChecked);
-			Assert.IsFalse(radioButton3.IsChecked);
+			Assert.False(radioButton1.IsChecked);
+			Assert.True(radioButton2.IsChecked);
+			Assert.False(radioButton3.IsChecked);
 		}
 
-		[Test]
+		[Fact]
 		public void GroupControllerSelectionIsNullWhenSelectedButtonRemoved()
 		{
 			var layout = new Grid();
@@ -205,16 +207,16 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 
 			selected = layout.GetValue(RadioButtonGroup.SelectedValueProperty);
 
-			Assert.AreEqual(selected, 1);
+			Assert.Equal(1, selected);
 
-			Assert.AreEqual(radioButton1.GroupName, "foo");
+			Assert.Equal("foo", radioButton1.GroupName);
 			radioButton1.GroupName = "bar";
 
 			selected = layout.GetValue(RadioButtonGroup.SelectedValueProperty);
 			Assert.Null(selected);
 		}
 
-		[Test]
+		[Fact]
 		public void GroupSelectedValueUpdatesWhenSelectedButtonValueUpdates()
 		{
 			var layout = new Grid();
@@ -228,11 +230,11 @@ namespace Microsoft.Maui.Controls.Core.UnitTests
 			layout.Children.Add(radioButton2);
 			layout.Children.Add(radioButton3);
 
-			Assert.AreEqual(1, layout.GetValue(RadioButtonGroup.SelectedValueProperty));
+			Assert.Equal(1, layout.GetValue(RadioButtonGroup.SelectedValueProperty));
 
 			radioButton1.Value = "updated";
 
-			Assert.AreEqual("updated", layout.GetValue(RadioButtonGroup.SelectedValueProperty));
+			Assert.Equal("updated", layout.GetValue(RadioButtonGroup.SelectedValueProperty));
 		}
 	}
 }

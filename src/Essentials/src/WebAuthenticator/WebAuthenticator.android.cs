@@ -1,20 +1,21 @@
 using System;
 using System.Threading.Tasks;
+using Android.App;
 using Android.Content;
-#if __ANDROID_29__
 using AndroidX.Browser.CustomTabs;
-#else
-using Android.Support.CustomTabs;
-#endif
+using Microsoft.Maui.ApplicationModel;
 
-namespace Microsoft.Maui.Essentials
+namespace Microsoft.Maui.Authentication
 {
-	public partial class WebAuthenticator
+	partial class WebAuthenticatorImplementation : IWebAuthenticator, IPlatformWebAuthenticatorCallback
 	{
-		static TaskCompletionSource<WebAuthenticatorResult> tcsResponse = null;
-		static Uri currentRedirectUri = null;
+		TaskCompletionSource<WebAuthenticatorResult> tcsResponse = null;
+		Uri currentRedirectUri = null;
+		WebAuthenticatorOptions currentOptions = null;
 
-		internal static bool OnResume(Intent intent)
+		internal bool AuthenticatingWithCustomTabs { get; private set; } = false;
+
+		public bool OnResumeCallback(Intent intent)
 		{
 			// If we aren't waiting on a task, don't handle the url
 			if (tcsResponse?.Task?.IsCompleted ?? true)
@@ -36,8 +37,7 @@ namespace Microsoft.Maui.Essentials
 					tcsResponse.TrySetException(new InvalidOperationException($"Invalid Redirect URI, detected `{intentUri}` but expected a URI in the format of `{currentRedirectUri}`"));
 					return false;
 				}
-
-				tcsResponse?.TrySetResult(new WebAuthenticatorResult(intentUri));
+				tcsResponse?.TrySetResult(new WebAuthenticatorResult(intentUri, currentOptions?.ResponseDecoder));
 				return true;
 			}
 			catch (Exception ex)
@@ -47,9 +47,12 @@ namespace Microsoft.Maui.Essentials
 			}
 		}
 
-		static async Task<WebAuthenticatorResult> PlatformAuthenticateAsync(Uri url, Uri callbackUrl)
+		public async Task<WebAuthenticatorResult> AuthenticateAsync(WebAuthenticatorOptions webAuthenticatorOptions)
 		{
-			var packageName = Platform.AppContext.PackageName;
+			currentOptions = webAuthenticatorOptions;
+			var url = webAuthenticatorOptions?.Url;
+			var callbackUrl = webAuthenticatorOptions?.CallbackUrl;
+			var packageName = Application.Context.PackageName;
 
 			// Create an intent to see if the app developer wired up the callback activity correctly
 			var intent = new Intent(Intent.ActionView);
@@ -59,7 +62,7 @@ namespace Microsoft.Maui.Essentials
 			intent.SetData(global::Android.Net.Uri.Parse(callbackUrl.OriginalString));
 
 			// Try to find the activity for the callback intent
-			if (!Platform.IsIntentSupported(intent, packageName))
+			if (!PlatformUtils.IsIntentSupported(intent, packageName))
 				throw new InvalidOperationException($"You must subclass the `{nameof(WebAuthenticatorCallbackActivity)}` and create an IntentFilter for it which matches your `{nameof(callbackUrl)}`.");
 
 			// Cancel any previous task that's still pending
@@ -69,9 +72,28 @@ namespace Microsoft.Maui.Essentials
 			tcsResponse = new TaskCompletionSource<WebAuthenticatorResult>();
 			currentRedirectUri = callbackUrl;
 
-			var parentActivity = Platform.GetCurrentActivity(true);
+			// Try to start with custom tabs if the system supports it and we resolve it
+			AuthenticatingWithCustomTabs = await StartCustomTabsActivity(url);
 
-			var customTabsActivityManager = CustomTabsActivityManager.From(parentActivity);
+			// Fall back to using the system browser if necessary
+			if (!AuthenticatingWithCustomTabs)
+			{
+				// Fall back to opening the system-registered browser if necessary
+				var urlOriginalString = url.OriginalString;
+				var browserIntent = new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(urlOriginalString));
+				Platform.CurrentActivity.StartActivity(browserIntent);
+			}
+
+			return await tcsResponse.Task;
+		}
+
+		static async Task<bool> StartCustomTabsActivity(Uri url)
+		{
+			// Is only set to true if BindServiceAsync succeeds and no exceptions are thrown
+			var success = false;
+			var parentActivity = ActivityStateManager.Default.GetCurrentActivity(true);
+
+			var customTabsActivityManager = new CustomTabsActivityManager(parentActivity);
 			try
 			{
 				if (await BindServiceAsync(customTabsActivityManager))
@@ -82,16 +104,12 @@ namespace Microsoft.Maui.Essentials
 
 					customTabsIntent.Intent.SetData(global::Android.Net.Uri.Parse(url.OriginalString));
 
-					WebAuthenticatorIntermediateActivity.StartActivity(parentActivity, customTabsIntent.Intent);
+					if (customTabsIntent.Intent.ResolveActivity(parentActivity.PackageManager) != null)
+					{
+						WebAuthenticatorIntermediateActivity.StartActivity(parentActivity, customTabsIntent.Intent);
+						success = true;
+					}
 				}
-				else
-				{
-					// Fall back to opening the system browser if necessary
-					var browserIntent = new Intent(Intent.ActionView, global::Android.Net.Uri.Parse(url.OriginalString));
-					Platform.CurrentActivity.StartActivity(browserIntent);
-				}
-
-				return await tcsResponse.Task;
 			}
 			finally
 			{
@@ -103,6 +121,8 @@ namespace Microsoft.Maui.Essentials
 				{
 				}
 			}
+
+			return success;
 		}
 
 		static Task<bool> BindServiceAsync(CustomTabsActivityManager manager)

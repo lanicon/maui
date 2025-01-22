@@ -1,11 +1,15 @@
 using System;
 using System.ComponentModel;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 using RectangleF = CoreGraphics.CGRect;
 using SizeF = CoreGraphics.CGSize;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete(Compatibility.Hosting.MauiAppBuilderExtensions.UseMapperInstead)]
 	public class BoxRenderer : VisualElementRenderer<BoxView>
 	{
 		UIColor _colorToRenderer;
@@ -15,7 +19,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		nfloat _bottomLeft;
 		nfloat _bottomRight;
 
-		const float PI = (float)Math.PI;
+		const float PI = MathF.PI;
 		const float PIAndAHalf = PI * 1.5f;
 		const float HalfPI = PI * .5f;
 		const float TwoPI = PI * 2;
@@ -28,15 +32,18 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 		public override void Draw(RectangleF rect)
 		{
-			UIBezierPath bezierPath = new UIBezierPath();
+			if (_colorToRenderer != null)
+			{
+				UIBezierPath bezierPath = new UIBezierPath();
 
-			bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + Bounds.Width - _topRight, Bounds.Y + _topRight), _topRight, PIAndAHalf, TwoPI, true);
-			bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + Bounds.Width - _bottomRight, Bounds.Y + Bounds.Height - _bottomRight), _bottomRight, 0, HalfPI, true);
-			bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + _bottomLeft, Bounds.Y + Bounds.Height - _bottomLeft), _bottomLeft, HalfPI, PI, true);
-			bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + _topLeft, Bounds.Y + _topLeft), _topLeft, PI, PIAndAHalf, true);
+				bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + Bounds.Width - _topRight, Bounds.Y + _topRight), _topRight, PIAndAHalf, TwoPI, true);
+				bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + Bounds.Width - _bottomRight, Bounds.Y + Bounds.Height - _bottomRight), _bottomRight, 0, HalfPI, true);
+				bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + _bottomLeft, Bounds.Y + Bounds.Height - _bottomLeft), _bottomLeft, HalfPI, PI, true);
+				bezierPath.AddArc(new CoreGraphics.CGPoint(Bounds.X + _topLeft, Bounds.Y + _topLeft), _topLeft, PI, PIAndAHalf, true);
 
-			_colorToRenderer.SetFill();
-			bezierPath.Fill();
+				_colorToRenderer.SetFill();
+				bezierPath.Fill();
+			}
 
 			base.Draw(rect);
 
@@ -60,7 +67,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			if (Element != null)
 			{
-				SetBackgroundColor(Element.BackgroundColor);
+				SetBackground(Element.Background);
 				SetCornerRadius();
 			}
 		}
@@ -69,7 +76,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			base.OnElementPropertyChanged(sender, e);
 			if (e.PropertyName == BoxView.ColorProperty.PropertyName)
-				SetBackgroundColor(Element.BackgroundColor);
+				SetBackground(Element.Background);
 			else if (e.PropertyName == BoxView.CornerRadiusProperty.PropertyName)
 				SetCornerRadius();
 			else if (e.PropertyName == VisualElement.IsVisibleProperty.PropertyName && Element.IsVisible)
@@ -83,10 +90,10 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 
 			var elementColor = Element.Color;
 
-			if (!elementColor.IsDefault)
-				_colorToRenderer = elementColor.ToUIColor();
-			else
-				_colorToRenderer = color.ToUIColor();
+			if (elementColor != null)
+				_colorToRenderer = elementColor.ToPlatform();
+			else if (color != null)
+				_colorToRenderer = color.ToPlatform();
 
 			SetNeedsDisplay();
 		}
@@ -97,11 +104,16 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 				return;
 
 			if (Brush.IsNullOrEmpty(brush))
+				brush = Element.Background;
+
+			if (Brush.IsNullOrEmpty(brush))
+			{
 				SetBackgroundColor(Element.BackgroundColor);
+			}
 			else
 			{
 				if (brush is SolidColorBrush solidColorBrush)
-					_colorToRenderer = solidColorBrush.Color.ToUIColor();
+					_colorToRenderer = solidColorBrush.Color.ToPlatform();
 				else
 				{
 					var backgroundImage = this.GetBackgroundImage(brush);
@@ -125,6 +137,31 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 			_bottomRight = (nfloat)elementCornerRadius.BottomRight;
 
 			SetNeedsDisplay();
+		}
+
+		static float DefaultWidth = 40;
+		static float DefaultHeight = 40;
+		static SizeF DefaultSize = new SizeF(DefaultWidth, DefaultHeight);
+
+		public override SizeF SizeThatFits(SizeF size)
+		{
+			// Creating a custom override for measuring the BoxView on iOS; this reports the same default size that's 
+			// specified in the old OnMeasure method. Normally we'd just do this centrally in the xplat code or override
+			// GetDesiredSize in a BoxViewHandler. But BoxView is a legacy control (replaced by Shapes), so we don't want
+			// to bring that into the new stuff. 
+
+			if (Element != null)
+			{
+				var heightRequest = Element.HeightRequest;
+				var widthRequest = Element.WidthRequest;
+
+				var height = heightRequest >= 0 ? heightRequest : DefaultHeight;
+				var width = widthRequest >= 0 ? widthRequest : DefaultWidth;
+
+				return new SizeF(width, height);
+			}
+
+			return DefaultSize;
 		}
 	}
 }

@@ -1,9 +1,12 @@
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui
 {
-	public interface INativeViewHandler : IViewHandler
+	public interface IPlatformViewHandler : IViewHandler
 	{
-		UIView? View { get; }
+		new UIView? PlatformView { get; }
+		new UIView? ContainerView { get; }
+		UIViewController? ViewController { get; }
 	}
 }

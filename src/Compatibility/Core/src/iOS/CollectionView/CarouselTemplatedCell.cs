@@ -1,10 +1,13 @@
 using System;
 using CoreGraphics;
 using Foundation;
+using Microsoft.Maui.Graphics;
+using ObjCRuntime;
 using UIKit;
 
 namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 {
+	[System.Obsolete]
 	public class CarouselTemplatedCell : TemplatedCell
 	{
 		public static NSString ReuseId = new NSString("Microsoft.Maui.Controls.Compatibility.Platform.iOS.CarouselTemplatedCell");
@@ -13,13 +16,13 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		[Export("initWithFrame:")]
 		[Microsoft.Maui.Controls.Internals.Preserve(Conditional = true)]
 		protected CarouselTemplatedCell(CGRect frame) : base(frame)
-		{ 
+		{
 		}
 
 		public override void ConstrainTo(nfloat constant)
 		{
 		}
-		
+
 		public override void ConstrainTo(CGSize constraint)
 		{
 			ClearConstraints();

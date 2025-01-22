@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -9,6 +10,10 @@ using Microsoft.Maui.Controls.Xaml.Internals;
 
 namespace Microsoft.Maui.Controls.Xaml
 {
+	[RequiresUnreferencedCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#if !NETSTANDARD
+	[RequiresDynamicCode(TrimmerConstants.XamlRuntimeParsingNotSupportedWarning)]
+#endif
 	class CreateValuesVisitor : IXamlNodeVisitor
 	{
 		public CreateValuesVisitor(HydrationContext context)
@@ -43,7 +48,7 @@ namespace Microsoft.Maui.Controls.Xaml
 		{
 			object value = null;
 
-			var type = XamlParser.GetElementType(node.XmlType, node, Context.RootElement?.GetType().GetTypeInfo().Assembly,
+			var type = XamlParser.GetElementType(node.XmlType, node, Context.RootElement?.GetType().Assembly,
 				out XamlParseException xpe);
 			if (xpe != null)
 			{
@@ -56,9 +61,13 @@ namespace Microsoft.Maui.Controls.Xaml
 			}
 			Context.Types[node] = type;
 			if (IsXaml2009LanguagePrimitive(node))
+			{
 				value = CreateLanguagePrimitive(type, node);
+			}
 			else if (node.Properties.ContainsKey(XmlName.xArguments) || node.Properties.ContainsKey(XmlName.xFactoryMethod))
+			{
 				value = CreateFromFactory(type, node);
+			}
 			else if (
 				type.GetTypeInfo()
 					.DeclaredConstructors.Any(
@@ -66,7 +75,9 @@ namespace Microsoft.Maui.Controls.Xaml
 							ci.IsPublic && ci.GetParameters().Length != 0 &&
 							ci.GetParameters().All(pi => pi.CustomAttributes.Any(attr => attr.AttributeType == typeof(ParameterAttribute)))) &&
 				ValidateCtorArguments(type, node, out string ctorargname))
+			{
 				value = CreateFromParameterizedConstructor(type, node);
+			}
 			else if (!type.GetTypeInfo().DeclaredConstructors.Any(ci => ci.IsPublic && ci.GetParameters().Length == 0) &&
 					 !ValidateCtorArguments(type, node, out ctorargname))
 			{
@@ -84,7 +95,7 @@ namespace Microsoft.Maui.Controls.Xaml
 					if (value == null && node.CollectionItems.Any() && node.CollectionItems.First() is ValueNode)
 					{
 						var serviceProvider = new XamlServiceProvider(node, Context);
-						var converted = ((ValueNode)node.CollectionItems.First()).Value.ConvertTo(type, () => type.GetTypeInfo(),
+						var converted = ((ValueNode)node.CollectionItems.First()).Value.ConvertTo(type, () => type,
 							serviceProvider, out Exception exception);
 						if (exception != null)
 						{
@@ -99,16 +110,7 @@ namespace Microsoft.Maui.Controls.Xaml
 							value = converted;
 					}
 					if (value == null)
-					{
-						try
-						{
-							value = Activator.CreateInstance(type);
-						}
-						catch (Exception e) when (e is TargetInvocationException || e is MemberAccessException)
-						{
-							value = XamlLoader.InstantiationFailedCallback?.Invoke(new XamlLoader.CallbackTypeInfo { XmlNamespace = node.XmlType.NamespaceUri, XmlTypeName = node.XmlType.Name }, type, e) ?? throw e;
-						}
-					}
+						value = Activator.CreateInstance(type);
 				}
 				catch (TargetInvocationException e) when (e.InnerException is XamlParseException || e.InnerException is XmlException)
 				{
@@ -161,17 +163,14 @@ namespace Microsoft.Maui.Controls.Xaml
 			if (value is BindableObject bindableValue && node.NameScopeRef != (parentNode as IElementNode)?.NameScopeRef)
 				NameScope.SetNameScope(bindableValue, node.NameScopeRef.NameScope);
 
-			if (XamlLoader.ValueCreatedCallback != null)
-			{
-				var name = node.XmlType.Name;
-				if (name.Contains(":"))
-					name = name.Substring(name.LastIndexOf(':') + 1);
-				XamlLoader.ValueCreatedCallback(new XamlLoader.CallbackTypeInfo { XmlNamespace = node.XmlType.NamespaceUri, XmlTypeName = name }, value);
-			}
+			//Workaround for when a VSM is applied before parenting
+			if (value is Element iElement)
+				iElement.transientNamescope = node.NameScopeRef.NameScope;
 
-			var assemblyName = (Context.RootAssembly ?? Context.RootElement?.GetType().GetTypeInfo().Assembly)?.GetName().Name;
-			if (assemblyName != null && value != null && !value.GetType().GetTypeInfo().IsValueType && XamlFilePathAttribute.GetFilePathForObject(Context.RootElement) is string path)
-				Diagnostics.VisualDiagnostics.RegisterSourceInfo(value, new Uri($"{path};assembly={assemblyName}", UriKind.Relative), ((IXmlLineInfo)node).LineNumber, ((IXmlLineInfo)node).LinePosition);
+
+			var assemblyName = (Context.RootAssembly ?? Context.RootElement?.GetType().Assembly)?.GetName().Name;
+			if (assemblyName != null && value != null && !value.GetType().IsValueType && XamlFilePathAttribute.GetFilePathForObject(Context.RootElement) is string path)
+				VisualDiagnostics.RegisterSourceInfo(value, new Uri($"{path};assembly={assemblyName}", UriKind.Relative), ((IXmlLineInfo)node).LineNumber, ((IXmlLineInfo)node).LinePosition);
 
 		}
 
@@ -188,15 +187,15 @@ namespace Microsoft.Maui.Controls.Xaml
 					NameScope.SetNameScope(bindable, node.NameScopeRef?.NameScope);
 			}
 
-			var assemblyName = (Context.RootAssembly ?? Context.RootElement.GetType().GetTypeInfo().Assembly)?.GetName().Name;
-			if (rnode.Root != null && !rnode.Root.GetType().GetTypeInfo().IsValueType && XamlFilePathAttribute.GetFilePathForObject(Context.RootElement) is string path)
-				Diagnostics.VisualDiagnostics.RegisterSourceInfo(rnode.Root, new Uri($"{path};assembly={assemblyName}", UriKind.Relative), ((IXmlLineInfo)node).LineNumber, ((IXmlLineInfo)node).LinePosition);
+			var assemblyName = (Context.RootAssembly ?? Context.RootElement.GetType().Assembly)?.GetName().Name;
+			if (rnode.Root != null && !rnode.Root.GetType().IsValueType && XamlFilePathAttribute.GetFilePathForObject(Context.RootElement) is string path)
+				VisualDiagnostics.RegisterSourceInfo(rnode.Root, new Uri($"{path};assembly={assemblyName}", UriKind.Relative), ((IXmlLineInfo)node).LineNumber, ((IXmlLineInfo)node).LinePosition);
 		}
 
 		public void Visit(ListNode node, INode parentNode)
 		{
 			//this is a gross hack to keep ListNode alive. ListNode must go in favor of Properties
-			if (ApplyPropertiesVisitor.TryGetPropertyName(node, parentNode, out XmlName name))
+			if (node.TryGetPropertyName(parentNode, out XmlName name))
 				node.XmlName = name;
 		}
 
@@ -236,15 +235,7 @@ namespace Microsoft.Maui.Controls.Xaml
 							ci.GetParameters().Length != 0 && ci.IsPublic &&
 							ci.GetParameters().All(pi => pi.CustomAttributes.Any(attr => attr.AttributeType == typeof(ParameterAttribute))));
 			object[] arguments = CreateArgumentsArray(node, ctorInfo);
-			try
-			{
-				return ctorInfo.Invoke(arguments);
-			}
-			catch (Exception e) when (e is TargetInvocationException || e is MissingMemberException)
-			{
-				return XamlLoader.InstantiationFailedCallback?.Invoke(new XamlLoader.CallbackTypeInfo { XmlNamespace = node.XmlType.NamespaceUri, XmlTypeName = node.XmlType.Name }, nodeType, e) ?? throw e;
-			}
-
+			return ctorInfo.Invoke(arguments);
 		}
 
 		public object CreateFromFactory(Type nodeType, IElementNode node)
@@ -254,18 +245,11 @@ namespace Microsoft.Maui.Controls.Xaml
 			if (!node.Properties.ContainsKey(XmlName.xFactoryMethod))
 			{
 				//non-default ctor
-				try
-				{
-					return Activator.CreateInstance(nodeType, arguments);
-				}
-				catch (Exception e) when (e is TargetInvocationException || e is MissingMemberException)
-				{
-					return XamlLoader.InstantiationFailedCallback?.Invoke(new XamlLoader.CallbackTypeInfo { XmlNamespace = node.XmlType.NamespaceUri, XmlTypeName = node.XmlType.Name }, nodeType, e) ?? throw e;
-				}
+				return Activator.CreateInstance(nodeType, arguments);
 			}
 
 			var factoryMethod = ((string)((ValueNode)node.Properties[XmlName.xFactoryMethod]).Value);
-			Type[] types = arguments == null ? new Type[0] : arguments.Select(a => a.GetType()).ToArray();
+			Type[] types = arguments == null ? Array.Empty<Type>() : arguments.Select(a => a.GetType()).ToArray();
 
 			bool isMatch(MethodInfo m)
 			{
@@ -280,27 +264,21 @@ namespace Microsoft.Maui.Controls.Xaml
 				{
 					if ((p[i].ParameterType.IsAssignableFrom(types[i])))
 						continue;
-					var op_impl = p[i].ParameterType.GetImplicitConversionOperator(fromType: types[i], toType: p[i].ParameterType)
-								?? types[i].GetImplicitConversionOperator(fromType: types[i], toType: p[i].ParameterType);
 
-					if (op_impl == null)
+					if (!TypeConversionHelper.TryConvert(arguments[i], p[i].ParameterType, out var convertedValue))
+					{
 						return false;
-					arguments[i] = op_impl.Invoke(null, new[] { arguments[i] });
+					}
+
+					arguments[i] = convertedValue;
 				}
 				return true;
 			}
 
-			try
-			{
-				var mi = nodeType.GetRuntimeMethods().FirstOrDefault(isMatch);
-				if (mi == null)
-					throw new MissingMemberException($"No static method found for {nodeType.FullName}::{factoryMethod} ({string.Join(", ", types.Select(t => t.FullName))})");
-				return mi.Invoke(null, arguments);
-			}
-			catch (Exception e) when (e is TargetInvocationException || e is MissingMemberException)
-			{
-				return XamlLoader.InstantiationFailedCallback?.Invoke(new XamlLoader.CallbackTypeInfo { XmlNamespace = node.XmlType.NamespaceUri, XmlTypeName = node.XmlType.Name }, nodeType, e) ?? throw e;
-			}
+			var mi = nodeType.GetRuntimeMethods().FirstOrDefault(isMatch);
+			if (mi == null)
+				throw new MissingMemberException($"No static method found for {nodeType.FullName}::{factoryMethod} ({string.Join(", ", types.Select(t => t.FullName))})");
+			return mi.Invoke(null, arguments);
 		}
 
 		public object[] CreateArgumentsArray(IElementNode enode)

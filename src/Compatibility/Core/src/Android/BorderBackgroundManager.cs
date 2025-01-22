@@ -2,6 +2,8 @@ using System;
 using System.ComponentModel;
 using Android.Content.Res;
 using Android.Graphics.Drawables;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Graphics;
 using AColor = Android.Graphics.Color;
 using AView = Android.Views.View;
 using Specifics = Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
@@ -116,7 +118,7 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				float shadowRadius = 0;
 				float shadowDy = 0;
 				float shadowDx = 0;
-				AColor shadowColor = Color.Transparent.ToAndroid();
+				AColor shadowColor = Colors.Transparent.ToAndroid();
 				// Add Android's default material shadow if we want it
 				if (useDefaultShadow)
 				{
@@ -125,8 +127,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 					shadowDx = 0;
 					shadowColor = _backgroundDrawable.PressedBackgroundColor.ToAndroid();
 				}
-				// Otherwise get values from the control (but only for supported APIs)
-				else if ((int)Forms.SdkInt >= 16)
+				// Otherwise get values from the control
+				else
 				{
 					shadowRadius = _renderer.ShadowRadius;
 					shadowDy = _renderer.ShadowDy;
@@ -149,16 +151,9 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 
 				if (!backgroundColorIsDefault || _drawOutlineWithBackground)
 				{
-					if (Forms.IsLollipopOrNewer)
-					{
-						var rippleColor = _backgroundDrawable.PressedBackgroundColor.ToAndroid();
-						_rippleDrawable = new RippleDrawable(ColorStateList.ValueOf(rippleColor), _backgroundDrawable, null);
-						Control.SetBackground(_rippleDrawable);
-					}
-					else
-					{
-						Control.SetBackground(_backgroundDrawable);
-					}
+					var rippleColor = _backgroundDrawable.PressedBackgroundColor.ToAndroid();
+					_rippleDrawable = new RippleDrawable(ColorStateList.ValueOf(rippleColor), _backgroundDrawable, null);
+					Control.SetBackground(_rippleDrawable);
 				}
 
 				_drawableEnabled = true;
@@ -224,17 +219,17 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				return;
 			}
 
-			if (e.PropertyName.Equals(Button.BorderColorProperty.PropertyName) ||
-				e.PropertyName.Equals(Button.BorderWidthProperty.PropertyName) ||
-				e.PropertyName.Equals(Button.CornerRadiusProperty.PropertyName) ||
-				e.PropertyName.Equals(VisualElement.BackgroundColorProperty.PropertyName) ||
-				e.PropertyName.Equals(VisualElement.BackgroundProperty.PropertyName) ||
-				e.PropertyName.Equals(Specifics.Button.UseDefaultPaddingProperty.PropertyName) ||
-				e.PropertyName.Equals(Specifics.Button.UseDefaultShadowProperty.PropertyName) ||
-				e.PropertyName.Equals(Specifics.ImageButton.IsShadowEnabledProperty.PropertyName) ||
-				e.PropertyName.Equals(Specifics.ImageButton.ShadowColorProperty.PropertyName) ||
-				e.PropertyName.Equals(Specifics.ImageButton.ShadowOffsetProperty.PropertyName) ||
-				e.PropertyName.Equals(Specifics.ImageButton.ShadowRadiusProperty.PropertyName))
+			if (e.PropertyName.Equals(Button.BorderColorProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Button.BorderWidthProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Button.CornerRadiusProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(VisualElement.BackgroundColorProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(VisualElement.BackgroundProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Specifics.Button.UseDefaultPaddingProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Specifics.Button.UseDefaultShadowProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Specifics.ImageButton.IsShadowEnabledProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Specifics.ImageButton.ShadowColorProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Specifics.ImageButton.ShadowOffsetProperty.PropertyName, StringComparison.Ordinal) ||
+				e.PropertyName.Equals(Specifics.ImageButton.ShadowRadiusProperty.PropertyName, StringComparison.Ordinal))
 			{
 				Reset();
 				UpdateDrawable();

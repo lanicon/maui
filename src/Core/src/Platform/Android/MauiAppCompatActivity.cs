@@ -1,63 +1,48 @@
-using System;
-using Android.App;
-using Android.Content;
-using Android.Content.Res;
 using Android.OS;
-using Android.Runtime;
 using Android.Views;
 using AndroidX.AppCompat.App;
-using AndroidX.AppCompat.Content.Res;
-using AndroidX.AppCompat.Widget;
-using AndroidX.CoordinatorLayout.Widget;
-using AndroidX.Core.Widget;
-using Google.Android.Material.AppBar;
-using AToolbar = AndroidX.AppCompat.Widget.Toolbar;
+using AndroidX.Core.Content.Resources;
+using Microsoft.Maui.LifecycleEvents;
+using Microsoft.Maui.Platform;
 
 namespace Microsoft.Maui
 {
-	public class MauiAppCompatActivity : AppCompatActivity
+	public partial class MauiAppCompatActivity : AppCompatActivity
 	{
+		// Override this if you want to handle the default Android behavior of restoring fragments on an application restart
+		protected virtual bool AllowFragmentRestore => false;
+
 		protected override void OnCreate(Bundle? savedInstanceState)
 		{
+			Microsoft.Maui.PlatformMauiAppCompatActivity.OnCreate(
+				this,
+				savedInstanceState,
+				AllowFragmentRestore,
+				Resource.Attribute.maui_splash,
+				Resource.Style.Maui_MainTheme_NoActionBar);
+
 			base.OnCreate(savedInstanceState);
 
-			if (App.Current as MauiApp == null)
-				throw new InvalidOperationException($"App is not {nameof(MauiApp)}");
-
-			var mauiApp = (MauiApp)App.Current;
-
-			if (mauiApp.Services == null)
-				throw new InvalidOperationException("App was not initialized");
-
-			var mauiContext = new MauiContext(mauiApp.Services, this);
-			var state = new ActivationState(mauiContext, savedInstanceState);
-			var window = mauiApp.CreateWindow(state);
-
-			window.MauiContext = mauiContext;
-
-			//Hack for now we set this on the App Static but this should be on IFrameworkElement
-			App.Current.SetHandlerContext(window.MauiContext);
-
-			var content = (window.Page as IView) ??
-				window.Page.View;
-
-			CoordinatorLayout parent = new CoordinatorLayout(this);
-
-			SetContentView(parent, new ViewGroup.LayoutParams(CoordinatorLayout.LayoutParams.MatchParent, CoordinatorLayout.LayoutParams.MatchParent));
-
-			//AddToolbar(parent);
-
-			parent.AddView(content.ToNative(window.MauiContext), new CoordinatorLayout.LayoutParams(CoordinatorLayout.LayoutParams.MatchParent, CoordinatorLayout.LayoutParams.MatchParent));
+			if (IPlatformApplication.Current?.Application is not null)
+			{
+				this.CreatePlatformWindow(IPlatformApplication.Current.Application, savedInstanceState);
+			}
 		}
 
-		void AddToolbar(ViewGroup parent)
+		public override bool DispatchTouchEvent(MotionEvent? e)
 		{
-			Toolbar toolbar = new Toolbar(this);
-			var appbarLayout = new AppBarLayout(this);
+			// For current purposes this needs to get called before we propagate
+			// this message out. In Controls this dispatch call will unfocus the 
+			// current focused element which is important for timing if we should
+			// hide/show the softkeyboard.
+			// If you move this to after the xplat call then the keyboard will show up
+			// then close
+			bool handled = base.DispatchTouchEvent(e);
 
-			appbarLayout.AddView(toolbar, new ViewGroup.LayoutParams(AppBarLayout.LayoutParams.MatchParent, global::Android.Resource.Attribute.ActionBarSize));
-			SetSupportActionBar(toolbar);
-			parent.AddView(appbarLayout, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent));
+			bool implHandled =
+				(this.GetWindow() as IPlatformEventsListener)?.DispatchTouchEvent(e) == true;
+
+			return handled || implHandled;
 		}
 	}
 }

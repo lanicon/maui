@@ -7,25 +7,10 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 	[TestFixture]
 	public class HRTests
 	{
-		[SetUp]
-		public void Setup()
-		{
-			Device.PlatformServices = new MockPlatformServices();
-			Microsoft.Maui.Controls.Internals.Registrar.RegisterAll(new Type[0]);
-			Application.Current = null;
-		}
-
 		[TearDown]
 		public void TearDown()
 		{
-			Device.PlatformServices = null;
-			XamlLoader.FallbackTypeResolver = null;
-			XamlLoader.ValueCreatedCallback = null;
-			XamlLoader.InstantiationFailedCallback = null;
 			Maui.Controls.Internals.ResourceLoader.ExceptionHandler2 = null;
-#pragma warning disable 0618
-			Internals.XamlLoader.DoNotThrowOnExceptions = false;
-#pragma warning restore 0618
 			Application.ClearCurrent();
 		}
 
@@ -33,7 +18,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		public void LoadResources()
 		{
 			var app = @"
-				<Application xmlns=""http://xamarin.com/schemas/2014/forms""
+				<Application xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 					xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"">
 					<Application.Resources>
 						<ResourceDictionary>
@@ -57,7 +42,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		public void LoadMultipleResources()
 		{
 			var app = @"
-				<Application xmlns=""http://xamarin.com/schemas/2014/forms""
+				<Application xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 					xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"">
 					<Application.Resources>
 						<Color x:Key=""almostPink"">HotPink</Color>
@@ -81,7 +66,7 @@ namespace Microsoft.Maui.Controls.Xaml.UnitTests
 		public void LoadSingleImplicitResources()
 		{
 			var app = @"
-				<Application xmlns=""http://xamarin.com/schemas/2014/forms""
+				<Application xmlns=""http://schemas.microsoft.com/dotnet/2021/maui""
 					xmlns:x=""http://schemas.microsoft.com/winfx/2009/xaml"">
 					<Application.Resources>
 						<Color x:Key=""almostPink"">HotPink</Color>

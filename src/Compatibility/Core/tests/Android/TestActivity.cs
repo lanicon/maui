@@ -14,6 +14,7 @@ using AToolbar = AndroidX.AppCompat.Widget.Toolbar;
 [assembly: ExportRenderer(typeof(TestShell), typeof(TestShellRenderer))]
 namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 {
+	[System.Obsolete]
 	[Activity(Label = "TestActivity", Icon = "@drawable/icon", Theme = "@style/MyTheme",
 		MainLauncher = false, HardwareAccelerated = true,
 		ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.UiMode)]
@@ -45,8 +46,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android.UnitTests
 
 			if (visualElement != null)
 			{
-				var renderer = AppCompat.Platform.CreateRendererWithContext(visualElement, result);
-				AppCompat.Platform.SetRenderer(visualElement, renderer);
+				var renderer = Platform.CreateRendererWithContext(visualElement, result);
+				Platform.SetRenderer(visualElement, renderer);
 				result.SetContentView(renderer.View);
 			}
 
